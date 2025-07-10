@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 
 const Login = () => {
   return (
@@ -14,7 +15,7 @@ const Login = () => {
               Username: <span className="text-red-500">*</span>
             </label>
             <input 
-            className="w-full bg-white text-black rounded-3xl px-2 py-1/2 border border-black-300 focus:outline-none focus:ring-2 focus:ring-[#AF524D]"
+            className="w-full bg-white text-black rounded-md px-2 py-1 border border-black-300 focus:outline-none focus:ring-2 focus:ring-[#AF524D]"
             type="text" 
             id="username" 
             required
@@ -26,14 +27,14 @@ const Login = () => {
               Password: <span className="text-red-500">*</span>
             </label>
             <input 
-            className="w-full bg-white text-black rounded-3xl px-1 py-1/2 border border-black-300 focus:outline-none focus:ring-2 focus:ring-[#AF524D]"
+            className="w-full bg-white text-black rounded-md px-2 py-1 border border-black-300 focus:outline-none focus:ring-2 focus:ring-[#AF524D]"
             type="password" 
             id="password" 
             required
             />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-top justify-between space-y-8">
             <div className="flex items-center space-x-2 justify-center">
               <input 
               className="w-auto bg-white text-black rounded-3xl px-1 py-1/2 border border-black-300 focus:outline-none"
@@ -41,18 +42,24 @@ const Login = () => {
               id="rememberMe" 
               required
               />
-              <label htmlFor="rememberMe">
+              <label className="cursor-pointer" htmlFor="rememberMe">
                 Remember me
               </label>
             </div>
 
-            <a href="#">
-              <p className="cursor-pointer hover:underline hover:text-blue-400 text-sm transition ease-in-out delay-50">Forgot password?</p>
+            <a href="#" className="item-top">
+              <p className="cursor-pointer hover:underline hover:text-[#82171C] text-sm transition ease-in-out hover:font-semibold">Forgot password?</p>
             </a>
           </div>
 
+          <div className="flex flex-col space-y-4">
           <div className="flex items-center justify-center">
-            <button className="bg-[#623C2B] text-white font-bold px-4 py-2 rounded-3xl cursor-pointer transition ease-in-out delay-150 hover:bg-[#FFECB5] duration-300 tracking-wide">SUBMIT</button>
+            <button className="bg-[#623C2B] text-white font-bold px-6 py-2 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-[#FFECB5] duration-300 tracking-wide w-full">LOGIN</button>
+          </div>
+<hr />
+          <div className="flex items-center justify-center">
+            <Link className="bg-[#424220] text-white font-bold px-6 py-2 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-[#FFECB5] duration-300 tracking-wide w-full text-center" to="/signup">SIGN UP</Link>
+          </div>
           </div>
         </div>
       </div>

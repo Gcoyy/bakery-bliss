@@ -8,7 +8,7 @@ function App() {
     <>
       <Header />
       <Routes>
-        {/* <Route path="/bakery-bliss" element={<SignUp />} /> */}
+        <Route path="/signup" element={<SignUp />} />
         <Route path="/bakery-bliss" element={<Login />} />
       </Routes>
     </>

@@ -83,11 +83,11 @@ const SignUp = () => {
             required
             />
           </div>
+        </div>
 
-          <div className="flex items-center justify-center">
+        <div className="flex items-center justify-center">
             <button className="bg-[#623C2B] text-white font-bold px-4 py-2 rounded-3xl cursor-pointer transition ease-in-out delay-150 hover:bg-[#FFECB5] duration-300 tracking-wide">Submit</button>
           </div>
-        </div>
       </div>
     </div>
   )
