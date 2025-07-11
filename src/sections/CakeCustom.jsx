@@ -1,6 +1,29 @@
-
+import { useEffect, useRef, useState } from "react";
 
 const CakeCustom = () => {
+  const buttonRef = useRef(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => setVisible(true), 500);
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (buttonRef.current) {
+      observer.observe(buttonRef.current);
+    }
+
+    return () => {
+      if (buttonRef.current) observer.unobserve(buttonRef.current);
+    };
+  }, []);
+
+
   return (
     <div className="bg-[linear-gradient(to_bottom,_#F2EFE8_0%,_#DFDAC7_51%,_#A8A599_100%)] h-auto py-20">
       <section className="flex flex-col items-center text-center px-4 py-16">
@@ -20,12 +43,30 @@ const CakeCustom = () => {
     <img src="/image 4.png" alt="Cake" className="w-full mx-auto" />
 
     {/* Button positions */}
-    <button className="absolute top-[18%] left-[0%] text-gray-800 px-8 py-1.5 rounded-full text-2xl shadow-md tracking-[0.15em] max-w-xs w-auto text-left bg-gradient-to-r from-white/60 to-transparent text-[#3A3A3A] border-4 border-[#82171C] transition-transform hover:scale-115 duration-600 delay-100 backdrop-filter backdrop-blur-[2px] font-semibold">
+    <button
+      ref={buttonRef}
+      className={`absolute top-[18%] left-[0%] text-gray-800 px-8 py-1.5 rounded-full text-2xl shadow-md tracking-[0.15em] max-w-xs w-auto text-left bg-gradient-to-r from-white/60 to-transparent text-[#3A3A3A] border-4 border-[#82171C] backdrop-filter backdrop-blur-[2px] font-semibold transition-opacity duration-700 ease-in
+        ${visible ? "opacity-100" : "opacity-0"}
+      `}
+    >
       Add Frosting <br />& Fillings
     </button>
 
 
-    <button className="absolute top-[10%] right-[5%] text-gray-800 px-8 py-1.5 rounded-full text-2xl shadow-md tracking-[0.15em] max-w-xs w-auto text-left bg-gradient-to-l from-white/60 to-transparent text-[#3A3A3A] border-4 border-[#82171C] transition-transform hover:scale-115 duration-600 delay-100 backdrop-filter backdrop-blur-[2px] font-semibold">
+    <button className={`
+    absolute top-[10%] right-[5%] 
+    text-gray-800 px-8 py-1.5 rounded-full text-2xl shadow-md tracking-[0.15em]
+    max-w-xs w-auto text-left
+    bg-gradient-to-l from-white/60 to-transparent text-[#3A3A3A]
+    border-4 border-[#82171C] backdrop-filter backdrop-blur-[2px]
+    font-semibold
+
+    transition-opacity duration-[700ms] ease-in 
+    transition-transform duration-[300ms] hover:scale-115 
+
+    ${visible ? "opacity-100" : "opacity-0"}
+    `}
+    >
       Add Decorations <br />& Toppings
     </button>
 
