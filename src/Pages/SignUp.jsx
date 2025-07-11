@@ -86,7 +86,7 @@ const SignUp = () => {
         </div>
 
         <div className="flex items-center justify-center w-sm">
-            <button className="bg-[#623C2B] text-white font-bold px-6 py-2 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-[#FFECB5] duration-300 tracking-wide w-full">SIGN UP</button>
+            <button className="bg-[#DFAD56]/80 text-white font-bold px-6 py-2 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-[#FFECB5] hover:text-gray-800 duration-300 tracking-wide w-full">SIGN UP</button>
         </div>
       </div>
     </div>

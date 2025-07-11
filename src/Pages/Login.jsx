@@ -54,11 +54,16 @@ const Login = () => {
 
           <div className="flex flex-col space-y-4">
           <div className="flex items-center justify-center">
-            <button className="bg-[#623C2B] text-white font-bold px-6 py-2 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-[#FFECB5] duration-300 tracking-wide w-full">LOGIN</button>
+            <button className="bg-[#82171C] text-white font-bold px-6 py-2 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-[#FFECB5] hover:text-gray-800 duration-300 tracking-wide w-full">LOGIN</button>
           </div>
 <hr />
           <div className="flex items-center justify-center">
-            <Link className="bg-[#424220] text-white font-bold px-6 py-2 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-[#FFECB5] duration-300 tracking-wide w-full text-center" to="/signup">SIGN UP</Link>
+            <Link 
+            className="bg-[#DFAD56]/80 text-white font-bold px-6 py-2 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-[#FFECB5] hover:text-gray-800 duration-300 tracking-wide w-full text-center" 
+            to="/signup"
+            >
+              SIGN UP
+            </Link>
           </div>
           </div>
         </div>

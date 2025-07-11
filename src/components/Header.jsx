@@ -10,23 +10,23 @@ const Header = () => {
 
       <nav className="desktop">
         <ul className="flex space-x-8 text-white font-semibold text-base">
-          <li>
-            <Link to="/" className="hover:underline">Home</Link>
-          </li>
-          <li>
-            <Link to="/customization" className="hover:underline">Cake Customization</Link>
-          </li>
-          <li>
-            <Link to="/catalog" className="hover:underline">Cake Catalog</Link>
-          </li>
-          <li>
-            <Link to="/aboutus" className="hover:underline">About Us</Link>
-          </li>
-          <li>
-            <Link to="/contactus" className="hover:underline">Contact Us</Link>
-          </li>
+          {[
+            { to: "/", label: "Home" },
+            { to: "/customization", label: "Cake Customization" },
+            { to: "/catalog", label: "Cake Catalog" },
+            { to: "/aboutus", label: "About Us" },
+            { to: "/contactus", label: "Contact Us" }
+          ].map((item) => (
+            <li key={item.to} className="relative group">
+              <Link to={item.to} className="transition-colors duration-300">
+                {item.label}
+              </Link>
+              <span className="absolute left-0 -bottom-1 h-[2px] w-0 bg-white transition-all duration-300 group-hover:w-full"></span>
+            </li>
+          ))}
         </ul>
       </nav>
+
 
       <div className="flex items-center space-x-4">
         <Link to="/login" className="h-10 w-10">
