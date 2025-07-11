@@ -29,9 +29,9 @@ const Header = () => {
       </nav>
 
       <div className="flex items-center space-x-4">
-        <a href="../Pages/Profile" className="h-10 w-10">
+        <Link to="/login" className="h-10 w-10">
           <img src="/Profile Icon.png" alt="Profile" className="w-full h-full" />
-        </a>
+        </Link>
         <a href="../Pages/Cart" className="h-10 w-10">
           <img src="/Cart.png" alt="Cart" className="w-full h-full" />
         </a>
