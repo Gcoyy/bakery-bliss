@@ -1,7 +1,9 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 
 const Header = () => {
+  const location = useLocation();
+
   return (
     <header className="flex items-center justify-between px-8 bg-[#AF524D] w-full h-[14vh]">
       <a className="logo" href="../Pages/Home">
@@ -9,16 +11,21 @@ const Header = () => {
       </a>
 
       <nav className="desktop">
-        <ul className="flex space-x-8 text-white font-semibold text-base">
+        <ul className="flex space-x-8 font-semibold text-base">
           {[
             { to: "/", label: "Home" },
             { to: "/customization", label: "Cake Customization" },
             { to: "/catalog", label: "Cake Catalog" },
             { to: "/aboutus", label: "About Us" },
-            { to: "/contactus", label: "Contact Us" }
+            { to: "/contactus", label: "Contact Us" },
           ].map((item) => (
             <li key={item.to} className="relative group">
-              <Link to={item.to} className="transition-colors duration-300">
+              <Link
+                to={item.to}
+                className={`transition-colors duration-300 ${
+                  location.pathname === item.to ? "text-[#EBD187]" : "text-white"
+                }`}
+              >
                 {item.label}
               </Link>
               <span className="absolute left-0 -bottom-1 h-[2px] w-0 bg-white transition-all duration-300 group-hover:w-full"></span>
