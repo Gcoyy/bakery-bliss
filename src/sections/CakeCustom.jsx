@@ -1,30 +1,6 @@
-// import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react"
 
 const CakeCustom = () => {
-  // const buttonRef = useRef(null);
-  // const [visible, setVisible] = useState(false);
-
-  // useEffect(() => {
-  //   const observer = new IntersectionObserver(
-  //     ([entry]) => {
-  //       if (entry.isIntersecting) {
-  //         setTimeout(() => setVisible(true), 500);
-  //       }
-  //     },
-  //     { threshold: 0.5 }
-  //   );
-
-  //   if (buttonRef.current) {
-  //     observer.observe(buttonRef.current);
-  //   }
-
-  //   return () => {
-  //     if (buttonRef.current) observer.unobserve(buttonRef.current);
-  //   };
-  // }, []);
-
-
   return (
     <div className="bg-[linear-gradient(to_bottom,_#F2EFE8_0%,_#DFDAC7_51%,_#A8A599_100%)] h-auto py-20">
       <section className="flex flex-col items-center text-center px-4 py-16">
@@ -36,7 +12,7 @@ const CakeCustom = () => {
   {/* Description */}
   <p className="max-w-2xl text-gray-700 mb-12 text-base md:text-3xl text-left">
     Connie de Cafe's got you covered! With our drag-and-drop customization tool, 
-    you can bring your cake ideas to life — and see the magic happen in REAL TIME!
+    you can bring your cake ideas to life — and see the magic happen in <span className="font-bold">REAL TIME!</span>
   </p>
 
   {/* Cake image with hotspots */}

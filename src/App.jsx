@@ -5,6 +5,8 @@ import SignUp from "./Pages/SignUp"
 import Login from "./Pages/Login"
 import Home from "./Pages/Customer/Home"
 import AboutUs from "./Pages/Customer/AboutUs"
+import ContactUs from "./Pages/Customer/ContactUs"
+import ScrollToHashElement from "./components/ScrollToHashElement"
 
 
 function App() {
@@ -16,7 +18,9 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<Home/>} /> 
         <Route path="/aboutus" element={<AboutUs/>} />
+        <Route path="contactus" element={<ContactUs />} />
       </Routes>
+      <ScrollToHashElement />
       <Footer />
     </>
   )

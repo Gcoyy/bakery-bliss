@@ -2,9 +2,9 @@ import { motion } from "framer-motion";
 
 const Hero = () => {
   return (
-    <section className="bg-[url('/Hero.png')] bg-cover bg-center w-full h-[120vh] flex items-center justify-start">
+    <section className="bg-[url('/Hero.png')] bg-cover bg-center w-full h-[120vh] flex items-center justify-start" id="home">
       <div className="flex flex-col items-center justify-center h-full text-center space-y-15 max-w-2xl w-full px-8">
-        <h1 className="text-[#EBD187] text-8xl font-abhaya ">Connie de Cafe</h1>
+        <h1 className="text-[#EBD187] text-8xl font-abhaya ">Connie de Café</h1>
 
         <p className="font-bold text-white/76 text-3xl">Where every slice begins with your imagination</p>
 
