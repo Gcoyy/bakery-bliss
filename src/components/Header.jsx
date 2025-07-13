@@ -36,10 +36,10 @@ const Header = () => {
 
 
       <div className="flex items-center space-x-4">
-        <Link to="/login" className="h-10 w-10">
+        <Link to="/profile" className="h-12 w-12">
           <img src="/Profile Icon.png" alt="Profile" className="w-full h-full" />
         </Link>
-        <a href="../Pages/Cart" className="h-10 w-10">
+        <a href="../Pages/Cart" className="h-12 w-12">
           <img src="/Cart.png" alt="Cart" className="w-full h-full" />
         </a>
       </div>
