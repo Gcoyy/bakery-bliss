@@ -7,11 +7,13 @@ import 'swiper/css/pagination';
 
 
 const Profile = () => {
-    const username = "John Doe";
-    const address = "123 Bakery Lane, Sweet City, SC 12345";
+    const username = "John Snow";
+    // const address = "123 Bakery Lane, Sweet City, SC 12345";
     const phone = "123-456-7890";
     const email = "p8oZy@example.com";
     const password = "password123";
+    const firstname = "John";
+    const lastname = "Doe";
 
      // Fix Swiper nav buttons not showing until after mount
   useEffect(() => {}, []);
@@ -108,6 +110,7 @@ const Profile = () => {
                 {/* <p>USER _ID#</p> */}
                 <div className="space-y-1">
                     {/* <p>ADDRESS: {address}</p> */}
+                    <p>NAME: {firstname} {lastname}</p>
                     <p>PHONE: {phone}</p>
                     <p>EMAIL: {email}</p>
                     <p>PASSWORD: {password}</p>
@@ -122,53 +125,53 @@ const Profile = () => {
         </div>
 
         <div className="relative w-full mt-10 bg-[#F3F0EA] rounded-r-3xl rounded-l-3xl py-6 px-4">
-      <Swiper
-        modules={[Navigation]}
-        navigation={{
-            nextEl: '.custom-next',
-            prevEl: '.custom-prev',
-        }}
-        pagination={{ clickable: true }}
-        spaceBetween={20}
-        slidesPerView={1}
-        loop={false}
-        className="w-full h-full"
-        >
-        {cakeGroups.map((group, i) => (
-          <SwiperSlide key={i}>
-            <div className="flex justify-center gap-6">
-              {group.map((cake, idx) => (
-                <div
-                  key={idx}
-                  className="bg-white rounded-3xl shadow-lg overflow-hidden w-56 text-center"
+            <Swiper
+                modules={[Navigation]}
+                navigation={{
+                    nextEl: '.custom-next',
+                    prevEl: '.custom-prev',
+                }}
+                pagination={{ clickable: true }}
+                spaceBetween={20}
+                slidesPerView={1}
+                loop={false}
+                className="w-full h-full"
                 >
-                  <img
-                    src={cake.image}
-                    alt={cake.name}
-                    className="rounded-t-3xl"
-                  />
-                  <div className="bg-[#3B3B3B] text-white py-2 px-2 rounded-b-3xl">
-                    <h3 className="font-bold text-lg">{cake.name}</h3>
-                    <p className="text-sm italic">{cake.subtitle}</p>
-                    <p className="text-xs text-blue-200 underline">
-                      {cake.note}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SwiperSlide>
-        ))}
+                {cakeGroups.map((group, i) => (
+                <SwiperSlide key={i}>
+                    <div className="flex justify-center gap-6">
+                    {group.map((cake, idx) => (
+                        <div
+                        key={idx}
+                        className="bg-white rounded-3xl shadow-lg overflow-hidden w-56 text-center"
+                        >
+                        <img
+                            src={cake.image}
+                            alt={cake.name}
+                            className="rounded-t-3xl"
+                        />
+                        <div className="bg-[#3B3B3B] text-white py-2 px-2 rounded-b-3xl">
+                            <h3 className="font-bold text-lg">{cake.name}</h3>
+                            <p className="text-sm italic">{cake.subtitle}</p>
+                            <p className="text-xs text-blue-200 underline">
+                            {cake.note}
+                            </p>
+                        </div>
+                        </div>
+                    ))}
+                    </div>
+                </SwiperSlide>
+                ))}
 
-        {/* Navigation Arrows */}
-        <div className="custom-prev absolute top-1/2 left-0 -translate-y-1/2 bg-gray-500 rounded-r-lg px-3 py-4 cursor-pointer z-10 text-white text-2xl">
-          ❮
+                {/* Navigation Arrows */}
+                <div className="custom-prev absolute top-1/2 left-0 -translate-y-1/2 bg-gray-500 rounded-r-lg px-3 py-4 cursor-pointer z-10 text-white text-2xl">
+                &lt;
+                </div>
+                <div className="custom-next absolute top-1/2 right-0 -translate-y-1/2 bg-gray-500 rounded-l-lg px-3 py-4 cursor-pointer z-10 text-white text-2xl">
+                &gt;
+                </div>
+            </Swiper>
         </div>
-        <div className="custom-next absolute top-1/2 right-0 -translate-y-1/2 bg-gray-500 rounded-l-lg px-3 py-4 cursor-pointer z-10 text-white text-2xl">
-          ❯
-        </div>
-      </Swiper>
-    </div>
       </div>
     </section>
   )
