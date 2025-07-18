@@ -8,12 +8,12 @@ import 'swiper/css/pagination';
 
 const Profile = () => {
     const username = "John Snow";
-    // const address = "123 Bakery Lane, Sweet City, SC 12345";
     const phone = "123-456-7890";
     const email = "p8oZy@example.com";
     const password = "password123";
     const firstname = "John";
     const lastname = "Doe";
+    const phoneNumber = "123-456-7890";
 
      // Fix Swiper nav buttons not showing until after mount
   useEffect(() => {}, []);
@@ -96,32 +96,75 @@ const Profile = () => {
     return chunked;
   };
 
-  const cakeGroups = chunkArray(cakes, 4); // 3 cakes per slide
+  const cakeGroups = chunkArray(cakes, 4); // 4 cakes per slide
 
   return (
     <section className="bg-gradient-to-t from-[#424220] to-[#F8E6B4] min-h-screen flex flex-col items-center justify-center py-20 px-10">
       <div className="bg-[linear-gradient(to_bottom,_white_0%,_#DFDAC7_51%,_#A8A599_100%)] w-full p-10 rounded-2xl shadow-2xl">
-        <div className="flex items-center space-x-6">
-            <img src="/pfp.png" alt="Profile Picture" />
+        
+        {/* Title */}
+        <h1 className="text-3xl font-bold text-black">My Profile</h1>
+        <p className="text-lg text-gray-500">Manage and protect your account</p>
+        <hr className="my-6 border-gray-400" />
 
-            <div className="bg-[#F2EFE8] p-6 rounded-lg shadow-xl space-y-4 w-1/3">
-                <h1 className="text-4xl font-bold">{username}</h1>
-                <hr />
-                {/* <p>USER _ID#</p> */}
-                <div className="space-y-1">
-                    {/* <p>ADDRESS: {address}</p> */}
-                    <p>NAME: {firstname} {lastname}</p>
-                    <p>PHONE: {phone}</p>
-                    <p>EMAIL: {email}</p>
-                    <p>PASSWORD: {password}</p>
-                </div>
-            </div>
+        {/* Username */}
+        <div className="mb-6">
+          <label className="block text-gray-500 font-semibold mb-2">Username</label>
+          <input
+            type="text"
+            value={username}
+            className="w-full border border-black rounded p-3 text-lg"
+          />
+        </div>
+
+        {/* First and Last Name */}
+        <div className="flex flex-col md:flex-row gap-6 mb-6">
+          <div className="flex-1">
+            <label className="block text-gray-500 font-semibold mb-2">First Name</label>
+            <input
+              type="text"
+              value={firstname}
+              className="w-full border border-black rounded p-3 text-lg"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-gray-500 font-semibold mb-2">Last Name</label>
+            <input
+              type="text"
+              value={lastname}
+              className="w-full border border-black rounded p-3 text-lg"
+            />
+          </div>
+        </div>
+
+        {/* Email */}
+        <div className="mb-6">
+          <label className="block text-gray-500 font-semibold mb-1">Email</label>
+          <p className="text-black text-lg font-medium">{email}</p>
+        </div>
+
+        {/* Phone Number with icon */}
+        <div className="mb-10 flex items-center gap-3">
+          <div>
+            <label className="block text-gray-500 font-semibold mb-1">Phone Number</label>
+            <p className="text-black text-lg font-medium">{phoneNumber}</p>
+          </div>
+          <button className="text-blue-600 hover:text-blue-800 self-end cursor-pointer">
+            <img className='w-7 h-7 hover:color-red-500 ' src="/edit.svg" alt="Edit Icon" />
+          </button>
+        </div>
+
+        {/* Save Button */}
+        <div className="text-center">
+          <button className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-10 rounded-lg text-lg cursor-pointer">
+            Save
+          </button>
         </div>
       </div>
 
       <div className="bg-gradient-to-t from-[#613C2A] to-[#EAD0C4] w-full p-10 rounded-2xl shadow-2xl mt-10">
-        <div className="bg-[#F2EFE8] p-1 rounded-full ">
-            <p>Saved Custom Cakes:</p>
+        <div className="bg-[#F2EFE8] p-2 rounded-full">
+            <p className='text-2xl font-bold cursor-default'>Saved Custom Cakes:</p>
         </div>
 
         <div className="relative w-full mt-10 bg-[#F3F0EA] rounded-r-3xl rounded-l-3xl py-6 px-4">
@@ -131,7 +174,6 @@ const Profile = () => {
                     nextEl: '.custom-next',
                     prevEl: '.custom-prev',
                 }}
-                pagination={{ clickable: true }}
                 spaceBetween={20}
                 slidesPerView={1}
                 loop={false}

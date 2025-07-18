@@ -8,6 +8,7 @@ import AboutUs from "./Pages/Customer/AboutUs"
 import ContactUs from "./Pages/Customer/ContactUs"
 import ScrollToHashElement from "./components/ScrollToHashElement"
 import Profile from "./Pages/Customer/Profile"
+import CakeCatalog from "./Pages/Customer/CakeCatalog"
 
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
         <Route path="/aboutus" element={<AboutUs/>} />
         <Route path="contactus" element={<ContactUs />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/cakecatalog" element={<CakeCatalog />} />
       </Routes>
       <ScrollToHashElement />
       <Footer />

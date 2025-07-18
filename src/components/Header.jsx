@@ -15,7 +15,7 @@ const Header = () => {
           {[
             { to: "/", label: "Home" },
             { to: "/customization", label: "Cake Customization" },
-            { to: "/catalog", label: "Cake Catalog" },
+            { to: "/cakecatalog", label: "Cake Catalog" },
             { to: "/aboutus", label: "About Us" },
             { to: "/contactus", label: "Contact Us" },
           ].map((item) => (
