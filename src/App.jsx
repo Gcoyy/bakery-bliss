@@ -10,6 +10,10 @@ import ScrollToHashElement from "./components/ScrollToHashElement"
 import Profile from "./Pages/Customer/Profile"
 import CakeCatalog from "./Pages/Customer/CakeCatalog"
 
+import AdminPage from "./Pages/Admin/AdminPage"
+import Inventory from "./sections/Inventory"
+import Cakes from "./sections/Cakes"
+import CakeOrders from "./sections/CakeOrders"
 
 function App() {
   return (
@@ -23,6 +27,12 @@ function App() {
         <Route path="contactus" element={<ContactUs />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/cakecatalog" element={<CakeCatalog />} />
+
+        <Route path="/admin" element={<AdminPage />}>
+          <Route path="option1" element={<Inventory/>} />
+          <Route path="cakes" element={<Cakes />} />
+          <Route path="cake orders" element={<CakeOrders />} />
+        </Route>
       </Routes>
       <ScrollToHashElement />
       <Footer />

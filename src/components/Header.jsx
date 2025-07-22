@@ -13,7 +13,7 @@ const Header = () => {
       <nav className="desktop">
         <ul className="flex space-x-8 font-semibold text-base">
           {[
-            { to: "/", label: "Home" },
+            { to: "/admin", label: "Home" },
             { to: "/customization", label: "Cake Customization" },
             { to: "/cakecatalog", label: "Cake Catalog" },
             { to: "/aboutus", label: "About Us" },
