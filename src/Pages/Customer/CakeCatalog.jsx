@@ -41,35 +41,35 @@ const [scrollSticky, setScrollSticky] = useState(false);
           <h2 className="text-xl font-semibold mb-4">Filters</h2>
 
           <div className="mb-6">
-            <h3 className="font-medium mb-1">Sort by</h3>
+            <h3 className="font-semibold mb-1">Sort by</h3>
             <button className="text-left w-full text-sm text-[#381914]">▼</button>
           </div>
 
           <div className="mb-6">
-            <h3 className="font-medium mb-2">Price</h3>
+            <h3 className="font-semibold mb-2">Price</h3>
             <input
               type="range"
               min="0"
               max="16000"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              className="w-full"
+              className="w-full cursor-pointer slider-design appearance-none bg-[#6a2e2e] rounded-lg h-2"
             />
             <p className="text-sm mt-1">₱0 – ₱{price}</p>
           </div>
 
           <div className="mb-6">
-            <h3 className="font-medium mb-2">Theme</h3>
+            <h3 className="font-semibold mb-2">Theme</h3>
             {["Plain", "Birthday", "Wedding", "Christmas", "Graduation", "Anniversary", "New Years"].map((theme) => (
-              <label key={theme} className="block text-sm">
-                <input type="checkbox" className="mr-2" />
+              <label key={theme} className="block text-sm flex items-center">
+                <input type="checkbox" className="mr-2 appearance-none w-4 h-4 border-2 border-[#381914] checked:bg-[#381914] checked:border-transparent focus:outline-none cursor-pointer" />
                 {theme}
               </label>
             ))}
           </div>
 
           <div>
-            <h3 className="font-medium mb-1">Tiers</h3>
+            <h3 className="font-semibold mb-1">Tiers</h3>
             <button className="text-left w-full text-sm text-[#381914]">▼</button>
           </div>
         </aside>

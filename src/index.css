@@ -14,3 +14,20 @@ body {
 .font-jost {
   font-family: 'Jost', sans-serif;
 }
+
+.slider-design::-webkit-slider-thumb {
+  appearance: none;
+  height: 1rem; /* h-4 */
+  width: 1rem;  /* w-4 */
+  border-radius: 9999px; /* rounded-full */
+  background-color: #3a1a1a;
+  box-shadow: none;
+  transition: all 0.2s;
+}
+
+.slider-design::-moz-range-thumb {
+  height: 1rem;
+  width: 1rem;
+  border-radius: 9999px;
+  background-color: #3a1a1a;
+}
