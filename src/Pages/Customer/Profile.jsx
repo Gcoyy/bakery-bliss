@@ -1,24 +1,73 @@
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination } from 'swiper/modules';
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { UserAuth } from '../../context/AuthContext';
+import { supabase } from '../../supabaseClient';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 
 
 const Profile = () => {
-    const username = "John Snow";
-    const email = "p8oZy@example.com";
-    const firstname = "John";
-    const lastname = "Doe";
-    const [phoneNumber, setPhoneNumber] = useState("123-456-7890");
+    // State variables  
+    const [username, setUsername] = useState("");
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [phoneNumber, setPhoneNumber] = useState("");
     const [isEditingPhone, setIsEditingPhone] = useState(false);
     const [tempPhoneNumber, setTempPhoneNumber] = useState(phoneNumber);
-    
+    const { session, signOut } = UserAuth();
+    const [profile, setProfile] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
 
-     // Fix Swiper nav buttons not showing until after mount
-  useEffect(() => {}, []);
+    // Function to handle sign out
+    const handleSignOut = async () => {
+      try {
+        await signOut();
+        navigate("/login"); // Redirect to login page
+      } catch (error) {
+        console.error("Error signing out:", error);
+      }
+    };
 
+    useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        if (!session || !session.user) {
+          console.log("No session or user found.");
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("CUSTOMER")
+          .select("*")
+          .eq("auth_user_id", session.user.id)
+          .single();
+
+        if (error || !data) {
+          console.log("No profile data found for this user.");
+        } else {
+          console.log("Fetched profile:", data);
+          setUsername(data.cus_username || "");
+          setFirstName(data.cus_fname || "");
+          setLastName(data.cus_lname || "");
+          setPhoneNumber(data.cus_celno || "");
+          setProfile(data);
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, [session]);
+
+
+  // Fix Swiper nav buttons not showing until after mount
+  // Static cakes data
   const cakes = [
     {
       name: 'Wedding Cake',
@@ -96,25 +145,66 @@ const Profile = () => {
     }
     return chunked;
   };
-
   const cakeGroups = chunkArray(cakes, 4); // 4 cakes per slide
 
+  // Function to handle phone number edit
   const handleEditPhone = () => {
       setTempPhoneNumber(phoneNumber);
       setIsEditingPhone(true);
     };
 
-    const handleSavePhone = () => {
-      setPhoneNumber(tempPhoneNumber);
-      setIsEditingPhone(false);
+// Function to handle profile save
+  const handleSaveProfile = async () => {
+  try {
+    const updates = {
+      cus_username: username,
+      cus_fname: firstName,
+      cus_lname: lastName,
+      cus_celno: tempPhoneNumber,
     };
+
+    const { error } = await supabase
+      .from("CUSTOMER")
+      .update(updates)
+      .eq("auth_user_id", session.user.id);
+
+    if (error) {
+      console.error("Error updating profile:", error.message);
+    } else {
+      console.log("Profile updated successfully.");
+      setProfile(prev => ({ ...prev, ...updates }));
+      setPhoneNumber(tempPhoneNumber); // commit phone update
+      setIsEditingPhone(false); // exit phone edit mode
+    }
+  } catch (err) {
+    console.error("Unexpected error:", err);
+  }
+};
+
+
+
+  if (loading) {
+  return <p className="text-center text-xl">Loading profile...</p>;
+  }
 
   return (
     <section className="bg-gradient-to-t from-[#424220] to-[#F8E6B4] min-h-screen flex flex-col items-center justify-center py-20 px-10">
       <div className="bg-[linear-gradient(to_bottom,_white_0%,_#DFDAC7_51%,_#A8A599_100%)] w-full p-10 rounded-2xl shadow-2xl">
         
         {/* Title */}
-        <h1 className="text-3xl font-bold text-black">My Profile</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-black">My Profile</h1>
+          <button
+            onClick={handleSignOut}
+            className="bg-red-500 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded"
+          >
+            Sign Out
+          </button>
+        </div>
+        <div className="flex justify-end mb-4">
+
+        </div>
+
         <p className="text-lg text-gray-500">Manage and protect your account</p>
         <hr className="my-6 border-gray-400" />
 
@@ -124,7 +214,8 @@ const Profile = () => {
           <input
             type="text"
             value={username}
-            className="w-full border border-black rounded p-3 text-lg"
+            onChange={(e) => setUsername(e.target.value)}
+            className="bg-white border border-gray-300 px-4 py-2 rounded w-full"
           />
         </div>
 
@@ -134,16 +225,18 @@ const Profile = () => {
             <label className="block text-gray-500 font-semibold mb-2">First Name</label>
             <input
               type="text"
-              value={firstname}
-              className="w-full border border-black rounded p-3 text-lg"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="bg-white border border-gray-300 px-4 py-2 rounded w-full"
             />
           </div>
           <div className="flex-1">
             <label className="block text-gray-500 font-semibold mb-2">Last Name</label>
             <input
               type="text"
-              value={lastname}
-              className="w-full border border-black rounded p-3 text-lg"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="bg-white border border-gray-300 px-4 py-2 rounded w-full"
             />
           </div>
         </div>
@@ -151,7 +244,7 @@ const Profile = () => {
         {/* Email */}
         <div className="mb-6">
           <label className="block text-gray-500 font-semibold mb-1">Email</label>
-          <p className="text-black text-lg font-medium">{email}</p>
+          <p className="text-black text-lg font-medium">{profile?.email || ""}</p>
         </div>
 
         {/* Phone Number with icon */}
@@ -161,7 +254,7 @@ const Profile = () => {
             {isEditingPhone ? (
               <input
                 type="text"
-                value={tempPhoneNumber}
+                value={tempPhoneNumber || ""}
                 onChange={e => setTempPhoneNumber(e.target.value)}
                 className="text-black text-lg font-medium border border-black rounded p-2"
               />
@@ -176,9 +269,12 @@ const Profile = () => {
 
         {/* Save Button */}
         <div className="text-center">
-          <button className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-10 rounded-lg text-lg cursor-pointer">
-            Save
-          </button>
+        <button
+          className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-10 rounded-lg text-lg cursor-pointer"
+          onClick={handleSaveProfile}
+        >
+          Save
+        </button>
         </div>
       </div>
 

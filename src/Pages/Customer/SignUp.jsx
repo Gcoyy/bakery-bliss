@@ -23,7 +23,7 @@ const SignUp = () => {
     setError("");
 
     try {
-      const result = await signUpNewUser(email, password);
+      const result = await signUpNewUser(email, password, firstName, lastName, username);
 
       if (result.success) {
         navigate("/");

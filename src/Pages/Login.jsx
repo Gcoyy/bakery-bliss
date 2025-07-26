@@ -10,7 +10,7 @@ const Login = () => {
 
   const { session, signInUser } = UserAuth();
   const navigate = useNavigate();
-  console.log("Session inside Login:", session);
+  //onsole.log("Session inside Login:", session); //turn this on if you want to see if session is being set correctly
 
   const handleLogin = async (e) => {
     e.preventDefault();

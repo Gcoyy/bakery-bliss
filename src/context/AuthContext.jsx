@@ -8,18 +8,38 @@ export const AuthContextProvider = ({ children }) => {
 
 
   //Sign up
-  const signUpNewUser = async (email, password) =>{
-    const {data, error} = await supabase.auth.signUp({
-        email,
-        password,
-    });
+  const signUpNewUser = async (email, password, firstName, lastName, username) => {
+  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+    email,
+    password,
+  });
 
-    if(error){
-        console.error("THERE WAS IN ISSUE SIGNING UP:", error);
-        return{ success: false, error};
-    }
-    return{ success: true, data};
+  if (signUpError) {
+    console.error("THERE WAS AN ISSUE SIGNING UP:", signUpError);
+    return { success: false, error: signUpError };
   }
+
+  const authUser = signUpData.user;
+
+  // Insert user profile to CUSTOMER table
+  const { error: insertError } = await supabase.from("CUSTOMER").insert([
+    {
+      cus_fname: firstName,
+      cus_lname: lastName,
+      cus_username: username,
+      email: email,
+      cus_celno: 0, // You can prompt this later in Profile
+      auth_user_id: authUser.id,
+    },
+  ]);
+
+  if (insertError) {
+    console.error("Error inserting into CUSTOMER:", insertError);
+    return { success: false, error: insertError };
+  }
+
+  return { success: true, data: signUpData };
+};
 
   //Sign in
   const signInUser = async ({email, password}) => {
