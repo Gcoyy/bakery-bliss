@@ -29,7 +29,8 @@ function App() {
         <Route path="/cakecatalog" element={<CakeCatalog />} />
 
         <Route path="/admin" element={<AdminPage />}>
-          <Route path="option1" element={<Inventory/>} />
+        <Route index element={<Inventory />} /> {/* or any default component */}
+          <Route path="inventory" element={<Inventory/>} />
           <Route path="cakes" element={<Cakes />} />
           <Route path="cake orders" element={<CakeOrders />} />
         </Route>

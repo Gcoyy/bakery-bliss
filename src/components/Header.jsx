@@ -6,9 +6,9 @@ const Header = () => {
 
   return (
     <header className="flex items-center justify-between px-8 bg-[#AF524D] w-full h-[14vh]">
-      <a className="logo" href="../Pages/Home">
-        <img src="#" alt="Logo" />
-      </a>
+      <Link to="/#home">
+          <img src="#" alt="Logo" />
+        </Link>
 
       <nav className="desktop">
         <ul className="flex space-x-8 font-semibold text-base">

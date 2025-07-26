@@ -1,6 +1,6 @@
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination } from 'swiper/modules';
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
@@ -8,12 +8,13 @@ import 'swiper/css/pagination';
 
 const Profile = () => {
     const username = "John Snow";
-    const phone = "123-456-7890";
     const email = "p8oZy@example.com";
-    const password = "password123";
     const firstname = "John";
     const lastname = "Doe";
-    const phoneNumber = "123-456-7890";
+    const [phoneNumber, setPhoneNumber] = useState("123-456-7890");
+    const [isEditingPhone, setIsEditingPhone] = useState(false);
+    const [tempPhoneNumber, setTempPhoneNumber] = useState(phoneNumber);
+    
 
      // Fix Swiper nav buttons not showing until after mount
   useEffect(() => {}, []);
@@ -98,6 +99,16 @@ const Profile = () => {
 
   const cakeGroups = chunkArray(cakes, 4); // 4 cakes per slide
 
+  const handleEditPhone = () => {
+      setTempPhoneNumber(phoneNumber);
+      setIsEditingPhone(true);
+    };
+
+    const handleSavePhone = () => {
+      setPhoneNumber(tempPhoneNumber);
+      setIsEditingPhone(false);
+    };
+
   return (
     <section className="bg-gradient-to-t from-[#424220] to-[#F8E6B4] min-h-screen flex flex-col items-center justify-center py-20 px-10">
       <div className="bg-[linear-gradient(to_bottom,_white_0%,_#DFDAC7_51%,_#A8A599_100%)] w-full p-10 rounded-2xl shadow-2xl">
@@ -144,14 +155,23 @@ const Profile = () => {
         </div>
 
         {/* Phone Number with icon */}
-        <div className="mb-10 flex items-center gap-3">
-          <div>
+        <div className="mb-10 gap-3">
             <label className="block text-gray-500 font-semibold mb-1">Phone Number</label>
-            <p className="text-black text-lg font-medium">{phoneNumber}</p>
+            <div className='flex items-center gap-5'>
+            {isEditingPhone ? (
+              <input
+                type="text"
+                value={tempPhoneNumber}
+                onChange={e => setTempPhoneNumber(e.target.value)}
+                className="text-black text-lg font-medium border border-black rounded p-2"
+              />
+            ) : (
+              <p className="text-black text-lg font-medium">{phoneNumber}</p>
+            )}
+          <button className="text-blue-600 hover:text-blue-800 cursor-pointer" onClick={handleEditPhone}>
+              <img className='w-7 h-7 hover:color-red-500 ' src="/edit.svg" alt="Edit Icon" />
+            </button>
           </div>
-          <button className="text-blue-600 hover:text-blue-800 self-end cursor-pointer">
-            <img className='w-7 h-7 hover:color-red-500 ' src="/edit.svg" alt="Edit Icon" />
-          </button>
         </div>
 
         {/* Save Button */}
