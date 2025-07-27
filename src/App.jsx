@@ -14,6 +14,7 @@ import AdminPage from "./Pages/Admin/AdminPage"
 import Inventory from "./sections/Inventory"
 import Cakes from "./sections/Cakes"
 import CakeOrders from "./sections/CakeOrders"
+import Assets from "./sections/Assets"
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
           <Route path="inventory" element={<Inventory/>} />
           <Route path="cakes" element={<Cakes />} />
           <Route path="cake orders" element={<CakeOrders />} />
+          <Route path="custom cake assets" elements={<Assets />} />
         </Route>
       </Routes>
       <ScrollToHashElement />
