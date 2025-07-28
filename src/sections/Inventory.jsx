@@ -11,6 +11,7 @@ const Inventory = () => {
   const [editedQuantity, setEditedQuantity] = useState("");
   const [editedUnit, setEditedUnit] = useState("");
   const [availableIngredients, setAvailableIngredients] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Fetch existing inventory
   useEffect(() => {
@@ -417,12 +418,40 @@ const Inventory = () => {
     }
   };
 
-  const renderRows = [...rows, ...newRows];
+  // Filter rows based on search term
+  const filteredRows = [...rows, ...newRows].filter((row) => {
+    const name = row.name || "";
+    return name.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   return (
     <div className="bg-white rounded-2xl shadow-md p-6 w-full border-4 border-[#AF524D] min-h-screen max-h-screen">
       <div className="flex gap-4 items-center mb-6">
         <h1 className="text-3xl font-semibold mb-4 text-[#381914]">Inventory</h1>
+        <div className="ml-auto flex items-center gap-2">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search ingredients..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-transparent"
+            />
+            <svg
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
+        </div>
       </div>
 
       <div className="w-full h-[75%] overflow-y-auto">
@@ -436,7 +465,7 @@ const Inventory = () => {
             </tr>
           </thead>
           <tbody>
-            {renderRows.map((row) => {
+            {filteredRows.map((row) => {
               const isSelected = selectedRowId === row.inven_id;
               const edited = editedValues[row.inven_id] || {};
               const isEditingName =
