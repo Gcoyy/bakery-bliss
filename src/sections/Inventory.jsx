@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import toast from 'react-hot-toast';
 
 const Inventory = () => {
   const [rows, setRows] = useState([]);
@@ -98,6 +99,10 @@ const Inventory = () => {
 
         if (fetchError) {
           console.error("Error fetching inventory record:", fetchError);
+          toast.error(`Failed to fetch inventory record: ${fetchError.message}`, {
+            duration: 4000,
+            position: 'top-center',
+          });
           return;
         }
 
@@ -111,6 +116,10 @@ const Inventory = () => {
 
         if (deleteInventoryError) {
           console.error("Delete inventory error:", deleteInventoryError);
+          toast.error(`Failed to delete inventory item: ${deleteInventoryError.message}`, {
+            duration: 4000,
+            position: 'top-center',
+          });
           return;
         }
 
@@ -161,12 +170,6 @@ const Inventory = () => {
 
       if (!newRow.name || !newRow.quantity) {
         console.warn("Skipping incomplete new row:", newRow);
-        continue;
-      }
-
-      // Check if the name is still the default placeholder
-      if (newRow.name === "Item Name") {
-        console.warn("Row still has placeholder name 'Item Name'. Please edit the name to a real ingredient before saving.");
         continue;
       }
 
@@ -242,6 +245,10 @@ const Inventory = () => {
 
         if (insertError) {
           console.error("Insert error:", insertError);
+          toast.error(`Failed to save inventory item "${newRow.name}": ${insertError.message}`, {
+            duration: 4000,
+            position: 'top-center',
+          });
         } else {
           console.log(`Successfully inserted new row for "${newRow.name}"`);
         }
@@ -350,6 +357,10 @@ const Inventory = () => {
 
         if (updateError) {
           console.error(`Update error for inven_id ${id}:`, updateError);
+          toast.error(`Failed to update inventory item: ${updateError.message}`, {
+            duration: 4000,
+            position: 'top-center',
+          });
         } else {
           console.log(`Successfully updated row with inven_id ${id}`);
         }
@@ -395,6 +406,18 @@ const Inventory = () => {
     }
 
     console.log("=== SAVE CHANGES END ===");
+
+    // Show success notification
+    toast.success('Inventory saved successfully!', {
+      duration: 3000,
+      position: 'top-center',
+      style: {
+        background: '#10B981',
+        color: '#fff',
+        borderRadius: '8px',
+        padding: '12px 16px',
+      },
+    });
   };
 
 
@@ -470,6 +493,11 @@ const Inventory = () => {
               const edited = editedValues[row.inven_id] || {};
               const isEditingName =
                 editingField.id === row.inven_id && editingField.field === "name";
+              console.log({
+                rowId: row.inven_id,
+                selected: selectedRowId === row.inven_id,
+                editing: editingField.id === row.inven_id,
+              });
 
               return (
                 <tr

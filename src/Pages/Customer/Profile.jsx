@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserAuth } from '../../context/AuthContext';
 import { supabase } from '../../supabaseClient';
+import toast from 'react-hot-toast';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
@@ -125,11 +126,27 @@ const Profile = () => {
 
     if (error) {
       console.error("Error updating profile:", error.message);
+      toast.error(`Failed to update profile: ${error.message}`, {
+        duration: 4000,
+        position: 'top-center',
+      });
     } else {
       console.log("Profile updated successfully.");
       setProfile(prev => ({ ...prev, ...updates }));
       setPhoneNumber(tempPhoneNumber); // commit phone update
       setIsEditingPhone(false); // exit phone edit mode
+      
+      // Show success notification
+      toast.success('Profile updated successfully!', {
+        duration: 3000,
+        position: 'top-center',
+        style: {
+          background: '#10B981',
+          color: '#fff',
+          borderRadius: '8px',
+          padding: '12px 16px',
+        },
+      });
     }
   } catch (err) {
     console.error("Unexpected error:", err);
@@ -238,7 +255,7 @@ const Profile = () => {
             <p className='text-2xl font-bold cursor-default'>Saved Custom Cakes:</p>
         </div>
 
-        <div className="relative w-full mt-10 bg-[#F3F0EA] rounded-r-3xl rounded-l-3xl py-6 px-4">
+        <div className="relative w-full min-h-[40vh] mt-10 bg-[#F3F0EA] rounded-r-3xl rounded-l-3xl py-6 px-4">
             <Swiper
                 modules={[Navigation]}
                 navigation={{
