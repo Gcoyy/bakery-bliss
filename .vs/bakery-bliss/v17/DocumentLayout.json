@@ -1,0 +1,105 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "D:\\SCHOOL STUFF\\CAPSTONE\\Capstone Project\\bakery-bliss\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\SCHOOL STUFF\\CAPSTONE\\Capstone Project\\bakery-bliss\\src\\sections\\CakeCustom.jsx||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\sections\\CakeCustom.jsx||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\SCHOOL STUFF\\CAPSTONE\\Capstone Project\\bakery-bliss\\src\\Pages\\Customer\\CakeCatalog.jsx||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\Pages\\Customer\\CakeCatalog.jsx||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\SCHOOL STUFF\\CAPSTONE\\Capstone Project\\bakery-bliss\\src\\sections\\Inventory.jsx||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\sections\\Inventory.jsx||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\SCHOOL STUFF\\CAPSTONE\\Capstone Project\\bakery-bliss\\src\\Pages\\Customer\\Profile.jsx||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\Pages\\Customer\\Profile.jsx||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\SCHOOL STUFF\\CAPSTONE\\Capstone Project\\bakery-bliss\\src\\Pages\\Login.jsx||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\Pages\\Login.jsx||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "CakeCatalog.jsx",
+              "DocumentMoniker": "D:\\SCHOOL STUFF\\CAPSTONE\\Capstone Project\\bakery-bliss\\src\\Pages\\Customer\\CakeCatalog.jsx",
+              "RelativeDocumentMoniker": "src\\Pages\\Customer\\CakeCatalog.jsx",
+              "ToolTip": "D:\\SCHOOL STUFF\\CAPSTONE\\Capstone Project\\bakery-bliss\\src\\Pages\\Customer\\CakeCatalog.jsx",
+              "RelativeToolTip": "src\\Pages\\Customer\\CakeCatalog.jsx",
+              "ViewState": "AgIAAH8AAAAAAAAAAAAkwJ8AAAAOAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003663|",
+              "WhenOpened": "2025-07-29T02:27:46.814Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "CakeCustom.jsx",
+              "DocumentMoniker": "D:\\SCHOOL STUFF\\CAPSTONE\\Capstone Project\\bakery-bliss\\src\\sections\\CakeCustom.jsx",
+              "RelativeDocumentMoniker": "src\\sections\\CakeCustom.jsx",
+              "ToolTip": "D:\\SCHOOL STUFF\\CAPSTONE\\Capstone Project\\bakery-bliss\\src\\sections\\CakeCustom.jsx",
+              "RelativeToolTip": "src\\sections\\CakeCustom.jsx",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003663|",
+              "WhenOpened": "2025-07-29T02:23:55.619Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Inventory.jsx",
+              "DocumentMoniker": "D:\\SCHOOL STUFF\\CAPSTONE\\Capstone Project\\bakery-bliss\\src\\sections\\Inventory.jsx",
+              "RelativeDocumentMoniker": "src\\sections\\Inventory.jsx",
+              "ToolTip": "D:\\SCHOOL STUFF\\CAPSTONE\\Capstone Project\\bakery-bliss\\src\\sections\\Inventory.jsx",
+              "RelativeToolTip": "src\\sections\\Inventory.jsx",
+              "ViewState": "AgIAABIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003663|",
+              "WhenOpened": "2025-07-29T02:23:45.47Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "Login.jsx",
+              "DocumentMoniker": "D:\\SCHOOL STUFF\\CAPSTONE\\Capstone Project\\bakery-bliss\\src\\Pages\\Login.jsx",
+              "RelativeDocumentMoniker": "src\\Pages\\Login.jsx",
+              "ToolTip": "D:\\SCHOOL STUFF\\CAPSTONE\\Capstone Project\\bakery-bliss\\src\\Pages\\Login.jsx",
+              "RelativeToolTip": "src\\Pages\\Login.jsx",
+              "ViewState": "AgIAAAYAAAAAAAAAAAAAABAAAAAVAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003663|",
+              "WhenOpened": "2025-07-29T01:41:41.522Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "Profile.jsx",
+              "DocumentMoniker": "D:\\SCHOOL STUFF\\CAPSTONE\\Capstone Project\\bakery-bliss\\src\\Pages\\Customer\\Profile.jsx",
+              "RelativeDocumentMoniker": "src\\Pages\\Customer\\Profile.jsx",
+              "ToolTip": "D:\\SCHOOL STUFF\\CAPSTONE\\Capstone Project\\bakery-bliss\\src\\Pages\\Customer\\Profile.jsx",
+              "RelativeToolTip": "src\\Pages\\Customer\\Profile.jsx",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABEAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003663|",
+              "WhenOpened": "2025-07-29T01:37:17.005Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

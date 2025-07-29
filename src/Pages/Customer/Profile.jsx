@@ -8,6 +8,14 @@ import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 
+function chunkArray(array, size) {
+  const chunked = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunked.push(array.slice(i, i + size));
+  }
+  return chunked;
+}
+
 
 const Profile = () => {
     // State variables  
@@ -20,7 +28,9 @@ const Profile = () => {
     const { session, signOut } = UserAuth();
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [customCakes, setCustomCakes] = useState([]);
     const navigate = useNavigate();
+
 
     // Function to handle sign out
     const handleSignOut = async () => {
@@ -32,136 +42,81 @@ const Profile = () => {
       }
     };
 
+    //-----------------------------USE EFFECTS--------------------------------
+    // ~Fetch profile data when component mounts or session changes~
     useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        if (!session || !session.user) {
-          console.log("No session or user found.");
-          return;
+        const fetchProfile = async () => {
+          try {
+            if (!session || !session.user) {
+              console.log("No session or user found.");
+              return;
+            }
+
+            const { data, error } = await supabase
+              .from("CUSTOMER")
+              .select("*")
+              .eq("auth_user_id", session.user.id)
+              .single();
+
+            if (error || !data) {
+              console.log("No profile data found for this user.");
+            } else {
+              console.log("Fetched profile:", data);
+              setUsername(data.cus_username || "");
+              setFirstName(data.cus_fname || "");
+              setLastName(data.cus_lname || "");
+              setPhoneNumber(data.cus_celno || "");
+              setProfile(data);
+            }
+          } catch (error) {
+            console.error("Error fetching profile:", error.message);
+          } finally {
+            setLoading(false);
+          }
+        };
+        fetchProfile();
+      }, [session]);
+
+    // Fetch custom cakes for the profile
+    useEffect(() => {
+      const fetchCustomCakes = async () => {
+        try {
+          if (!profile?.cus_id) return;
+
+          const { data, error } = await supabase
+            .from("CUSTOM-CAKE")
+            .select("*")
+            .eq("cus_id", profile.cus_id);
+
+          if (error) throw error;
+          setCustomCakes(data);
+        } catch (error) {
+          console.error("Error fetching custom cakes:", error.message);
         }
+      };
 
-        const { data, error } = await supabase
-          .from("CUSTOMER")
-          .select("*")
-          .eq("auth_user_id", session.user.id)
-          .single();
+      if (profile) fetchCustomCakes();
+    }, [profile]);
 
-        if (error || !data) {
-          console.log("No profile data found for this user.");
-        } else {
-          console.log("Fetched profile:", data);
-          setUsername(data.cus_username || "");
-          setFirstName(data.cus_fname || "");
-          setLastName(data.cus_lname || "");
-          setPhoneNumber(data.cus_celno || "");
-          setProfile(data);
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProfile();
-  }, [session]);
+    // Function to chunk the custom cakes into groups of 4
+    const cakeGroups = chunkArray(customCakes, 4);
 
 
-  // Fix Swiper nav buttons not showing until after mount
-  // Static cakes data
-  const cakes = [
-    {
-      name: 'Wedding Cake',
-      subtitle: '(Custom Cake)',
-      note: 'click to size',
-      image: '/image 4.png', // Replace with your image path
-    },
-    {
-      name: 'Wedding Cake',
-      subtitle: '(Custom Cake)',
-      note: 'click to size',
-      image: '/image 4.png', // Replace with your image path
-    },
-    {
-      name: 'Wedding Cake',
-      subtitle: '(Custom Cake)',
-      note: 'click to size',
-      image: '/image 4.png', // Replace with your image path
-    },
-    {
-      name: 'Wedding Cake',
-      subtitle: '(Custom Cake)',
-      note: 'click to size',
-      image: '/image 4.png', // Replace with your image path
-    },
-    {
-      name: 'Wedding Cake',
-      subtitle: '(Custom Cake)',
-      note: 'click to size',
-      image: '/image 4.png', // Replace with your image path
-    },
-    {
-      name: 'Wedding Cake',
-      subtitle: '(Custom Cake)',
-      note: 'click to size',
-      image: '/image 4.png', // Replace with your image path
-    },
-    {
-      name: 'Wedding Cake',
-      subtitle: '(Custom Cake)',
-      note: 'click to size',
-      image: '/image 4.png', // Replace with your image path
-    },
-    {
-      name: 'Wedding Cake',
-      subtitle: '(Custom Cake)',
-      note: 'click to size',
-      image: '/image 4.png', // Replace with your image path
-    },
-    {
-      name: 'Wedding Cake',
-      subtitle: '(Custom Cake)',
-      note: 'click to size',
-      image: '/image 4.png', // Replace with your image path
-    },
-    {
-      name: 'Wedding Cake',
-      subtitle: '(Custom Cake)',
-      note: 'click to size',
-      image: '/image 4.png', // Replace with your image path
-    },
-    {
-      name: 'Wedding Cake',
-      subtitle: '(Custom Cake)',
-      note: 'click to size',
-      image: '/image 4.png', // Replace with your image path
-    },
-    // Add more cake objects here if needed
-  ];
-
-  const chunkArray = (arr, size) => {
-    const chunked = [];
-    for (let i = 0; i < arr.length; i += size) {
-      chunked.push(arr.slice(i, i + size));
-    }
-    return chunked;
-  };
-  const cakeGroups = chunkArray(cakes, 4); // 4 cakes per slide
-
-  // Function to handle phone number edit
-  const handleEditPhone = () => {
+    // Function to handle phone number edit
+    const handleEditPhone = () => {
       setTempPhoneNumber(phoneNumber);
       setIsEditingPhone(true);
     };
 
-// Function to handle profile save
-  const handleSaveProfile = async () => {
-  try {
-    const updates = {
-      cus_username: username,
-      cus_fname: firstName,
-      cus_lname: lastName,
-      cus_celno: tempPhoneNumber,
-    };
+    //Function to handle profile save
+    const handleSaveProfile = async () => {
+      try {
+        const updates = {
+          cus_username: username,
+          cus_fname: firstName,
+          cus_lname: lastName,
+          cus_celno: tempPhoneNumber,
+        };
 
     const { error } = await supabase
       .from("CUSTOMER")
@@ -296,29 +251,24 @@ const Profile = () => {
                 className="w-full h-full"
                 >
                 {cakeGroups.map((group, i) => (
-                <SwiperSlide key={i}>
-                    <div className="flex justify-center gap-6">
-                    {group.map((cake, idx) => (
-                        <div
-                        key={idx}
-                        className="bg-white rounded-3xl shadow-lg overflow-hidden w-56 text-center"
-                        >
-                        <img
-                            src={cake.image}
-                            alt={cake.name}
-                            className="rounded-t-3xl"
-                        />
-                        <div className="bg-[#3B3B3B] text-white py-2 px-2 rounded-b-3xl">
-                            <h3 className="font-bold text-lg">{cake.name}</h3>
-                            <p className="text-sm italic">{cake.subtitle}</p>
-                            <p className="text-xs text-blue-200 underline">
-                            {cake.note}
-                            </p>
-                        </div>
-                        </div>
-                    ))}
-                    </div>
-                </SwiperSlide>
+                  <SwiperSlide key={i}>
+                      <div className="flex justify-center gap-4">
+                        {group.map((cake, idx) => (
+                          <div key={idx} className="bg-white rounded-3xl shadow-lg overflow-hidden w-56 text-center">
+                            <img
+                              src={cake.preview_url || "/placeholder.jpg"}
+                              alt={`Custom Cake ${cake.cc_id}`}
+                              className="rounded-t-3xl object-cover h-40 w-full"
+                            />
+                            <div className="bg-[#3B3B3B] text-white py-2 px-2 rounded-b-3xl">
+                              <h3 className="font-bold text-lg">Custom Cake #{cake.cc_id}</h3>
+                              <p className="text-sm italic">Order #{cake.order_id}</p>
+                              <p className="text-xs text-blue-200 underline">click to size</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </SwiperSlide>
                 ))}
 
                 {/* Navigation Arrows */}
