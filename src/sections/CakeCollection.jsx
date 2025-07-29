@@ -1,4 +1,5 @@
 import { motion } from "motion/react"
+import { Link } from "react-router-dom";
 
 const CakeCollection = () => {
   return (
@@ -19,7 +20,9 @@ const CakeCollection = () => {
             }}
             viewport={{ once: true, amount: 0.5 }}
             className="bg-gradient-to-r from-white/60 to-transparent text-white px-6 py-4 rounded-full hover:bg-[#82171C] hover:text-gray-600 transition duration-300 tracking-widest text-2xl font-bold shadow-md">
-              Explore
+              <Link to="/cakecatalog" className="flex items-center">
+                Explore
+              </Link>
             </motion.button>
             <img
               src="/r_arrow.png"
