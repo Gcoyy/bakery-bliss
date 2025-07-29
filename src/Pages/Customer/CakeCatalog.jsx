@@ -9,7 +9,7 @@ const getPublicImageUrl = (path) => {
 
 const CakeCatalog = () => {
   const [cakes, setCakes] = useState([]);
-  const [price, setPrice] = useState(1000);
+  const [price, setPrice] = useState(16000);
   const [scrollSticky, setScrollSticky] = useState(false);
   const [sortBy, setSortBy] = useState("default");
   const [tier, setTier] = useState("all");
@@ -70,7 +70,7 @@ const CakeCatalog = () => {
         <aside
           className={`${
             scrollSticky ? "fixed top-1/2 left-0 -translate-y-1/2 w-[20%]" : "relative w-[80%]"
-          } bg-white rounded-br-2xl rounded-tr-2xl shadow-lg p-4 text-[#381914] transform transition-transform duration-300 ease-in-out`}
+          } bg-white rounded-br-2xl rounded-tr-2xl shadow-lg p-4 text-[#381914]`}
         >
           <h2 className="text-xl font-semibold mb-4">Filters</h2>
 
