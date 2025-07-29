@@ -20,7 +20,7 @@ const Login = () => {
     try {
       const result = await signInUser({ email, password });
       if (result.success) {
-        navigate("/");
+        navigate("/redirect");
       } else {
         setError(result.error);
       }

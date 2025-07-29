@@ -8,11 +8,11 @@ const AdminSidebar = () => {
           { name: "Inventory", path: "inventory" },
           { name: "Cake Orders", path: "cake orders" },
           { name: "Cakes", path: "cakes" },
-          { name: "Custom Cake Assets", path: "custom cake assets" }
+          { name: "Custom Cake Assets", path: "custom cake assets" },
         ].map((opt, i) => (
           <Link
             key={i}
-            to={`/admin/${opt.path}`}
+            to={`/adminpage/${opt.path}`}
             className="block text-sm text-black-700 hover:bg-[#DFBFA6] px-3 py-2 rounded border border-black/50"
           >
             {opt.name}

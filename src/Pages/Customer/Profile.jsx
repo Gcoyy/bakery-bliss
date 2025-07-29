@@ -61,7 +61,7 @@ const Profile = () => {
             if (error || !data) {
               console.log("No profile data found for this user.");
             } else {
-              console.log("Fetched profile:", data);
+              //console.log("Fetched profile:", data);
               setUsername(data.cus_username || "");
               setFirstName(data.cus_fname || "");
               setLastName(data.cus_lname || "");
