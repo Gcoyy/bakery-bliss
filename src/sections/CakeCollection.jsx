@@ -11,19 +11,19 @@ const CakeCollection = () => {
 
         <div className="flex items-center justify-center mt-20">
           <div className="group relative flex items-center space-x-4">
-            <motion.button 
-            initial={{ opacity: 0, scale: 0 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            transition={{
-              duration: .3,
-              ease: "easeInOut"
-            }}
-            viewport={{ once: true, amount: 0.5 }}
-            className="bg-gradient-to-r from-white/60 to-transparent text-white px-6 py-4 rounded-full hover:bg-[#82171C] hover:text-gray-600 transition duration-300 tracking-widest text-2xl font-bold shadow-md">
-              <Link to="/cakecatalog" className="flex items-center">
+            <Link to="/cakecatalog" className="block">
+              <motion.button
+                initial={{ opacity: 0, scale: 0 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                transition={{
+                  duration: .3,
+                  ease: "easeInOut"
+                }}
+                viewport={{ once: true, amount: 0.5 }}
+                className="bg-gradient-to-r from-white/60 to-transparent text-white px-6 py-4 rounded-full hover:bg-[#82171C] hover:text-gray-600 transition duration-300 tracking-widest text-2xl font-bold shadow-md cursor-pointer">
                 Explore
-              </Link>
-            </motion.button>
+              </motion.button>
+            </Link>
             <img
               src="/r_arrow.png"
               alt="arrow"
