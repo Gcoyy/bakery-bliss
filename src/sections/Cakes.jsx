@@ -15,6 +15,7 @@ const Cakes = () => {
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
   const [editingDescriptionRowId, setEditingDescriptionRowId] = useState(null);
   const [tempDescription, setTempDescription] = useState("");
+  const [saving, setSaving] = useState(false);
   // Add filter states
   const [themeFilter, setThemeFilter] = useState("");
   const [tierFilter, setTierFilter] = useState("");
@@ -190,6 +191,10 @@ const Cakes = () => {
   };
 
   const handleSaveChanges = async () => {
+    if (saving) return; // Prevent multiple clicks
+
+    setSaving(true);
+
     console.log("=== SAVE CAKES CHANGES START ===");
     console.log("New rows to save:", newRows);
     console.log("Edited rows to save:", editedValues);
@@ -310,6 +315,8 @@ const Cakes = () => {
         padding: '12px 16px',
       },
     });
+
+    setSaving(false);
   };
 
 
@@ -725,10 +732,14 @@ const Cakes = () => {
           DELETE
         </button>
         <button
-          className="bg-green-600 text-white px-6 py-2 rounded-full cursor-pointer hover:bg-green-700 transition-colors"
+          className={`px-6 py-2 rounded-full transition-colors ${saving
+            ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+            : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'
+            }`}
           onClick={handleSaveChanges}
+          disabled={saving}
         >
-          SAVE CHANGES
+          {saving ? 'Saving...' : 'SAVE CHANGES'}
         </button>
       </div>
 

@@ -19,6 +19,9 @@ const SignUp = () => {
 
   const handleSignUp = async (e) => {
     e.preventDefault();
+
+    if (loading) return; // Prevent multiple clicks
+
     setLoading(true);
     setError("");
 

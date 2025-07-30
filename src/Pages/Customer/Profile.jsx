@@ -31,6 +31,7 @@ const Profile = () => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [customCakes, setCustomCakes] = useState([]);
+  const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
 
   // Default phone number to display when none is stored
@@ -191,6 +192,10 @@ const Profile = () => {
 
   //Function to handle profile save
   const handleSaveProfile = async () => {
+    if (saving) return; // Prevent multiple clicks
+
+    setSaving(true);
+
     try {
       // Validate required fields
       if (!username.trim()) {
@@ -266,6 +271,8 @@ const Profile = () => {
         duration: 4000,
         position: 'top-center',
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -387,10 +394,14 @@ const Profile = () => {
         {/* Save Button */}
         <div className="text-center">
           <button
-            className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-10 rounded-lg text-lg cursor-pointer"
+            className={`font-semibold py-2 px-10 rounded-lg text-lg cursor-pointer transition-colors ${saving
+              ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+              : 'bg-red-600 hover:bg-red-700 text-white'
+              }`}
             onClick={handleSaveProfile}
+            disabled={saving}
           >
-            Save
+            {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>

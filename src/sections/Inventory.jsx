@@ -13,6 +13,7 @@ const Inventory = () => {
   const [editedUnit, setEditedUnit] = useState("");
   const [availableIngredients, setAvailableIngredients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [saving, setSaving] = useState(false);
 
   // Fetch existing inventory
   useEffect(() => {
@@ -159,6 +160,10 @@ const Inventory = () => {
   };
 
   const handleSaveChanges = async () => {
+    if (saving) return; // Prevent multiple clicks
+
+    setSaving(true);
+
     console.log("=== SAVE CHANGES START ===");
     console.log("New rows to save:", newRows);
     console.log("Edited rows to save:", editedValues);
@@ -418,6 +423,8 @@ const Inventory = () => {
         padding: '12px 16px',
       },
     });
+
+    setSaving(false);
   };
 
 
@@ -521,22 +528,22 @@ const Inventory = () => {
                           autoFocus
                         />
                       ) : (
-                        <>
-                          {edited.name ?? row.name}
+                        <div className="flex items-center gap-2">
+                          <span>{edited.name ?? row.name}</span>
                           <span
-                            className="cursor-pointer hover:text-blue-700 ml-2"
+                            className="cursor-pointer hover:text-blue-700"
                             onClick={(e) => {
                               e.stopPropagation();
                               setEditingField({ id: row.inven_id, field: "name" });
                               setEditedName(edited.name ?? row.name);
                             }}
                           >
-                            <svg width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <svg width="16" height="16" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
                               <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                               <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
                           </span>
-                        </>
+                        </div>
                       )}
                     </div>
                   </td>
@@ -564,9 +571,9 @@ const Inventory = () => {
                             setEditedQuantity(edited.quantity ?? row.quantity);
                           }}
                         >
-                          {edited.quantity ?? row.quantity}
+                          <span>{edited.quantity ?? row.quantity}</span>
                           <span className="cursor-pointer hover:text-blue-700">
-                            <svg width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <svg width="16" height="16" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
                               <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                               <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
@@ -599,9 +606,9 @@ const Inventory = () => {
                             setEditedUnit(edited.unit ?? row.unit ?? "pcs");
                           }}
                         >
-                          {edited.unit ?? row.unit ?? "pcs"}
+                          <span>{edited.unit ?? row.unit ?? "pcs"}</span>
                           <span className="cursor-pointer hover:text-blue-700">
-                            <svg width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <svg width="16" height="16" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
                               <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                               <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
@@ -642,10 +649,14 @@ const Inventory = () => {
           DELETE
         </button>
         <button
-          className="bg-green-600 text-white px-6 py-2 rounded-full cursor-pointer hover:bg-green-700 transition-colors"
+          className={`px-6 py-2 rounded-full transition-colors ${saving
+            ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+            : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'
+            }`}
           onClick={handleSaveChanges}
+          disabled={saving}
         >
-          SAVE CHANGES
+          {saving ? 'Saving...' : 'SAVE CHANGES'}
         </button>
       </div>
     </div>
