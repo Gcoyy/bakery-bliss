@@ -72,6 +72,25 @@ export const AuthContextProvider = ({ children }) => {
     }
   };
 
+  // Reset password
+  const resetPassword = async (email) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        console.error("Password reset error:", error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, message: "Password reset email sent successfully!" };
+    } catch (error) {
+      console.error("Unexpected password reset error:", error);
+      return { success: false, error: "An unexpected error occurred" };
+    }
+  };
+
   // Determine role
   const fetchUserRole = async (userId) => {
     setLoading(true);
@@ -131,7 +150,7 @@ export const AuthContextProvider = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ session, signInUser, signUpNewUser, signOut, userRole, loading }}>
+    <AuthContext.Provider value={{ session, signInUser, signUpNewUser, signOut, resetPassword, userRole, loading }}>
       {children}
     </AuthContext.Provider>
   );
