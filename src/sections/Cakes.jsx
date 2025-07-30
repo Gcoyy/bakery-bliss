@@ -10,6 +10,8 @@ const Cakes = () => {
   const [editedValues, setEditedValues] = useState({});
   const [editedName, setEditedName] = useState('');
   const [editedTheme, setEditedTheme] = useState('');
+  const [editedPrice, setEditedPrice] = useState('');
+  const [editedTier, setEditedTier] = useState('');
   const [uploadingImage, setUploadingImage] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
@@ -589,10 +591,10 @@ const Cakes = () => {
                         <input
                           type="number"
                           className="border rounded px-2 py-1 w-16"
-                          value={edited.tier ?? row.tier}
-                          onChange={(e) => handleFieldChange(rowId, "tier", parseInt(e.target.value))}
+                          value={editedTier}
+                          onChange={(e) => setEditedTier(e.target.value)}
                           onBlur={() => {
-                            handleFieldChange(rowId, "tier", parseInt(edited.tier ?? row.tier));
+                            handleFieldChange(rowId, "tier", parseInt(editedTier) || 1);
                             setEditingField({ id: null, field: null });
                           }}
                           autoFocus
@@ -626,10 +628,10 @@ const Cakes = () => {
                         <input
                           type="number"
                           className="border rounded px-2 py-1 w-16"
-                          value={edited.price ?? row.price}
-                          onChange={(e) => handleFieldChange(rowId, "price", parseFloat(e.target.value))}
+                          value={editedPrice}
+                          onChange={(e) => setEditedPrice(e.target.value)}
                           onBlur={() => {
-                            handleFieldChange(rowId, "price", parseFloat(edited.price ?? row.price));
+                            handleFieldChange(rowId, "price", parseFloat(editedPrice) || 0);
                             setEditingField({ id: null, field: null });
                           }}
                           autoFocus
