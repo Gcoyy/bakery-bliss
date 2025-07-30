@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { UserAuth } from "../../context/AuthContext";
+import toast from 'react-hot-toast';
 
 const SignUp = () => {
   const [firstName, setFirstName] = useState("");
@@ -10,17 +11,50 @@ const SignUp = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  
+
   const { session, signUpNewUser } = UserAuth();
   const navigate = useNavigate();
   console.log(session);
   //console.log("Email:", email, "Password:", password);
 
-
   const handleSignUp = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+
+    // Enhanced password validation
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    const hasMinLength = password.length >= 6;
+
+    if (!hasMinLength) {
+      setError('Password must be at least 6 characters long');
+      toast.error('Password too short. Please use at least 6 characters.');
+      setLoading(false);
+      return;
+    }
+
+    if (!hasUpperCase) {
+      setError('Password must contain at least one capital letter');
+      toast.error('Password must contain at least one capital letter.');
+      setLoading(false);
+      return;
+    }
+
+    if (!hasLowerCase) {
+      setError('Password must contain at least one lowercase letter');
+      toast.error('Password must contain at least one lowercase letter.');
+      setLoading(false);
+      return;
+    }
+
+    if (!hasSpecialChar) {
+      setError('Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)');
+      toast.error('Password must contain at least one special character.');
+      setLoading(false);
+      return;
+    }
 
     try {
       const result = await signUpNewUser(email, password, firstName, lastName, username);
@@ -29,9 +63,11 @@ const SignUp = () => {
         navigate("/");
       } else {
         setError(result.error.message);
+        toast.error(result.error.message);
       }
     } catch (err) {
       setError("An unexpected error occurred");
+      toast.error("An unexpected error occurred");
       console.error(err);
     } finally {
       setLoading(false);
@@ -83,6 +119,9 @@ const SignUp = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
+            <p className="text-xs text-gray-700 mt-2">
+              Email must be active
+            </p>
           </div>
 
           <div>
@@ -104,21 +143,22 @@ const SignUp = () => {
               type="password"
               id="password"
               required
+              minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            <p className="text-xs text-gray-700 mt-2">
+              Password must be 6 characters
+            </p>
           </div>
-
-          {error && <p className="text-red-500">{error}</p>}
 
           <button
             type="submit"
             disabled={loading}
-            className="bg-[#DFAD56]/80 text-white font-bold px-6 py-2 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-[#FFECB5] hover:text-gray-800 duration-300 tracking-wide w-full"
+            className="bg-[#DFAD56]/80 text-white font-bold px-6 py-2 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-[#FFECB5] hover:text-gray-800 duration-300 tracking-wide w-full disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Signing up..." : "SIGN UP"}
           </button>
-          {error && <p className="text-red-600 text-center pt-4">{error}</p>}
         </form>
       </div>
     </div>
