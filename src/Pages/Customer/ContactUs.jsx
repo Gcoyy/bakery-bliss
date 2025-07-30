@@ -93,87 +93,87 @@ const ContactUs = () => {
   };
 
   return (
-    <section className="bg-[url('/AboutUs.png')] bg-cover bg-center w-full h-[180vh] px-20 py-20 flex flex-col items-center justify-center items-end space-y-20">
-      <form onSubmit={handleSubmit} className="bg-[linear-gradient(to_bottom,_white_0%,_#DFDAC7_51%,_#A8A599_100%)] h-fit px-18 py-20 flex flex-col items-center justify-center rounded-[50px] space-y-10 w-1/2 shadow-2xl">
-        <h1 className="font-bold text-5xl">CONTACT US TODAY!</h1>
+    <section className="bg-[url('/AboutUs.png')] bg-cover bg-center w-full min-h-screen px-8 py-12 flex flex-col items-end justify-center space-y-6">
+      <form onSubmit={handleSubmit} className="bg-[linear-gradient(to_bottom,_white_0%,_#DFDAC7_51%,_#A8A599_100%)] h-fit px-8 py-8 flex flex-col items-center justify-center rounded-2xl space-y-6 w-full max-w-lg shadow-2xl">
+        <h1 className="font-bold text-3xl text-center text-[#381914]">Contact Us Today!</h1>
 
         <div className="flex flex-col space-y-4 w-full">
-          <div className="flex items-center space-x-5">
-            <label className="text-4xl" htmlFor="name">NAME:</label>
+          <div className="flex flex-col space-y-2">
+            <label className="text-lg font-semibold text-[#381914]" htmlFor="name">Name:</label>
             <input
               type="text"
               id="name"
               value={formData.name}
               onChange={handleInputChange}
-              className="w-full bg-white text-black rounded-md px-2 py-1 border border-black-300 focus:outline-none focus:ring-2 focus:ring-[#AF524D]"
+              className="w-full bg-white text-black rounded-lg px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-transparent"
             />
           </div>
 
-          <div className="flex items-center space-x-5">
-            <label className="text-4xl" htmlFor="email">EMAIL:</label>
+          <div className="flex flex-col space-y-2">
+            <label className="text-lg font-semibold text-[#381914]" htmlFor="email">Email:</label>
             <input
               type="email"
               id="email"
               value={formData.email}
               onChange={handleInputChange}
-              className="w-full bg-white text-black rounded-md px-2 py-1 border border-black-300 focus:outline-none focus:ring-2 focus:ring-[#AF524D]"
+              className="w-full bg-white text-black rounded-lg px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-transparent"
             />
           </div>
 
-          <div className="flex items-center space-x-5">
-            <label className="text-4xl" htmlFor="subject">SUBJECT:</label>
+          <div className="flex flex-col space-y-2">
+            <label className="text-lg font-semibold text-[#381914]" htmlFor="subject">Subject:</label>
             <input
               type="text"
               id="subject"
               value={formData.subject}
               onChange={handleInputChange}
-              className="w-full bg-white text-black rounded-md px-2 py-1 border border-black-300 focus:outline-none focus:ring-2 focus:ring-[#AF524D]"
+              className="w-full bg-white text-black rounded-lg px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-transparent"
             />
           </div>
 
-          <div>
-            <label className="text-4xl" htmlFor="message">MESSAGE:</label>
+          <div className="flex flex-col space-y-2">
+            <label className="text-lg font-semibold text-[#381914]" htmlFor="message">Message:</label>
             <textarea
               id="message"
               value={formData.message}
               onChange={handleInputChange}
-              className="w-full h-[15vh] bg-white text-black rounded-md px-2 py-1 border border-black-300 focus:outline-none focus:ring-2 focus:ring-[#AF524D] resize-none"
+              className="w-full h-24 bg-white text-black rounded-lg px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-transparent resize-none"
             />
           </div>
         </div>
 
-        <div>
+        <div className="w-full">
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`bg-[#82171C] text-white font-bold px-6 py-2 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-[#FFECB5] hover:text-gray-800 duration-300 tracking-wide w-full mt-4 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+            className={`bg-[#82171C] text-white font-bold px-6 py-2 rounded-lg cursor-pointer transition ease-in-out delay-100 hover:bg-[#FFECB5] hover:text-gray-800 duration-300 tracking-wide w-full ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
               }`}
           >
-            {isSubmitting ? 'SENDING...' : 'SEND MESSAGE'}
+            {isSubmitting ? 'Sending...' : 'Send Message'}
           </button>
         </div>
       </form>
 
-      <div className="bg-[linear-gradient(to_bottom,_white_0%,_#DFDAC7_51%,_#A8A599_100%)] h-fit px-20 py-10 flex flex-col items-center justify-center rounded-[50px] space-y-10 w-1/2 shadow-2xl">
-        <a href="#" className="flex items-center w-full space-x-4">
-          <img src="/mail_icon.png" alt="Mail Icon" />
+      <div className="bg-[linear-gradient(to_bottom,_white_0%,_#DFDAC7_51%,_#A8A599_100%)] h-fit px-8 py-6 flex flex-col items-center justify-center rounded-2xl space-y-4 w-full max-w-lg shadow-2xl">
+        <h2 className="font-bold text-2xl text-[#381914] mb-2">Get In Touch</h2>
 
-          <p className="text-4xl">conniedecafe@gmail.com</p>
+        <a href="mailto:conniedecafe@gmail.com" className="flex items-center w-full space-x-4 hover:opacity-80 transition-opacity">
+          <img src="/mail_icon.png" alt="Mail Icon" className="w-6 h-6" />
+          <p className="text-lg text-[#381914]">conniedecafe@gmail.com</p>
         </a>
 
-        <a href="#" className="flex items-center w-full space-x-4">
-          <img src="/phone_icon.png" alt="Phone Icon" />
-
-          <p className="text-4xl">+63 917 629 2377</p>
+        <a href="tel:+639176292377" className="flex items-center w-full space-x-4 hover:opacity-80 transition-opacity">
+          <img src="/phone_icon.png" alt="Phone Icon" className="w-6 h-6" />
+          <p className="text-lg text-[#381914]">+63 917 629 2377</p>
         </a>
 
-        <div className="flex items-center justify-around w-full">
-          <a href="https://www.facebook.com/connies.cakemall" target="_blank" rel="noopener noreferrer">
-            <img src="/fb_icon.png" alt="Facebook Icon" />
+        <div className="flex items-center justify-center space-x-8 w-full pt-2">
+          <a href="https://www.facebook.com/connies.cakemall" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
+            <img src="/fb_icon.png" alt="Facebook Icon" className="w-8 h-8" />
           </a>
 
-          <a href="https://www.instagram.com/conniescakemall?igsh=MXNiNjUwdjVlNW5uaA==" target="_blank" rel="noopener noreferrer">
-            <img src="/ig_icon.png" alt="Instagram Icon" />
+          <a href="https://www.instagram.com/conniescakemall?igsh=MXNiNjUwdjVlNW5uaA==" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
+            <img src="/ig_icon.png" alt="Instagram Icon" className="w-8 h-8" />
           </a>
         </div>
       </div>
