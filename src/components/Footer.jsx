@@ -9,7 +9,19 @@ const Footer = () => {
           <span className="text-gray-600 font-semibold">LOGO</span>
         </div> */}
         <Link to="/#home">
-          <img src="#" alt="Logo" />
+          <div className="flex items-center space-x-2">
+            {/* Coffee Cup Icon */}
+            <div className="w-8 h-8 bg-[#F8E6B4] rounded-full relative">
+              <div className="absolute inset-1 bg-[#8B4513] rounded-full"></div>
+              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-2 h-1 bg-[#8B4513] rounded-t-full"></div>
+              <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-[#F8E6B4] rounded-full"></div>
+            </div>
+            {/* Logo Text */}
+            <div className="text-[#F8E6B4] font-bold text-xl">
+              <span className="text-[#AF524D]">Connie</span>
+              <span className="text-[#F8E6B4]"> de Cafe</span>
+            </div>
+          </div>
         </Link>
       </div>
 

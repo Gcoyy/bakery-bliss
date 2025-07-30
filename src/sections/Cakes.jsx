@@ -15,6 +15,9 @@ const Cakes = () => {
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
   const [editingDescriptionRowId, setEditingDescriptionRowId] = useState(null);
   const [tempDescription, setTempDescription] = useState("");
+  // Add filter states
+  const [themeFilter, setThemeFilter] = useState("");
+  const [tierFilter, setTierFilter] = useState("");
 
 
   useEffect(() => {
@@ -313,14 +316,114 @@ const Cakes = () => {
   // Filter rows based on search term
   const filteredRows = [...rows, ...newRows].filter((row) => {
     const name = row.name || "";
-    return name.toLowerCase().includes(searchTerm.toLowerCase());
+    const theme = row.theme || "";
+    const tier = row.tier || 1;
+
+    const matchesName = name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesTheme = themeFilter === "" || theme.toLowerCase().includes(themeFilter.toLowerCase());
+    const matchesTier = tierFilter === "" || tier.toString() === tierFilter;
+
+    return matchesName && matchesTheme && matchesTier;
   });
+
+  // Get unique themes and tiers for filter options
+  const uniqueThemes = [...new Set([...rows, ...newRows].map(row => row.theme).filter(Boolean))];
+  const uniqueTiers = [...new Set([...rows, ...newRows].map(row => row.tier).filter(Boolean))].sort((a, b) => a - b);
 
   return (
     <div className="bg-white rounded-2xl shadow-md p-6 w-full border-4 border-[#AF524D] min-h-screen max-h-screen flex flex-col">
       <div className="flex gap-4 items-center mb-6">
         <h1 className="text-3xl font-semibold mb-4 text-[#381914]">Cakes</h1>
         <div className="ml-auto flex items-center gap-2">
+          {/* Theme Filter */}
+          <div className="relative">
+            <select
+              value={themeFilter}
+              onChange={(e) => setThemeFilter(e.target.value)}
+              className="border border-gray-300 rounded-lg px-4 py-2 pl-10 pr-8 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-transparent appearance-none bg-white"
+            >
+              <option value="">All Themes</option>
+              {uniqueThemes.map((theme) => (
+                <option key={theme} value={theme}>
+                  {theme}
+                </option>
+              ))}
+            </select>
+            {/* Filter Icon */}
+            <svg
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+              />
+            </svg>
+            {/* Dropdown Arrow */}
+            <svg
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </div>
+
+          {/* Tier Filter */}
+          <div className="relative">
+            <select
+              value={tierFilter}
+              onChange={(e) => setTierFilter(e.target.value)}
+              className="border border-gray-300 rounded-lg px-4 py-2 pl-10 pr-8 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-transparent appearance-none bg-white"
+            >
+              <option value="">All Tiers</option>
+              {uniqueTiers.map((tier) => (
+                <option key={tier} value={tier}>
+                  {tier} Tier{tier > 1 ? 's' : ''}
+                </option>
+              ))}
+            </select>
+            {/* Filter Icon */}
+            <svg
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+              />
+            </svg>
+            {/* Dropdown Arrow */}
+            <svg
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </div>
+
+          {/* Search Bar */}
           <div className="relative">
             <input
               type="text"
