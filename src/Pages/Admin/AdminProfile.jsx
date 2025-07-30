@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { UserAuth } from '../../context/AuthContext';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 const AdminProfile = () => {
   const [admin, setAdmin] = useState(null);
@@ -40,7 +41,7 @@ const AdminProfile = () => {
     }
   };
 
-  if (loading) return <p className="text-center text-xl">Loading profile...</p>;
+  if (loading) return <LoadingSpinner message="Loading profile..." />;
   if (!admin) return <p className="text-center text-red-500 text-lg">No admin data found.</p>;
 
   return (
