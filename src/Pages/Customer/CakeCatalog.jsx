@@ -23,6 +23,8 @@ const CakeCatalog = () => {
   const [selectedThemes, setSelectedThemes] = useState([]);
   const [selectedCake, setSelectedCake] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const cakesPerPage = 21;
 
   // Fetch cake data from Supabase
   useEffect(() => {
@@ -48,7 +50,19 @@ const CakeCatalog = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrollSticky(window.scrollY > 100);
+      const scrollY = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+
+      // Check if we're near the bottom of the page (within 200px)
+      const isNearBottom = scrollY + windowHeight >= documentHeight - 200;
+
+      // Only make sticky if we're not near the bottom
+      if (scrollY > 100 && !isNearBottom) {
+        setScrollSticky(true);
+      } else {
+        setScrollSticky(false);
+      }
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
@@ -117,6 +131,17 @@ const CakeCatalog = () => {
           return 0;
       }
     });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredCakes.length / cakesPerPage);
+  const indexOfLastCake = currentPage * cakesPerPage;
+  const indexOfFirstCake = indexOfLastCake - cakesPerPage;
+  const currentCakes = filteredCakes.slice(indexOfFirstCake, indexOfLastCake);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [price, tier, selectedThemes, sortBy]);
 
   return (
     <section className="flex min-h-[120vh] bg-gradient-to-b from-[#f7f0e7] to-[#e5d6c4]">
@@ -198,7 +223,7 @@ const CakeCatalog = () => {
       {/* Main Content */}
       <main className={`p-8 w-full ${scrollSticky ? "ml-1/5" : ""}`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {filteredCakes.map((cake) => (
+          {currentCakes.map((cake) => (
             <div
               key={cake.cake_id}
               className="bg-[#FAF6F1] rounded shadow-sm p-4 text-center cursor-pointer hover:shadow-lg transition-shadow duration-200 hover:scale-105 transform transition-transform"
@@ -217,6 +242,47 @@ const CakeCatalog = () => {
               <p className="text-sm">₱{cake.price}</p>
             </div>
           ))}
+        </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center mt-8 space-x-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 bg-[#AF524D] text-white rounded-lg hover:bg-[#8B3D3A] disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+
+            <div className="flex space-x-1">
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`px-3 py-2 rounded-lg transition-colors ${currentPage === page
+                    ? 'bg-[#AF524D] text-white'
+                    : 'bg-white text-[#381914] hover:bg-[#f0f0f0] border border-[#381914]'
+                    }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 bg-[#AF524D] text-white rounded-lg hover:bg-[#8B3D3A] disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        )}
+
+        {/* Results Info */}
+        <div className="text-center mt-4 text-sm text-[#381914]">
+          Showing {indexOfFirstCake + 1} to {Math.min(indexOfLastCake, filteredCakes.length)} of {filteredCakes.length} cakes
         </div>
       </main>
 
