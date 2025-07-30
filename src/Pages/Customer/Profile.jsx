@@ -34,16 +34,19 @@ const Profile = () => {
   const navigate = useNavigate();
 
   // Default phone number to display when none is stored
-  const defaultPhoneNumber = "+1 (555) 123-4567";
+  const defaultPhoneNumber = 15551234567;
 
   // Function to get display phone number
   const getDisplayPhoneNumber = () => {
-    return phoneNumber || defaultPhoneNumber;
+    if (!phoneNumber || phoneNumber === defaultPhoneNumber) {
+      return defaultPhoneNumber; // Display the default number as is
+    }
+    return phoneNumber;
   };
 
   // Function to check if phone number is default
   const isDefaultPhoneNumber = () => {
-    return !phoneNumber;
+    return !phoneNumber || phoneNumber === defaultPhoneNumber;
   };
 
   // Function to handle sign out
@@ -157,8 +160,10 @@ const Profile = () => {
       return;
     }
 
+    // Update the display immediately
+    setPhoneNumber(tempPhoneNumber || "");
     setIsEditingPhone(false);
-    // The actual save will happen when user clicks the main Save button
+    // The actual save to database will happen when user clicks the main Save button
   };
 
   // Function to handle phone number cancel
@@ -187,13 +192,42 @@ const Profile = () => {
   //Function to handle profile save
   const handleSaveProfile = async () => {
     try {
-      // Only save phone number if it's not empty and not the default
-      const phoneToSave = tempPhoneNumber.trim() === "" ? null : tempPhoneNumber;
+      // Validate required fields
+      if (!username.trim()) {
+        toast.error('Username is required', {
+          duration: 3000,
+          position: 'top-center',
+        });
+        return;
+      }
+
+      if (!firstName.trim()) {
+        toast.error('First name is required', {
+          duration: 3000,
+          position: 'top-center',
+        });
+        return;
+      }
+
+      if (!lastName.trim()) {
+        toast.error('Last name is required', {
+          duration: 3000,
+          position: 'top-center',
+        });
+        return;
+      }
+
+      // Only save default phone number if there was no phone number in the database originally
+      // and user hasn't provided a custom one
+      const originalPhoneNumber = profile?.cus_celno;
+      const phoneToSave = tempPhoneNumber && tempPhoneNumber.trim() !== ""
+        ? tempPhoneNumber
+        : defaultPhoneNumber; // Always save default number if no custom input
 
       const updates = {
-        cus_username: username,
-        cus_fname: firstName,
-        cus_lname: lastName,
+        cus_username: username.trim(),
+        cus_fname: firstName.trim(),
+        cus_lname: lastName.trim(),
         cus_celno: phoneToSave,
       };
 
@@ -228,6 +262,10 @@ const Profile = () => {
       }
     } catch (err) {
       console.error("Unexpected error:", err);
+      toast.error('An unexpected error occurred. Please try again.', {
+        duration: 4000,
+        position: 'top-center',
+      });
     }
   };
 
@@ -334,8 +372,8 @@ const Profile = () => {
                   {getDisplayPhoneNumber()}
                 </p>
                 {isDefaultPhoneNumber() && (
-                  <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">
-                    Default
+                  <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full border border-yellow-300">
+                    Default Number
                   </span>
                 )}
                 <button className="text-blue-600 hover:text-blue-800 cursor-pointer" onClick={handleEditPhone}>
