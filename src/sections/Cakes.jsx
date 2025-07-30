@@ -10,11 +10,11 @@ const Cakes = () => {
   const [editedValues, setEditedValues] = useState({});
   const [editedName, setEditedName] = useState('');
   const [editedTheme, setEditedTheme] = useState('');
-  const [editedDescription, setEditedDescription] = useState('');
-  const [editedPrice, setEditedPrice] = useState(0);
-  const [editedTier, setEditedTier] = useState(1);
   const [uploadingImage, setUploadingImage] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
+  const [editingDescriptionRowId, setEditingDescriptionRowId] = useState(null);
+  const [tempDescription, setTempDescription] = useState("");
 
 
   useEffect(() => {
@@ -111,6 +111,27 @@ const Cakes = () => {
         return newEditedValues;
       });
     }
+  };
+
+  const handleDescriptionEdit = (rowId, currentDescription) => {
+    setEditingDescriptionRowId(rowId);
+    setTempDescription(currentDescription);
+    setShowDescriptionModal(true);
+  };
+
+  const handleDescriptionSave = () => {
+    if (editingDescriptionRowId) {
+      handleFieldChange(editingDescriptionRowId, "description", tempDescription);
+      setShowDescriptionModal(false);
+      setEditingDescriptionRowId(null);
+      setTempDescription("");
+    }
+  };
+
+  const handleDescriptionCancel = () => {
+    setShowDescriptionModal(false);
+    setEditingDescriptionRowId(null);
+    setTempDescription("");
   };
 
   const handleImageUpload = async (event, rowId) => {
@@ -374,9 +395,11 @@ const Cakes = () => {
                         />
                       ) : (
                         <>
-                          {edited.name ?? row.name}
+                          <div className="flex-grow truncate">
+                            {edited.name ?? row.name}
+                          </div>
                           <span
-                            className="cursor-pointer hover:text-blue-700 ml-2"
+                            className="cursor-pointer hover:text-blue-700 flex-shrink-0"
                             onClick={(e) => {
                               e.stopPropagation();
                               setEditingField({ id: rowId, field: "name" });
@@ -409,9 +432,11 @@ const Cakes = () => {
                         />
                       ) : (
                         <>
-                          {edited.theme ?? row.theme}
+                          <div className="flex-grow truncate">
+                            {edited.theme ?? row.theme}
+                          </div>
                           <span
-                            className="cursor-pointer hover:text-blue-700 ml-2"
+                            className="cursor-pointer hover:text-blue-700 flex-shrink-0"
                             onClick={(e) => {
                               e.stopPropagation();
                               setEditingField({ id: rowId, field: "theme" });
@@ -430,37 +455,21 @@ const Cakes = () => {
 
                   <td className="py-2 px-4">
                     <div className="flex items-center gap-2">
-                      {editingField.id === rowId && editingField.field === "description" ? (
-                        <input
-                          type="text"
-                          className="border rounded px-2 py-1 w-32"
-                          value={edited.description ?? row.description}
-                          onChange={(e) => handleFieldChange(rowId, "description", e.target.value)}
-                          onBlur={() => {
-                            handleFieldChange(rowId, "description", edited.description ?? row.description);
-                            setEditingField({ id: null, field: null });
-
-                          }}
-                          autoFocus
-                        />
-                      ) : (
-                        <>
-                          {edited.description ?? row.description}
-                          <span
-                            className="cursor-pointer hover:text-blue-700 ml-2"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingField({ id: rowId, field: "description" });
-                              setEditedDescription(edited.description ?? row.description);
-                            }}
-                          >
-                            <svg key={`edit-description-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </span>
-                        </>
-                      )}
+                      <div className="flex-grow truncate">
+                        {edited.description ?? row.description}
+                      </div>
+                      <span
+                        className="cursor-pointer hover:text-blue-700 flex-shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDescriptionEdit(rowId, edited.description ?? row.description);
+                        }}
+                      >
+                        <svg key={`edit-description-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
                     </div>
                   </td>
 
@@ -479,22 +488,24 @@ const Cakes = () => {
                           autoFocus
                         />
                       ) : (
-                        <div
-                          className="flex items-center gap-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingField({ id: rowId, field: "tier" });
-                            setEditedTier(edited.tier ?? row.tier);
-                          }}
-                        >
-                          {edited.tier ?? row.tier}
-                          <span className="cursor-pointer hover:text-blue-700">
+                        <>
+                          <div className="truncate">
+                            {edited.tier ?? row.tier}
+                          </div>
+                          <span
+                            className="cursor-pointer hover:text-blue-700 flex-shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingField({ id: rowId, field: "tier" });
+                              setEditedTier(edited.tier ?? row.tier);
+                            }}
+                          >
                             <svg key={`edit-tier-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
                               <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                               <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                           </span>
-                        </div>
+                        </>
                       )}
                     </div>
                   </td>
@@ -504,7 +515,7 @@ const Cakes = () => {
                       {editingField.id === rowId && editingField.field === "price" ? (
                         <input
                           type="number"
-                          className="border rounded px-2 py-1 w-20"
+                          className="border rounded px-2 py-1 w-16"
                           value={edited.price ?? row.price}
                           onChange={(e) => handleFieldChange(rowId, "price", parseFloat(e.target.value))}
                           onBlur={() => {
@@ -514,22 +525,24 @@ const Cakes = () => {
                           autoFocus
                         />
                       ) : (
-                        <div
-                          className="flex items-center gap-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingField({ id: rowId, field: "price" });
-                            setEditedPrice(edited.price ?? row.price);
-                          }}
-                        >
-                          ₱{edited.price ?? row.price}
-                          <span className="cursor-pointer hover:text-blue-700">
+                        <>
+                          <div className="truncate">
+                            ₱{edited.price ?? row.price}
+                          </div>
+                          <span
+                            className="cursor-pointer hover:text-blue-700 flex-shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingField({ id: rowId, field: "price" });
+                              setEditedPrice(edited.price ?? row.price);
+                            }}
+                          >
                             <svg key={`edit-price-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
                               <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                               <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                           </span>
-                        </div>
+                        </>
                       )}
                     </div>
                   </td>
@@ -615,6 +628,36 @@ const Cakes = () => {
           SAVE CHANGES
         </button>
       </div>
+
+      {/* Description Edit Modal */}
+      {showDescriptionModal && (
+        <div className="fixed inset-0 bg-gray/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 max-w-md border-4 border-[#AF524D] shadow-2xl">
+            <h3 className="text-lg font-semibold mb-4 text-[#381914]">Edit Description</h3>
+            <textarea
+              value={tempDescription}
+              onChange={(e) => setTempDescription(e.target.value)}
+              className="w-full h-32 p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-transparent"
+              placeholder="Enter cake description..."
+              autoFocus
+            />
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={handleDescriptionCancel}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDescriptionSave}
+                className="px-4 py-2 bg-[#AF524D] text-white rounded-lg hover:bg-[#8B3D3A] transition-colors cursor-pointer"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
