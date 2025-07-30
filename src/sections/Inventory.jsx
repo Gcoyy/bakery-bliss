@@ -448,7 +448,7 @@ const Inventory = () => {
   });
 
   return (
-    <div className="bg-white rounded-2xl shadow-md p-6 w-full border-4 border-[#AF524D] min-h-screen max-h-screen">
+    <div className="bg-white rounded-2xl shadow-md p-6 w-full border-4 border-[#AF524D] min-h-screen max-h-screen flex flex-col">
       <div className="flex gap-4 items-center mb-6">
         <h1 className="text-3xl font-semibold mb-4 text-[#381914]">Inventory</h1>
         <div className="ml-auto flex items-center gap-2">
@@ -477,7 +477,7 @@ const Inventory = () => {
         </div>
       </div>
 
-      <div className="w-full h-[75%] overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse table-fixed">
           <thead className="bg-gray-200 sticky top-0 z-10">
             <tr>
@@ -624,16 +624,16 @@ const Inventory = () => {
         </table>
       </div>
 
-      <div className="mt-6 flex justify-end gap-4">
+      <div className="mt-6 flex justify-end gap-4 flex-wrap">
         <button
-          className="bg-[#D9D9D9] text-black px-6 py-2 rounded-full cursor-pointer"
+          className="bg-[#D9D9D9] text-black px-6 py-2 rounded-full cursor-pointer hover:bg-gray-300 transition-colors"
           onClick={handleAddRow}
         >
           ADD
         </button>
         <button
-          className={`px-6 py-2 rounded-full ${selectedRowId
-            ? 'bg-[#D9D9D9] text-black cursor-pointer'
+          className={`px-6 py-2 rounded-full transition-colors ${selectedRowId
+            ? 'bg-[#D9D9D9] text-black cursor-pointer hover:bg-gray-300'
             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}
           onClick={handleDeleteRow}
@@ -642,7 +642,7 @@ const Inventory = () => {
           DELETE
         </button>
         <button
-          className="bg-green-600 text-white px-6 py-2 rounded-full cursor-pointer"
+          className="bg-green-600 text-white px-6 py-2 rounded-full cursor-pointer hover:bg-green-700 transition-colors"
           onClick={handleSaveChanges}
         >
           SAVE CHANGES

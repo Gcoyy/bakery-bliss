@@ -15,35 +15,59 @@ const Footer = () => {
 
       {/* 2. Contact Info + Socials */}
       <div className="w-full sm:w-auto mb-6 sm:mb-0">
-        <p>Phone:</p>
-        <p>Email:</p>
-        <p>Location:</p>
-        <p className="mt-4">Social Media:</p>
+        <h3 className="font-semibold mb-2">Contact Us</h3>
+        <p>📞 +63 912 345 6789</p>
+        <p>✉️ conniescakemall@gmail.com</p>
+        <p>📍 Dumaguete City, Philippines</p>
+        <p className="mt-4 font-semibold">Follow Us:</p>
         <div className="flex gap-3 mt-2">
-          <a href="https://www.facebook.com/connies.cakemall" target="_blank" rel="noopener noreferrer">
+          <a href="https://www.facebook.com/connies.cakemall" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
             <img src="/fb_icon.png" alt="Facebook" className="w-6 h-6" />
           </a>
-          <a href="https://www.instagram.com/conniescakemall?igsh=MXNiNjUwdjVlNW5uaA==" target="_blank" rel="noopener noreferrer">
+          <a href="https://www.instagram.com/conniescakemall?igsh=MXNiNjUwdjVlNW5uaA==" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
             <img src="/ig_icon.png" alt="Instagram" className="w-6 h-6" />
           </a>
         </div>
       </div>
 
-      {/* 3. Left Link Section */}
+      {/* 3. Quick Links */}
       <div className="w-full sm:w-auto mb-6 sm:mb-0">
+        <h3 className="font-semibold mb-2">Quick Links</h3>
         <ul className="space-y-1">
-          <li>Product Care</li>
-          <li>Contact Us</li>
+          <li>
+            <Link to="/cakes" className="hover:text-[#AF524D] transition-colors">
+              Our Cakes
+            </Link>
+          </li>
+          <li>
+            <Link to="/aboutus" className="hover:text-[#AF524D] transition-colors">
+              About Us
+            </Link>
+          </li>
+          <li>
+            <Link to="/contact" className="hover:text-[#AF524D] transition-colors">
+              Contact
+            </Link>
+          </li>
         </ul>
       </div>
 
-      {/* 4. Right Link Section */}
+      {/* 4. Legal Links */}
       <div className="w-full sm:w-auto">
+        <h3 className="font-semibold mb-2">Legal</h3>
         <ul className="space-y-1">
-          <li>Terms and conditions</li>
-          <li>Privacy Notice</li>
           <li>
-            <Link to="/aboutus">
+            <Link to="/terms" className="hover:text-[#AF524D] transition-colors">
+              Terms & Conditions
+            </Link>
+          </li>
+          <li>
+            <Link to="/privacy" className="hover:text-[#AF524D] transition-colors">
+              Privacy Policy
+            </Link>
+          </li>
+          <li>
+            <Link to="/aboutus" className="hover:text-[#AF524D] transition-colors">
               Location
             </Link>
           </li>
