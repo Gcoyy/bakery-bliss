@@ -340,7 +340,7 @@ const Cakes = () => {
   const uniqueTiers = [...new Set([...rows, ...newRows].map(row => row.tier).filter(Boolean))].sort((a, b) => a - b);
 
   return (
-    <div className="bg-white rounded-2xl shadow-md p-6 w-full border-4 border-[#AF524D] min-h-screen max-h-screen flex flex-col">
+    <div className="bg-white rounded-2xl shadow-md p-6 w-full border-4 border-[#AF524D] min-h-[80vh] max-h-[80vh] flex flex-col">
       <div className="flex gap-4 items-center mb-6">
         <h1 className="text-3xl font-semibold mb-4 text-[#381914]">Cakes</h1>
         <div className="ml-auto flex items-center gap-2">

@@ -52,7 +52,7 @@ const AdminProfile = () => {
           <h1 className="text-3xl font-bold text-black">Admin Profile</h1>
           <button
             onClick={handleSignOut}
-            className="bg-red-500 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded"
+            className="bg-red-500 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded cursor-pointer"
           >
             Sign Out
           </button>
