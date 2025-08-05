@@ -15,6 +15,8 @@ import ScrollToHashElement from "./components/ScrollToHashElement";
 import Profile from "./Pages/Customer/Profile";
 import CakeCatalog from "./Pages/Customer/CakeCatalog";
 import RoleBasedRedirect from "./context/RoleBasedRedirect";
+import Cart from "./Pages/Customer/Cart";
+import CakeCustomization from "./Pages/Customer/CakeCustomization";
 
 import Inventory from "./sections/Inventory";
 import Cakes from "./sections/Cakes";
@@ -23,6 +25,7 @@ import Assets from "./sections/Assets";
 import ProtectedRoute from "./context/ProtectedRoute";
 import AdminPage from "./Pages/Admin/AdminPage";
 import AdminProfile from "./Pages/Admin/AdminProfile";
+import AdminOrders from "./Pages/Admin/AdminOrders";
 
 function AppRoutes() {
   const location = useLocation();
@@ -38,6 +41,8 @@ function AppRoutes() {
         <Route path="/aboutus" element={<PageTransition><AboutUs /></PageTransition>} />
         <Route path="/contactus" element={<PageTransition><ContactUs /></PageTransition>} />
         <Route path="/cakecatalog" element={<PageTransition><CakeCatalog /></PageTransition>} />
+        <Route path="/cart" element={<PageTransition><Cart /></PageTransition>} />
+        <Route path="/cakecustomization" element={<PageTransition><CakeCustomization /></PageTransition>} />
 
         {/* Customer-only route */}
         <Route
@@ -64,6 +69,15 @@ function AppRoutes() {
           <Route path="cake orders" element={<CakeOrders />} />
           <Route path="custom cake assets" element={<Assets />} />
         </Route>
+
+        <Route
+          path="/admin/orders"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <PageTransition><AdminOrders /></PageTransition>
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/admin/profile"

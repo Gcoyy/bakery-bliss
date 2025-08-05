@@ -36,7 +36,7 @@ const Header = () => {
               { to: "/temp", label: "Temp" },
             ] : [
               { to: "/", label: "Home" },
-              { to: "/customization", label: "Cake Customization" },
+              { to: "/cakecustomization", label: "Cake Customization" },
               { to: "/cakecatalog", label: "Cake Catalog" },
               { to: "/aboutus", label: "About Us" },
               { to: "/contactus", label: "Contact Us" },
@@ -78,7 +78,7 @@ const Header = () => {
                 { to: "/temp", label: "Temp" },
               ] : [
                 { to: "/", label: "Home" },
-                { to: "/customization", label: "Cake Customization" },
+                { to: "/cakecustomization", label: "Cake Customization" },
                 { to: "/cakecatalog", label: "Cake Catalog" },
                 { to: "/aboutus", label: "About Us" },
                 { to: "/contactus", label: "Contact Us" },
@@ -103,9 +103,9 @@ const Header = () => {
           <img src="/Profile Icon.png" alt="Profile" className="w-full h-full" />
         </Link>
         {userRole !== "admin" && (
-          <a href="../Pages/Cart" className="h-12 w-12">
+          <Link to="/cart" className="h-12 w-12">
             <img src="/Cart.png" alt="Cart" className="w-full h-full" />
-          </a>
+          </Link>
         )}
       </div>
     </header>

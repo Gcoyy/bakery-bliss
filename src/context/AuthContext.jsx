@@ -9,7 +9,7 @@ export const AuthContextProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);   // To prevent route flicker
 
   // Sign up
-  const signUpNewUser = async (email, password, firstName, lastName, username) => {
+  const signUpNewUser = async (email, password, firstName, lastName, username, phoneNumber) => {
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -29,7 +29,7 @@ export const AuthContextProvider = ({ children }) => {
         cus_lname: lastName,
         cus_username: username,
         email,
-        cus_celno: 0,
+        cus_celno: phoneNumber ? parseInt(phoneNumber.replace(/\D/g, '')) : 0,
         auth_user_id: authUser.id,
       },
     ]);

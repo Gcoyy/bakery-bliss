@@ -12,12 +12,13 @@ const AdminSidebar = () => {
           { name: "Cake Orders", path: "cake orders" },
           { name: "Cakes", path: "cakes" },
           { name: "Custom Cake Assets", path: "custom cake assets" },
+          { name: "Order Management", path: "/admin/orders", isExternal: true },
         ].map((opt, i) => {
-          const isActive = currentPath === opt.path;
+          const isActive = opt.isExternal ? location.pathname === opt.path : currentPath === opt.path;
           return (
             <Link
               key={i}
-              to={`/adminpage/${opt.path}`}
+              to={opt.isExternal ? opt.path : `/adminpage/${opt.path}`}
               className={`block text-sm px-3 py-2 rounded border transition-colors ${isActive
                 ? 'bg-[#AF524D] text-white border-[#AF524D]'
                 : 'text-black-700 hover:bg-[#DFBFA6] border-black/50'
