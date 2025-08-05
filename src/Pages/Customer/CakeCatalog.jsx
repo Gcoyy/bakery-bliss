@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import * as QRCode from 'qrcode';
 
 const getPublicImageUrl = (path) => {
   if (!path) return null;
@@ -38,8 +37,42 @@ const CakeCatalog = () => {
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [isOrderTypeDropdownOpen, setIsOrderTypeDropdownOpen] = useState(false);
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [orderId, setOrderId] = useState('');
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+
+  // Add to cart functionality
+  const addToCart = (cake) => {
+    try {
+      // Get existing cart from localStorage
+      const existingCart = localStorage.getItem('bakeryCart');
+      const cart = existingCart ? JSON.parse(existingCart) : [];
+
+      // Check if cake is already in cart
+      const existingItem = cart.find(item => item.cake_id === cake.cake_id);
+
+      if (existingItem) {
+        // Update quantity if already in cart
+        existingItem.quantity += 1;
+        toast.success(`Updated quantity for ${cake.name}`);
+      } else {
+        // Add new item to cart
+        cart.push({
+          cake_id: cake.cake_id,
+          name: cake.name,
+          price: cake.price,
+          cake_img: cake.cake_img,
+          quantity: 1
+        });
+        toast.success(`${cake.name} added to cart!`);
+      }
+
+      // Save updated cart to localStorage
+      localStorage.setItem('bakeryCart', JSON.stringify(cart));
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast.error('Failed to add to cart');
+    }
+  };
 
   // Fetch cake data from Supabase
   useEffect(() => {
@@ -120,44 +153,140 @@ const CakeCatalog = () => {
   };
 
   const handlePlaceOrder = async () => {
+    // Prevent multiple clicks
+    if (isPlacingOrder) {
+      return;
+    }
+
+    console.log('handlePlaceOrder called');
+    console.log('selectedCake:', selectedCake);
+    console.log('orderDate:', orderDate);
+    console.log('orderTime:', orderTime);
+    console.log('orderType:', orderType);
+    console.log('deliveryAddress:', deliveryAddress);
+
     if (!selectedCake || !orderDate || !orderTime || (orderType === "Delivery" && !deliveryAddress)) {
+      console.log('Validation failed - missing required fields');
       toast.error('Please fill in all required fields');
       return;
     }
 
+    setIsPlacingOrder(true);
+
     try {
-      // Here you would typically save the order to your database
-      // For now, we'll simulate the order process
-      console.log('Placing order for cake:', selectedCake.name);
-      console.log('Order details:', {
-        quantity: cakeQuantity,
-        date: orderDate,
-        time: orderTime,
-        type: orderType,
-        address: deliveryAddress,
-        totalPrice: selectedCake.price * cakeQuantity
-      });
+      console.log('Starting order placement...');
+      // Get current user session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.log('No user session found');
+        toast.error('Please log in to place an order');
+        return;
+      }
 
-      // Generate unique order ID
-      const newOrderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-      setOrderId(newOrderId);
+      // Get customer ID from the session
+      const { data: customer, error: customerError } = await supabase
+        .from("CUSTOMER")
+        .select("cus_id")
+        .eq("auth_user_id", session.user.id)
+        .single();
 
-      // Prepare order data for QR code
-      const orderData = {
-        orderId: newOrderId,
-        cake: selectedCake.name,
-        quantity: cakeQuantity,
-        date: orderDate,
-        time: orderTime,
-        type: orderType,
-        totalPrice: selectedCake.price * cakeQuantity
+      if (customerError || !customer) {
+        toast.error('Customer information not found. Please try again.');
+        return;
+      }
+
+      const totalPrice = selectedCake.price * cakeQuantity;
+      const scheduledDate = new Date(`${orderDate}T${orderTime}`);
+
+      // 1. Create ORDER record
+      const orderInsertData = {
+        order_date: new Date().toISOString().split('T')[0], // Current date
+        delivery_method: orderType,
+        order_schedule: scheduledDate.toISOString().split('T')[0],
+        delivery_address: orderType === "Delivery" ? deliveryAddress : null,
+        cus_id: customer.cus_id,
+        order_status: 'Pending' // New orders start as pending
       };
 
-      // Generate QR code
-      await generateQRCode(orderData);
+      console.log('Attempting to create order with data:', orderInsertData);
 
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { data: orderData, error: orderError } = await supabase
+        .from("ORDER")
+        .insert([orderInsertData])
+        .select()
+        .single();
+
+      if (orderError) {
+        console.error('Error creating order:', orderError);
+        console.error('Order error details:', {
+          message: orderError.message,
+          details: orderError.details,
+          hint: orderError.hint,
+          code: orderError.code
+        });
+        toast.error('Failed to create order. Please try again.');
+        return;
+      }
+
+      console.log('Order created successfully:', orderData);
+      console.log('Order ID from database:', orderData.order_id);
+      console.log('Selected cake ID:', selectedCake.cake_id);
+      console.log('Cake quantity:', cakeQuantity);
+
+      // 2. Create CAKE_ORDERS record
+      const cakeOrderData = {
+        quantity: cakeQuantity,
+        order_id: orderData.order_id,
+        cake_id: selectedCake.cake_id
+      };
+
+      console.log('Attempting to create cake order with data:', cakeOrderData);
+
+      console.log('Attempting to insert into CAKE-ORDERS table...');
+
+      const { data: cakeOrderResult, error: cakeOrderError } = await supabase
+        .from("CAKE-ORDERS")
+        .insert([cakeOrderData])
+        .select();
+
+      if (cakeOrderError) {
+        console.error('Error creating cake order:', cakeOrderError);
+        console.error('Full error object:', JSON.stringify(cakeOrderError, null, 2));
+        console.error('Error details:', {
+          message: cakeOrderError.message,
+          details: cakeOrderError.details,
+          hint: cakeOrderError.hint,
+          code: cakeOrderError.code
+        });
+        toast.error('Failed to create cake order. Please try again.');
+        return;
+      }
+
+      console.log('Cake order created successfully:', cakeOrderResult);
+
+      // 3. Create PAYMENT record
+      const { error: paymentError } = await supabase
+        .from("PAYMENT")
+        .insert([
+          {
+            payment_method: "Cash", // Default to Cash for now
+            amount_paid: totalPrice,
+            payment_date: new Date().toISOString().split('T')[0],
+            payment_status: "Unpaid", // Default to Unpaid
+            receipt: null, // No receipt uploaded yet
+            order_id: orderData.order_id
+          }
+        ]);
+
+      if (paymentError) {
+        console.error('Error creating payment:', paymentError);
+        toast.error('Failed to create payment record. Please try again.');
+        return;
+      }
+
+      // Generate unique order ID for display
+      const newOrderId = `ORD-${orderData.order_id}`;
+      setOrderId(newOrderId);
 
       // Show success notification
       toast.success(`Order successfully placed for ${selectedCake.name}!`, {
@@ -171,6 +300,7 @@ const CakeCatalog = () => {
         },
       });
 
+      console.log('Advancing to step 3...');
       // Advance to success step (step 3)
       setCurrentStep(3);
 
@@ -180,6 +310,8 @@ const CakeCatalog = () => {
         duration: 4000,
         position: 'top-center',
       });
+    } finally {
+      setIsPlacingOrder(false);
     }
   };
 
@@ -192,12 +324,14 @@ const CakeCatalog = () => {
     setCakeQuantity(1);
     setCurrentStep(1);
     setIsOrderTypeDropdownOpen(false);
-    setQrCodeDataUrl('');
     setOrderId('');
+    setIsPlacingOrder(false);
   };
 
   const nextStep = () => {
+    console.log('nextStep called, current step:', currentStep);
     if (currentStep < 3) {
+      console.log('Advancing to step:', currentStep + 1);
       setCurrentStep(currentStep + 1);
     }
   };
@@ -208,44 +342,7 @@ const CakeCatalog = () => {
     }
   };
 
-  const generateQRCode = async (orderData) => {
-    try {
-      console.log('Generating QR code for order data:', orderData);
-      console.log('QRCode library available:', typeof QRCode);
 
-      // Simple success message for QR code
-      const qrData = "Successfully delivered";
-
-      console.log('QR data string:', qrData);
-
-      const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
-        width: 128,
-        margin: 1,
-        color: {
-          dark: '#AF524D',
-          light: '#FFFFFF'
-        }
-      });
-
-      console.log('QR code generated successfully:', qrCodeDataUrl.substring(0, 50) + '...');
-      setQrCodeDataUrl(qrCodeDataUrl);
-    } catch (error) {
-      console.error('Error generating QR code:', error);
-      // Fallback: generate a simple text QR code
-      try {
-        const fallbackData = "Successfully delivered";
-        const fallbackQR = await QRCode.toDataURL(fallbackData, {
-          width: 128,
-          margin: 1
-        });
-        setQrCodeDataUrl(fallbackQR);
-      } catch (fallbackError) {
-        console.error('Fallback QR code generation also failed:', fallbackError);
-        // Final fallback: show a placeholder
-        setQrCodeDataUrl('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiBmaWxsPSIjRkZGRkZGIi8+Cjx0ZXh0IHg9IjY0IiB5PSI2NCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEwIiBmaWxsPSIjNjY2NjY2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+UVJDb2RlPC90ZXh0Pgo8L3N2Zz4K');
-      }
-    }
-  };
 
   const filteredCakes = cakes
     .filter((cake) => cake.price <= price)
@@ -277,33 +374,7 @@ const CakeCatalog = () => {
     setCurrentPage(1);
   }, [price, tier, selectedThemes, sortBy]);
 
-  // Generate QR code when reaching step 3 if not already generated
-  useEffect(() => {
-    if (currentStep === 3 && !qrCodeDataUrl && orderId && selectedCake) {
-      console.log('useEffect triggered: generating QR code for step 3');
-      const orderData = {
-        orderId: orderId,
-        cake: selectedCake.name,
-        quantity: cakeQuantity,
-        date: orderDate,
-        time: orderTime,
-        type: orderType,
-        totalPrice: selectedCake.price * cakeQuantity
-      };
 
-      // Add timeout to prevent infinite loading
-      const timeoutId = setTimeout(() => {
-        if (!qrCodeDataUrl) {
-          console.log('QR code generation timeout, using fallback');
-          setQrCodeDataUrl('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiBmaWxsPSIjRkZGRkZGIi8+Cjx0ZXh0IHg9IjY0IiB5PSI2NCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEwIiBmaWxsPSIjNjY2NjY2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+UVJDb2RlPC90ZXh0Pgo8L3N2Zz4K');
-        }
-      }, 3000); // 3 second timeout
-
-      generateQRCode(orderData);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [currentStep, qrCodeDataUrl, orderId, selectedCake, cakeQuantity, orderDate, orderTime, orderType]);
 
   if (loading) {
     return <LoadingSpinner message="Loading cake catalog..." />;
@@ -859,18 +930,23 @@ const CakeCatalog = () => {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex gap-4 justify-end">
+                  <div className="flex gap-4 justify-between items-center pt-4 border-t border-gray-200">
                     <button
                       onClick={prevStep}
                       className="px-6 py-2 bg-gray-300 text-gray-700 rounded-full hover:bg-gray-400 transition-colors"
                     >
                       Back
                     </button>
+
                     <button
-                      onClick={nextStep}
-                      className="px-6 py-2 bg-[#AF524D] text-white rounded-full hover:bg-[#8B3D3A] transition-colors"
+                      onClick={handlePlaceOrder}
+                      disabled={isPlacingOrder}
+                      className={`px-6 py-2 rounded-full transition-colors ${isPlacingOrder
+                        ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                        : 'bg-[#AF524D] text-white hover:bg-[#8B3D3A]'
+                        }`}
                     >
-                      Continue
+                      {isPlacingOrder ? 'Placing Order...' : 'Place Order'}
                     </button>
                   </div>
                 </div>
@@ -889,27 +965,9 @@ const CakeCatalog = () => {
                     </div>
                     <h4 className="font-semibold text-green-800 text-xl mb-2">Thank you for your order!</h4>
                     <p className="text-green-700 text-sm mb-4">
-                      Your order has been successfully placed. We'll start preparing your cake right away!
+                      Your order has been successfully placed.
                     </p>
-                    <div className="bg-white p-3 rounded-lg border border-green-200">
-                      <p className="text-sm text-gray-600 mb-3">
-                        <span className="font-medium">Order ID:</span> {orderId}
-                      </p>
-                      <div className="flex flex-col items-center">
-                        <p className="text-xs text-gray-500 mb-2">Scan this QR code to confirm delivery</p>
-                        {qrCodeDataUrl ? (
-                          <img
-                            src={qrCodeDataUrl}
-                            alt="Order QR Code"
-                            className="w-32 h-32 border-2 border-green-200 rounded-lg"
-                          />
-                        ) : (
-                          <div className="w-32 h-32 border-2 border-green-200 rounded-lg bg-gray-100 flex items-center justify-center">
-                            <p className="text-xs text-gray-500">Generating QR code...</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+
                   </div>
 
                   {/* Action Buttons */}
