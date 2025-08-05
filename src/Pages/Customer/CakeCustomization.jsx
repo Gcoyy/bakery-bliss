@@ -19,6 +19,8 @@ const CakeCustomization = () => {
     const [fontSize, setFontSize] = useState(24);
     const [fontFamily, setFontFamily] = useState('Arial');
     const [canvasReady, setCanvasReady] = useState(false);
+    const [selectedObject, setSelectedObject] = useState(null);
+    const [objectUpdateTrigger, setObjectUpdateTrigger] = useState(0);
 
     console.log('Initial state:', { loading, canvasReady, selectedColor });
 
@@ -134,19 +136,19 @@ const CakeCustomization = () => {
         console.log('=== Get Color From Wheel called ===');
         console.log('Event:', event);
 
-        const canvas = colorWheelRef.current;
-        console.log('Color wheel canvas:', canvas);
+        const colorWheelCanvas = colorWheelRef.current;
+        console.log('Color wheel canvas:', colorWheelCanvas);
 
-        if (!canvas) {
+        if (!colorWheelCanvas) {
             console.log('Color wheel canvas not available');
             return;
         }
 
-        const rect = canvas.getBoundingClientRect();
+        const rect = colorWheelCanvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
+        const centerX = colorWheelCanvas.width / 2;
+        const centerY = colorWheelCanvas.height / 2;
 
         console.log('Click coordinates:', { x, y, centerX, centerY });
 
@@ -163,7 +165,45 @@ const CakeCustomization = () => {
             const saturation = Math.min((distance / radius) * 100, 100);
             const lightness = 50;
 
-            const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+            // Convert HSL to RGB first, then to hex
+            const hslToRgb = (h, s, l) => {
+                s /= 100;
+                l /= 100;
+                const c = (1 - Math.abs(2 * l - 1)) * s;
+                const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+                const m = l - c / 2;
+                let r = 0, g = 0, b = 0;
+
+                if (0 <= h && h < 60) {
+                    r = c; g = x; b = 0;
+                } else if (60 <= h && h < 120) {
+                    r = x; g = c; b = 0;
+                } else if (120 <= h && h < 180) {
+                    r = 0; g = c; b = x;
+                } else if (180 <= h && h < 240) {
+                    r = 0; g = x; b = c;
+                } else if (240 <= h && h < 300) {
+                    r = x; g = 0; b = c;
+                } else if (300 <= h && h < 360) {
+                    r = c; g = 0; b = x;
+                }
+
+                return [
+                    Math.round((r + m) * 255),
+                    Math.round((g + m) * 255),
+                    Math.round((b + m) * 255)
+                ];
+            };
+
+            const rgbToHex = (r, g, b) => {
+                return '#' + [r, g, b].map(x => {
+                    const hex = x.toString(16);
+                    return hex.length === 1 ? '0' + hex : hex;
+                }).join('');
+            };
+
+            const [r, g, b] = hslToRgb(hue, saturation, lightness);
+            const color = rgbToHex(r, g, b);
             console.log('Calculated color:', color);
             setSelectedColor(color);
 
@@ -183,7 +223,11 @@ const CakeCustomization = () => {
                     activeObject.set('fill', color);
                     canvas.current.renderAll();
                     console.log('Color changed successfully');
-                    toast.success('Color changed');
+
+                    // Update the selected object state to reflect the color change
+                    if (selectedObject && selectedObject === activeObject) {
+                        setObjectUpdateTrigger(prev => prev + 1);
+                    }
                 } else {
                     console.log('No active object for color change');
                 }
@@ -193,6 +237,37 @@ const CakeCustomization = () => {
         } else {
             console.log('Click outside color wheel radius');
         }
+    };
+
+    // Mouse event handlers for drag functionality
+    const handleMouseDown = (event) => {
+        console.log('=== Mouse Down on Color Wheel ===');
+        const colorWheelCanvas = colorWheelRef.current;
+        if (!colorWheelCanvas) return;
+
+        // Add event listeners for drag
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+
+        // Get initial color
+        getColorFromWheel(event);
+    };
+
+    const handleMouseMove = (event) => {
+        console.log('=== Mouse Move on Color Wheel ===');
+        // Create a synthetic event with the current mouse position
+        const syntheticEvent = {
+            clientX: event.clientX,
+            clientY: event.clientY
+        };
+        getColorFromWheel(syntheticEvent);
+    };
+
+    const handleMouseUp = () => {
+        console.log('=== Mouse Up on Color Wheel ===');
+        // Remove event listeners
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
     };
 
     // Fetch cake images and decorations from database
@@ -265,16 +340,59 @@ const CakeCustomization = () => {
             console.log('Canvas ref element:', canvasRef.current);
 
             try {
+                // Get the container dimensions
+                const container = canvasRef.current.parentElement;
+                const containerRect = container.getBoundingClientRect();
+
+                console.log('=== Canvas Sizing Debug ===');
+                console.log('Container element:', container);
+                console.log('Container rect:', containerRect);
+                console.log('Container width:', containerRect.width);
+                console.log('Container height:', containerRect.height);
+
+                // Set canvas size to fit container while maintaining aspect ratio
+                const maxWidth = Math.min(1200, containerRect.width - 32); // 32px for padding
+                const maxHeight = Math.min(900, containerRect.height - 32);
+
+                console.log('Calculated maxWidth:', maxWidth);
+                console.log('Calculated maxHeight:', maxHeight);
+                console.log('Canvas element before creation:', canvasRef.current);
+
                 canvas.current = new Canvas(canvasRef.current, {
-                    width: 800,
-                    height: 600,
+                    width: maxWidth,
+                    height: maxHeight,
                     backgroundColor: '#f8f9fa'
                 });
                 console.log('Canvas created successfully:', canvas.current);
+                console.log('Canvas dimensions after creation:', {
+                    width: canvas.current.width,
+                    height: canvas.current.height
+                });
+
+                // Check container styling
+                console.log('Container computed styles:', {
+                    width: window.getComputedStyle(container).width,
+                    height: window.getComputedStyle(container).height,
+                    maxWidth: window.getComputedStyle(container).maxWidth,
+                    maxHeight: window.getComputedStyle(container).maxHeight,
+                    overflow: window.getComputedStyle(container).overflow
+                });
+
+                // Check canvas element styling
+                console.log('Canvas element computed styles:', {
+                    width: window.getComputedStyle(canvasRef.current).width,
+                    height: window.getComputedStyle(canvasRef.current).height,
+                    maxWidth: window.getComputedStyle(canvasRef.current).maxWidth,
+                    maxHeight: window.getComputedStyle(canvasRef.current).maxHeight
+                });
 
                 // Add event listeners
                 canvas.current.on('selection:created', handleSelection);
                 canvas.current.on('selection:cleared', handleDeselection);
+                canvas.current.on('object:modified', handleObjectModified);
+                canvas.current.on('object:moving', handleObjectModified);
+                canvas.current.on('object:scaling', handleObjectModified);
+                canvas.current.on('object:rotating', handleObjectModified);
                 console.log('Event listeners added');
 
                 // Mark canvas as ready with a small delay to ensure full initialization
@@ -283,16 +401,6 @@ const CakeCustomization = () => {
                     console.log('Delayed canvas ready set to true');
                     setCanvasReady(true);
                 }, 100);
-
-                return () => {
-                    console.log('Canvas cleanup - disposing canvas');
-                    if (canvas.current) {
-                        canvas.current.dispose();
-                        canvas.current = null;
-                    }
-                    console.log('Setting canvasReady to false');
-                    setCanvasReady(false);
-                };
             } catch (error) {
                 console.error('Error creating Canvas:', error);
             }
@@ -300,6 +408,68 @@ const CakeCustomization = () => {
             console.log('Loading is still true, canvas ref not ready, or canvas already exists');
         }
     }, [loading]);
+
+    // Handle canvas resize
+    const handleCanvasResize = () => {
+        console.log('=== Canvas Resize Debug ===');
+        console.log('Canvas current:', canvas.current);
+        console.log('Canvas ref:', canvasRef.current);
+
+        if (canvas.current && canvasRef.current) {
+            const container = canvasRef.current.parentElement;
+            const containerRect = container.getBoundingClientRect();
+
+            console.log('Resize - Container rect:', containerRect);
+            console.log('Resize - Container width:', containerRect.width);
+            console.log('Resize - Container height:', containerRect.height);
+
+            const maxWidth = Math.min(1200, containerRect.width - 32);
+            const maxHeight = Math.min(900, containerRect.height - 32);
+
+            console.log('Resize - Calculated maxWidth:', maxWidth);
+            console.log('Resize - Calculated maxHeight:', maxHeight);
+            console.log('Resize - Current canvas dimensions:', {
+                width: canvas.current.width,
+                height: canvas.current.height
+            });
+
+            canvas.current.setDimensions({
+                width: maxWidth,
+                height: maxHeight
+            });
+            canvas.current.renderAll();
+
+            console.log('Resize - New canvas dimensions:', {
+                width: canvas.current.width,
+                height: canvas.current.height
+            });
+        } else {
+            console.log('Resize - Canvas not ready for resize');
+        }
+    };
+
+    // Add resize listener
+    useEffect(() => {
+        if (canvasReady && canvas.current) {
+            window.addEventListener('resize', handleCanvasResize);
+            return () => {
+                window.removeEventListener('resize', handleCanvasResize);
+            };
+        }
+    }, [canvasReady]);
+
+    // Cleanup effect - runs only on unmount
+    useEffect(() => {
+        return () => {
+            console.log('Canvas cleanup - disposing canvas');
+            if (canvas.current) {
+                canvas.current.dispose();
+                canvas.current = null;
+            }
+            console.log('Setting canvasReady to false');
+            setCanvasReady(false);
+        };
+    }, []);
 
     // Initialize color wheel
     useEffect(() => {
@@ -313,7 +483,7 @@ const CakeCustomization = () => {
         } else {
             console.log('Color wheel ref not ready');
         }
-    }, [selectedColor]);
+    }, [selectedColor, objectUpdateTrigger]);
 
     // Draw color wheel on mount
     useEffect(() => {
@@ -350,12 +520,17 @@ const CakeCustomization = () => {
 
         if (activeObject) {
             console.log('Active object type:', activeObject.type);
+            setSelectedObject(activeObject);
+            setObjectUpdateTrigger(prev => prev + 1);
+
             if (activeObject.type === 'text') {
                 console.log('Setting text properties from active object');
                 setTextValue(activeObject.text);
                 setFontSize(activeObject.fontSize);
                 setFontFamily(activeObject.fontFamily);
                 setSelectedColor(activeObject.fill);
+            } else {
+                setSelectedColor(activeObject.fill || '#FF0000');
             }
         }
     };
@@ -367,6 +542,14 @@ const CakeCustomization = () => {
         setFontSize(24);
         setFontFamily('Arial');
         setSelectedColor('#FF0000');
+        setSelectedObject(null);
+        setObjectUpdateTrigger(0);
+    };
+
+    const handleObjectModified = () => {
+        console.log('=== Handle Object Modified called ===');
+        // Force a re-render of the properties panel
+        setObjectUpdateTrigger(prev => prev + 1);
     };
 
     // Add cake base to canvas
@@ -477,6 +660,7 @@ const CakeCustomization = () => {
             activeObject.set('fill', color);
             canvas.current.renderAll();
             setSelectedColor(color);
+            setObjectUpdateTrigger(prev => prev + 1);
             toast.success('Color changed');
         } else {
             toast.error('Please select an object first');
@@ -519,8 +703,8 @@ const CakeCustomization = () => {
             console.log('Scaling active object by:', scale);
             activeObject.scale(scale);
             canvas.current.renderAll();
+            setObjectUpdateTrigger(prev => prev + 1);
             console.log('Size changed successfully');
-            toast.success('Size changed');
         } else {
             console.log('No active object found');
             toast.error('Please select an object first');
@@ -585,216 +769,339 @@ const CakeCustomization = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-[#f7f0e7] to-[#e5d6c4] py-8">
-            <div className="max-w-7xl mx-auto px-4">
-                {/* Header */}
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-[#381914] mb-2">Custom Cake Designer</h1>
-                    <p className="text-[#381914] opacity-80">Create your perfect cake design with our interactive tool</p>
+        <div className="h-screen flex flex-col bg-gray-50">
+            {/* Top Toolbar - Figma Style */}
+            <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                    <h1 className="text-lg font-semibold text-gray-900">Cake Designer</h1>
+                    <div className="h-4 w-px bg-gray-300"></div>
+                    <div className="flex items-center space-x-2">
+                        <button
+                            onClick={() => setSelectedTool('select')}
+                            className={`p-2 rounded hover:bg-gray-100 transition-colors ${selectedTool === 'select'
+                                ? 'bg-blue-100 text-blue-600'
+                                : 'text-gray-600'
+                                }`}
+                            title="Select Tool (V)"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.122 2.122" />
+                            </svg>
+                        </button>
+                        <button
+                            onClick={() => setSelectedTool('text')}
+                            className={`p-2 rounded hover:bg-gray-100 transition-colors ${selectedTool === 'text'
+                                ? 'bg-blue-100 text-blue-600'
+                                : 'text-gray-600'
+                                }`}
+                            title="Text Tool (T)"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    {/* Left Sidebar - Tools and Controls */}
-                    <div className="lg:col-span-1 space-y-6">
-                        {/* Tools */}
-                        <div className="bg-white rounded-2xl shadow-lg p-6">
-                            <h3 className="text-lg font-semibold text-[#381914] mb-4">Tools</h3>
-                            <div className="space-y-3">
-                                <button
-                                    onClick={() => setSelectedTool('select')}
-                                    className={`w-full py-2 px-4 rounded-lg transition-colors ${selectedTool === 'select'
-                                        ? 'bg-[#AF524D] text-white'
-                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                        }`}
-                                >
-                                    ✋ Select
-                                </button>
-                                <button
-                                    onClick={() => setSelectedTool('text')}
-                                    className={`w-full py-2 px-4 rounded-lg transition-colors ${selectedTool === 'text'
-                                        ? 'bg-[#AF524D] text-white'
-                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                        }`}
-                                >
-                                    T Text
-                                </button>
-                            </div>
-                        </div>
+                <div className="flex items-center space-x-2">
+                    <button
+                        onClick={() => changeSize(0.8)}
+                        className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                        title="Decrease Size"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12H3" />
+                        </svg>
+                    </button>
+                    <button
+                        onClick={() => changeSize(1.2)}
+                        className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                        title="Increase Size"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                    </button>
+                    <div className="h-4 w-px bg-gray-300"></div>
+                    <button
+                        onClick={deleteSelected}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                        title="Delete Selected"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                    <button
+                        onClick={clearCanvas}
+                        className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                        title="Clear Canvas"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
+                    <button
+                        onClick={exportDesign}
+                        className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                        title="Save Design"
+                    >
+                        Save
+                    </button>
+                </div>
+            </div>
 
-                        {/* Color Wheel */}
-                        <div className="bg-white rounded-2xl shadow-lg p-6">
-                            <h3 className="text-lg font-semibold text-[#381914] mb-4">Color Wheel</h3>
-                            <div className="flex flex-col items-center space-y-4">
-                                <canvas
-                                    ref={colorWheelRef}
-                                    width="200"
-                                    height="200"
-                                    className="border border-gray-300 rounded-lg cursor-pointer"
-                                    onClick={getColorFromWheel}
-                                    title="Click to select color"
+            {/* Main Content Area */}
+            <div className="flex-1 flex min-h-0 overflow-hidden">
+                {/* Left Sidebar - Tools Panel */}
+                <div className="w-64 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
+
+                    {/* Text Controls */}
+                    {selectedTool === 'text' && (
+                        <div className="p-4 border-b border-gray-200">
+                            <h3 className="text-sm font-medium text-gray-900 mb-3">Text</h3>
+                            <div className="space-y-3">
+                                <input
+                                    type="text"
+                                    value={textValue}
+                                    onChange={(e) => setTextValue(e.target.value)}
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    placeholder="Enter text..."
                                 />
-                                <div className="text-center">
-                                    <p className="text-sm text-gray-600 mb-2">Selected Color:</p>
-                                    <div
-                                        className="w-12 h-12 rounded-full border-2 border-gray-300 mx-auto"
-                                        style={{ backgroundColor: selectedColor }}
+                                <div>
+                                    <label className="block text-xs text-gray-600 mb-1">Size</label>
+                                    <input
+                                        type="range"
+                                        min="12"
+                                        max="72"
+                                        value={fontSize}
+                                        onChange={(e) => setFontSize(parseInt(e.target.value))}
+                                        className="w-full"
                                     />
-                                    <p className="text-xs text-gray-500 mt-1">{selectedColor}</p>
+                                    <span className="text-xs text-gray-500">{fontSize}px</span>
                                 </div>
-                            </div>
-                        </div>
-
-                        {/* Text Controls */}
-                        {selectedTool === 'text' && (
-                            <div className="bg-white rounded-2xl shadow-lg p-6">
-                                <h3 className="text-lg font-semibold text-[#381914] mb-4">Text Settings</h3>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Text</label>
-                                        <input
-                                            type="text"
-                                            value={textValue}
-                                            onChange={(e) => setTextValue(e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AF524D]"
-                                            placeholder="Enter your text..."
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Font Size</label>
-                                        <input
-                                            type="range"
-                                            min="12"
-                                            max="72"
-                                            value={fontSize}
-                                            onChange={(e) => setFontSize(parseInt(e.target.value))}
-                                            className="w-full"
-                                        />
-                                        <span className="text-sm text-gray-500">{fontSize}px</span>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Font Family</label>
-                                        <select
-                                            value={fontFamily}
-                                            onChange={(e) => setFontFamily(e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AF524D]"
-                                        >
-                                            <option value="Arial">Arial</option>
-                                            <option value="Times New Roman">Times New Roman</option>
-                                            <option value="Courier New">Courier New</option>
-                                            <option value="Georgia">Georgia</option>
-                                            <option value="Verdana">Verdana</option>
-                                        </select>
-                                    </div>
-
-                                    <button
-                                        onClick={addText}
-                                        className="w-full py-2 px-4 bg-[#AF524D] text-white rounded-lg hover:bg-[#8B3D3A] transition-colors"
+                                <div>
+                                    <label className="block text-xs text-gray-600 mb-1">Font</label>
+                                    <select
+                                        value={fontFamily}
+                                        onChange={(e) => setFontFamily(e.target.value)}
+                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                                     >
-                                        Add Text
-                                    </button>
+                                        <option value="Arial">Arial</option>
+                                        <option value="Times New Roman">Times New Roman</option>
+                                        <option value="Courier New">Courier New</option>
+                                        <option value="Georgia">Georgia</option>
+                                        <option value="Verdana">Verdana</option>
+                                    </select>
+                                </div>
+                                <button
+                                    onClick={addText}
+                                    className="w-full px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                                >
+                                    Add Text
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Assets Panel */}
+                    <div className="flex-1 overflow-y-auto min-h-0">
+                        <div className="p-4">
+                            <h3 className="text-sm font-medium text-gray-900 mb-3">Cake Bases</h3>
+                            <div className="space-y-2">
+                                {cakeImages.map((cake) => (
+                                    <div key={cake.cake_id} className="group cursor-pointer">
+                                        <div className="relative">
+                                            <img
+                                                src={cake.publicUrl || "/saved-cake.png"}
+                                                alt={cake.name}
+                                                className="w-full h-16 object-cover rounded border border-gray-200 group-hover:border-blue-300 transition-colors"
+                                                onError={(e) => {
+                                                    e.target.src = "/saved-cake.png";
+                                                }}
+                                            />
+                                            <button
+                                                onClick={() => addCakeBase(cake)}
+                                                className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100"
+                                            >
+                                                <span className="text-white text-xs font-medium">Add</span>
+                                            </button>
+                                        </div>
+                                        <p className="text-xs text-gray-600 mt-1 truncate">{cake.name}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="p-4 border-t border-gray-200">
+                            <h3 className="text-sm font-medium text-gray-900 mb-3">Decorations</h3>
+                            <div className="space-y-2">
+                                {decorations.map((decoration) => (
+                                    <div key={decoration.id} className="group cursor-pointer">
+                                        <div className="relative">
+                                            <div className="w-full h-16 bg-gray-100 rounded border border-gray-200 group-hover:border-blue-300 transition-colors flex items-center justify-center">
+                                                <span className="text-gray-500 text-xs">{decoration.name}</span>
+                                            </div>
+                                            <button
+                                                onClick={() => addDecoration(decoration)}
+                                                className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100"
+                                            >
+                                                <span className="text-white text-xs font-medium">Add</span>
+                                            </button>
+                                        </div>
+                                        <p className="text-xs text-gray-600 mt-1 truncate">{decoration.name}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Canvas Area */}
+                <div className="flex-1 bg-gray-100 flex items-center justify-center p-4 min-h-0 overflow-hidden">
+                    <div className="bg-white shadow-lg rounded-lg overflow-hidden" style={{ minWidth: '800px', minHeight: '600px', width: '100%', height: '100%' }}>
+                        <canvas ref={canvasRef} />
+                    </div>
+                </div>
+
+                {/* Right Sidebar - Properties Panel */}
+                <div className="w-64 bg-white border-l border-gray-200 p-4">
+                    <h3 className="text-sm font-medium text-gray-900 mb-3">Properties</h3>
+                    {selectedObject ? (
+                        // Use objectUpdateTrigger to force re-render when object properties change
+                        <div key={objectUpdateTrigger} className="space-y-4">
+                            {/* Color Picker - Only show when object is selected */}
+                            <div>
+                                <label className="block text-xs text-gray-600 mb-1">Color</label>
+                                <div className="flex flex-col items-center space-y-3">
+                                    <canvas
+                                        ref={colorWheelRef}
+                                        width="120"
+                                        height="120"
+                                        className="border border-gray-300 rounded cursor-pointer"
+                                        onMouseDown={handleMouseDown}
+                                        title="Click and drag to select color"
+                                    />
+                                    <div className="flex items-center space-x-2">
+                                        <span className="text-sm text-gray-600 font-mono">{selectedColor}</span>
+                                    </div>
                                 </div>
                             </div>
-                        )}
-
-                        {/* Actions */}
-                        <div className="bg-white rounded-2xl shadow-lg p-6">
-                            <h3 className="text-lg font-semibold text-[#381914] mb-4">Actions</h3>
-                            <div className="space-y-3">
-                                <button
-                                    onClick={() => changeSize(1.2)}
-                                    className="w-full py-2 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                                >
-                                    Increase Size
-                                </button>
-                                <button
-                                    onClick={() => changeSize(0.8)}
-                                    className="w-full py-2 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                                >
-                                    Decrease Size
-                                </button>
-                                <button
-                                    onClick={deleteSelected}
-                                    className="w-full py-2 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                                >
-                                    Delete Selected
-                                </button>
-                                <button
-                                    onClick={clearCanvas}
-                                    className="w-full py-2 px-4 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                                >
-                                    Clear Canvas
-                                </button>
-                                <button
-                                    onClick={exportDesign}
-                                    className="w-full py-2 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-                                >
-                                    Export Design
-                                </button>
+                            <div>
+                                <label className="block text-xs text-gray-600 mb-1">Type</label>
+                                <div className="text-sm font-medium text-gray-900 capitalize">
+                                    {selectedObject.type}
+                                </div>
                             </div>
-                        </div>
-                    </div>
 
-                    {/* Canvas */}
-                    <div className="lg:col-span-2">
-                        <div className="bg-white rounded-2xl shadow-lg p-6">
-                            <h3 className="text-lg font-semibold text-[#381914] mb-4">Design Canvas</h3>
-                            <div className="border-2 border-gray-300 rounded-lg overflow-hidden">
-                                <canvas ref={canvasRef} />
+                            <div>
+                                <label className="block text-xs text-gray-600 mb-1">Position</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <input
+                                        type="number"
+                                        value={Math.round(selectedObject.left || 0)}
+                                        onChange={(e) => {
+                                            selectedObject.set('left', parseFloat(e.target.value));
+                                            canvas.current.renderAll();
+                                            setObjectUpdateTrigger(prev => prev + 1);
+                                        }}
+                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                    <input
+                                        type="number"
+                                        value={Math.round(selectedObject.top || 0)}
+                                        onChange={(e) => {
+                                            selectedObject.set('top', parseFloat(e.target.value));
+                                            canvas.current.renderAll();
+                                            setObjectUpdateTrigger(prev => prev + 1);
+                                        }}
+                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                </div>
                             </div>
-                        </div>
-                    </div>
 
-                    {/* Right Sidebar - Cake Images and Decorations */}
-                    <div className="lg:col-span-1 space-y-6">
-                        {/* Cake Bases */}
-                        <div className="bg-white rounded-2xl shadow-lg p-6">
-                            <h3 className="text-lg font-semibold text-[#381914] mb-4">Cake Bases</h3>
-                            <div className="space-y-3">
-                                {cakeImages.map((cake) => (
-                                    <div key={cake.cake_id} className="border border-gray-200 rounded-lg p-3 hover:border-[#AF524D] transition-colors cursor-pointer">
-                                        <img
-                                            src={cake.publicUrl || "/saved-cake.png"}
-                                            alt={cake.name}
-                                            className="w-full h-20 object-cover rounded mb-2"
-                                            onError={(e) => {
-                                                e.target.src = "/saved-cake.png";
-                                            }}
-                                        />
-                                        <p className="text-sm font-medium text-[#381914]">{cake.name}</p>
-                                        <button
-                                            onClick={() => addCakeBase(cake)}
-                                            className="w-full mt-2 py-1 px-3 bg-[#AF524D] text-white text-xs rounded hover:bg-[#8B3D3A] transition-colors"
-                                        >
-                                            Add to Canvas
-                                        </button>
-                                    </div>
-                                ))}
+                            <div>
+                                <label className="block text-xs text-gray-600 mb-1">Size</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <input
+                                        type="number"
+                                        value={Math.round(selectedObject.width * (selectedObject.scaleX || 1))}
+                                        onChange={(e) => {
+                                            const newWidth = parseFloat(e.target.value);
+                                            const scaleX = newWidth / selectedObject.width;
+                                            selectedObject.set('scaleX', scaleX);
+                                            canvas.current.renderAll();
+                                            setObjectUpdateTrigger(prev => prev + 1);
+                                        }}
+                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                    <input
+                                        type="number"
+                                        value={Math.round(selectedObject.height * (selectedObject.scaleY || 1))}
+                                        onChange={(e) => {
+                                            const newHeight = parseFloat(e.target.value);
+                                            const scaleY = newHeight / selectedObject.height;
+                                            selectedObject.set('scaleY', scaleY);
+                                            canvas.current.renderAll();
+                                            setObjectUpdateTrigger(prev => prev + 1);
+                                        }}
+                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Decorations */}
-                        <div className="bg-white rounded-2xl shadow-lg p-6">
-                            <h3 className="text-lg font-semibold text-[#381914] mb-4">Decorations</h3>
-                            <div className="space-y-3">
-                                {decorations.map((decoration) => (
-                                    <div key={decoration.id} className="border border-gray-200 rounded-lg p-3 hover:border-[#AF524D] transition-colors cursor-pointer">
-                                        <div className="w-full h-20 bg-gray-100 rounded mb-2 flex items-center justify-center">
-                                            <span className="text-gray-500 text-sm">{decoration.name}</span>
-                                        </div>
-                                        <p className="text-sm font-medium text-[#381914]">{decoration.name}</p>
-                                        <button
-                                            onClick={() => addDecoration(decoration)}
-                                            className="w-full mt-2 py-1 px-3 bg-[#AF524D] text-white text-xs rounded hover:bg-[#8B3D3A] transition-colors"
-                                        >
-                                            Add to Canvas
-                                        </button>
-                                    </div>
-                                ))}
+                            <div>
+                                <label className="block text-xs text-gray-600 mb-1">Rotation</label>
+                                <input
+                                    type="number"
+                                    value={Math.round(selectedObject.angle || 0)}
+                                    onChange={(e) => {
+                                        selectedObject.set('angle', parseFloat(e.target.value));
+                                        canvas.current.renderAll();
+                                        setObjectUpdateTrigger(prev => prev + 1);
+                                    }}
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
                             </div>
+
+                            <div>
+                                <label className="block text-xs text-gray-600 mb-1">Opacity</label>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    value={Math.round((selectedObject.opacity || 1) * 100)}
+                                    onChange={(e) => {
+                                        selectedObject.set('opacity', parseFloat(e.target.value) / 100);
+                                        canvas.current.renderAll();
+                                        setObjectUpdateTrigger(prev => prev + 1);
+                                    }}
+                                    className="w-full"
+                                />
+                                <span className="text-xs text-gray-500">{Math.round((selectedObject.opacity || 1) * 100)}%</span>
+                            </div>
+
+                            {selectedObject.type === 'text' && (
+                                <div>
+                                    <label className="block text-xs text-gray-600 mb-1">Text</label>
+                                    <input
+                                        type="text"
+                                        value={selectedObject.text || ''}
+                                        onChange={(e) => {
+                                            selectedObject.set('text', e.target.value);
+                                            canvas.current.renderAll();
+                                            setObjectUpdateTrigger(prev => prev + 1);
+                                        }}
+                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                </div>
+                            )}
                         </div>
-                    </div>
+                    ) : (
+                        <div className="text-sm text-gray-500 text-center py-8">
+                            Select an object to view its properties
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
