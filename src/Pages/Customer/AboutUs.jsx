@@ -1,6 +1,10 @@
 import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api"
+import { useState } from "react";
+import LoadingSpinner from "../../components/LoadingSpinner";
 
 const AboutUs = () => {
+  const [mapLoading, setMapLoading] = useState(true);
+  
   const containerStyle = {
     width: "100%",
     height: "400px"
@@ -10,6 +14,14 @@ const AboutUs = () => {
     lat: 10.3157, // Example: Dumaguete coordinates
     lng: 123.8854
   };
+
+  const handleMapLoad = () => {
+    setMapLoading(false);
+  };
+
+  if (mapLoading) {
+    return <LoadingSpinner message="Loading about us page..." />;
+  }
 
   return (
     <section className="bg-[linear-gradient(to_bottom,_#AF524D_0%,_#AF524D_20%,_#381914_83%)] bg-cover bg-center w-full h-fit py-20 px-60 flex flex-col items-center justify-center text-[#492220] space-y-10">
@@ -34,7 +46,12 @@ const AboutUs = () => {
 
           {/* Google Map goes here */}
           <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
-            <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={12}>
+            <GoogleMap 
+              mapContainerStyle={containerStyle} 
+              center={center} 
+              zoom={12}
+              onLoad={handleMapLoad}
+            >
               <Marker position={center} />
             </GoogleMap>
           </LoadScript>

@@ -351,8 +351,8 @@ const CakeCustomization = () => {
                 console.log('Container height:', containerRect.height);
 
                 // Set canvas size to fit container while maintaining aspect ratio
-                const maxWidth = Math.min(1200, containerRect.width - 32); // 32px for padding
-                const maxHeight = Math.min(900, containerRect.height - 32);
+                const maxWidth = containerRect.width; // Use full container width
+                const maxHeight = containerRect.height; // Use full container height
 
                 console.log('Calculated maxWidth:', maxWidth);
                 console.log('Calculated maxHeight:', maxHeight);
@@ -423,8 +423,8 @@ const CakeCustomization = () => {
             console.log('Resize - Container width:', containerRect.width);
             console.log('Resize - Container height:', containerRect.height);
 
-            const maxWidth = Math.min(1200, containerRect.width - 32);
-            const maxHeight = Math.min(900, containerRect.height - 32);
+            const maxWidth = containerRect.width; // Use full container width
+            const maxHeight = containerRect.height; // Use full container height
 
             console.log('Resize - Calculated maxWidth:', maxWidth);
             console.log('Resize - Calculated maxHeight:', maxHeight);
@@ -959,8 +959,8 @@ const CakeCustomization = () => {
 
                 {/* Canvas Area */}
                 <div className="flex-1 bg-gray-100 flex items-center justify-center p-4 min-h-0 overflow-hidden">
-                    <div className="bg-white shadow-lg rounded-lg overflow-hidden" style={{ minWidth: '800px', minHeight: '600px', width: '100%', height: '100%' }}>
-                        <canvas ref={canvasRef} />
+                    <div className="bg-white shadow-lg rounded-lg overflow-hidden w-full h-full min-w-[800px] min-h-[600px]">
+                        <canvas ref={canvasRef} className="w-full h-full" />
                     </div>
                 </div>
 

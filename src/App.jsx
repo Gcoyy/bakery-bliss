@@ -26,6 +26,7 @@ import ProtectedRoute from "./context/ProtectedRoute";
 import AdminPage from "./Pages/Admin/AdminPage";
 import AdminProfile from "./Pages/Admin/AdminProfile";
 import AdminOrders from "./Pages/Admin/AdminOrders";
+import useScrollToTop from "./hooks/useScrollToTop";
 
 function AppRoutes() {
   const location = useLocation();
@@ -94,6 +95,9 @@ function AppRoutes() {
 }
 
 function App() {
+  // Use the scroll to top hook
+  useScrollToTop();
+
   return (
     <>
       <Toaster position="top-center" reverseOrder={false} />
