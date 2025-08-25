@@ -12,7 +12,6 @@ const AdminSidebar = () => {
           { name: "Cake Orders", path: "cake orders" },
           { name: "Cakes", path: "cakes" },
           { name: "Custom Cake Assets", path: "custom cake assets" },
-          { name: "Order Management", path: "/admin/orders", isExternal: true },
         ].map((opt, i) => {
           const isActive = opt.isExternal ? location.pathname === opt.path : currentPath === opt.path;
           return (

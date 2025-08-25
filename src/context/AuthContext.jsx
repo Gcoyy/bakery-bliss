@@ -72,6 +72,50 @@ export const AuthContextProvider = ({ children }) => {
     }
   };
 
+  // Sign in with Google
+  const signInWithGoogle = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/redirect`
+        }
+      });
+
+      if (error) {
+        console.error("Google sign-in error:", error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, data };
+    } catch (error) {
+      console.error("Unexpected Google sign-in error:", error);
+      return { success: false, error: "An unexpected error occurred" };
+    }
+  };
+
+  // Sign up with Google
+  const signUpWithGoogle = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/redirect`
+        }
+      });
+
+      if (error) {
+        console.error("Google sign-up error:", error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, data };
+    } catch (error) {
+      console.error("Unexpected Google sign-up error:", error);
+      return { success: false, error: "An unexpected error occurred" };
+    }
+  };
+
   // Reset password
   const resetPassword = async (email) => {
     try {
@@ -150,7 +194,17 @@ export const AuthContextProvider = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ session, signInUser, signUpNewUser, signOut, resetPassword, userRole, loading }}>
+    <AuthContext.Provider value={{
+      session,
+      signInUser,
+      signUpNewUser,
+      signInWithGoogle,
+      signUpWithGoogle,
+      signOut,
+      resetPassword,
+      userRole,
+      loading
+    }}>
       {children}
     </AuthContext.Provider>
   );

@@ -25,7 +25,6 @@ import Assets from "./sections/Assets";
 import ProtectedRoute from "./context/ProtectedRoute";
 import AdminPage from "./Pages/Admin/AdminPage";
 import AdminProfile from "./Pages/Admin/AdminProfile";
-import AdminOrders from "./Pages/Admin/AdminOrders";
 import useScrollToTop from "./hooks/useScrollToTop";
 
 function AppRoutes() {
@@ -70,15 +69,6 @@ function AppRoutes() {
           <Route path="cake orders" element={<CakeOrders />} />
           <Route path="custom cake assets" element={<Assets />} />
         </Route>
-
-        <Route
-          path="/admin/orders"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <PageTransition><AdminOrders /></PageTransition>
-            </ProtectedRoute>
-          }
-        />
 
         <Route
           path="/admin/profile"

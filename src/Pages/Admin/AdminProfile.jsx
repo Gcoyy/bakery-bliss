@@ -36,6 +36,8 @@ const AdminProfile = () => {
     try {
       await signOut();
       navigate('/login');
+      // Scroll to top after navigation
+      setTimeout(() => window.scrollTo(0, 0), 100);
     } catch (error) {
       console.error('Error signing out:', error);
     }

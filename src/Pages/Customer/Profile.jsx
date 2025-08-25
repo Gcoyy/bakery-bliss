@@ -55,6 +55,8 @@ const Profile = () => {
     try {
       await signOut();
       navigate("/login"); // Redirect to login page
+      // Scroll to top after navigation
+      setTimeout(() => window.scrollTo(0, 0), 100);
     } catch (error) {
       console.error("Error signing out:", error);
     }
