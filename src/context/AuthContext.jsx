@@ -4,7 +4,7 @@ import { supabase } from "../supabaseClient";
 export const AuthContext = createContext();
 
 export const AuthContextProvider = ({ children }) => {
-  const [session, setSession] = useState(undefined);
+  const [session, setSession] = useState(null);
   const [userRole, setUserRole] = useState(null); // 'admin' or 'customer'
   const [loading, setLoading] = useState(true);   // To prevent route flicker
 
@@ -69,6 +69,7 @@ export const AuthContextProvider = ({ children }) => {
       console.error("Sign-out error:", error);
     } else {
       setUserRole(null);
+      setSession(null);
     }
   };
 
@@ -115,95 +116,73 @@ export const AuthContextProvider = ({ children }) => {
   };
 
   // Determine role
-  const fetchUserRole = async (userId) => {
-    setLoading(true);
-    if (!userId) {
-      setUserRole(null);
-      setLoading(false);
-      return;
-    }
-
-    // Check CUSTOMER table
-    const { data: customer } = await supabase
-      .from("CUSTOMER")
-      .select("cus_id")
-      .eq("auth_user_id", userId)
-      .single();
-
-    if (customer) {
-      setUserRole("customer");
-      setLoading(false);
-      return;
-    }
-
-    // Check ADMIN table
-    const { data: admin } = await supabase
-      .from("ADMIN")
-      .select("admin_id")
-      .eq("admin_uid", userId)
-      .single();
-
-    if (admin) {
-      setUserRole("admin");
-      setLoading(false);
-      return;
-    }
-
-    // Unknown role
+const fetchUserRole = (user) => {
+  if (!user) {
     setUserRole(null);
+    return;
+  }
+
+  const role = user.user_metadata?.role || null;
+  setUserRole(role);
+};
+
+
+  // On auth state change
+useEffect(() => {
+  const init = async () => {
+    setLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    setSession(session);
+
+    if (session?.user) {
+      fetchUserRole(session.user); // no await needed
+    } else {
+      setUserRole(null);
+    }
+
     setLoading(false);
   };
 
-  // On auth state change
-  useEffect(() => {
-    const init = async () => {
+  init();
+
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    async (_event, session) => {
       setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
-      await fetchUserRole(session?.user?.id);
-      setLoading(false);
-    };
-  
-    init();
-  
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setLoading(true);
-        setSession(session);
-  
-        const user = session?.user;
-        if (user) {
-          // Check if user exists in CUSTOMER
-          const { data: existing } = await supabase
-            .from("CUSTOMER")
-            .select("cus_id")
-            .eq("auth_user_id", user.id)
-            .maybeSingle();
-  
-          if (!existing) {
-            // Insert new Google user
-            await supabase.from("CUSTOMER").insert([
-              {
-                cus_fname: user.user_metadata.given_name || "",
-                cus_lname: user.user_metadata.family_name || "",
-                cus_username: user.user_metadata.full_name || user.email,
-                cus_celno: 0,
-                email: user.email,
-                auth_user_id: user.id,
-              },
-            ]);
-          }
-  
-          await fetchUserRole(user.id);
-        } else {
-          setUserRole(null);
+
+      const user = session?.user;
+      if (user) {
+        // Ensure user exists in CUSTOMER table
+        const { data: existing } = await supabase
+          .from("CUSTOMER")
+          .select("cus_id")
+          .eq("auth_user_id", user.id)
+          .maybeSingle();
+
+        if (!existing && user.user_metadata?.role === "customer") {
+          await supabase.from("CUSTOMER").insert([
+            {
+              cus_fname: user.user_metadata.given_name || "",
+              cus_lname: user.user_metadata.family_name || "",
+              cus_username: user.user_metadata.full_name || user.email,
+              cus_celno: 0,
+              email: user.email,
+              auth_user_id: user.id,
+            },
+          ]);
         }
-        setLoading(false);
+
+        fetchUserRole(user); // fetch role from metadata
+      } else {
+        setUserRole(null);
       }
-    );
-  
-    return () => listener?.subscription?.unsubscribe();
-  }, []);
+
+      setLoading(false);
+    }
+  );
+
+  return () => listener?.subscription?.unsubscribe();
+}, []);
   
 
   return (
