@@ -17,7 +17,7 @@ const CakeCustom = () => {
 
   {/* Cake image with hotspots */}
   <div className="relative w-full max-w-4xl p-11">
-    <img src="/image 4.png" alt="Cake" className="w-full mx-auto" />
+    <img src="/Section 3.png" alt="Cake" className="w-full mx-auto" />
 
     {/* Button positions */}
     <motion.button
