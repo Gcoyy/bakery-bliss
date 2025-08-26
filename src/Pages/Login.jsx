@@ -14,7 +14,7 @@ const Login = () => {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetMessage, setResetMessage] = useState("");
 
-  const { session, signInUser, signInWithGoogle, resetPassword } = UserAuth();
+  const { session, signInUser, signInOrUpWithGoogle, resetPassword } = UserAuth();
   const navigate = useNavigate();
   //Console.log("Session inside Login:", session); //turn this on if you want to see if session is being set correctly
 
@@ -25,7 +25,7 @@ const Login = () => {
     setError("");
 
     try {
-      const result = await signInWithGoogle();
+      const result = await signInOrUpWithGoogle();
       if (result.success) {
         toast.success("Redirecting to Google...");
         // The redirect will happen automatically via Supabase

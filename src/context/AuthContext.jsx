@@ -72,49 +72,28 @@ export const AuthContextProvider = ({ children }) => {
     }
   };
 
-  // Sign in with Google
-  const signInWithGoogle = async () => {
+  // Sign in OR sign up with Google (merged)
+  const signInOrUpWithGoogle = async () => {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/redirect`
-        }
+          redirectTo: `${window.location.origin}/redirect`,
+        },
       });
 
       if (error) {
-        console.error("Google sign-in error:", error);
+        console.error("Google auth error:", error);
         return { success: false, error: error.message };
       }
 
       return { success: true, data };
     } catch (error) {
-      console.error("Unexpected Google sign-in error:", error);
+      console.error("Unexpected Google auth error:", error);
       return { success: false, error: "An unexpected error occurred" };
     }
   };
 
-  // Sign up with Google
-  const signUpWithGoogle = async () => {
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/redirect`
-        }
-      });
-
-      if (error) {
-        console.error("Google sign-up error:", error);
-        return { success: false, error: error.message };
-      }
-
-      return { success: true, data };
-    } catch (error) {
-      console.error("Unexpected Google sign-up error:", error);
-      return { success: false, error: "An unexpected error occurred" };
-    }
-  };
 
   // Reset password
   const resetPassword = async (email) => {
@@ -178,28 +157,61 @@ export const AuthContextProvider = ({ children }) => {
   // On auth state change
   useEffect(() => {
     const init = async () => {
+      setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       await fetchUserRole(session?.user?.id);
+      setLoading(false);
     };
-
+  
     init();
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      fetchUserRole(session?.user?.id);
-    });
-
+  
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setLoading(true);
+        setSession(session);
+  
+        const user = session?.user;
+        if (user) {
+          // Check if user exists in CUSTOMER
+          const { data: existing } = await supabase
+            .from("CUSTOMER")
+            .select("cus_id")
+            .eq("auth_user_id", user.id)
+            .maybeSingle();
+  
+          if (!existing) {
+            // Insert new Google user
+            await supabase.from("CUSTOMER").insert([
+              {
+                cus_fname: user.user_metadata.given_name || "",
+                cus_lname: user.user_metadata.family_name || "",
+                cus_username: user.user_metadata.full_name || user.email,
+                cus_celno: 0,
+                email: user.email,
+                auth_user_id: user.id,
+              },
+            ]);
+          }
+  
+          await fetchUserRole(user.id);
+        } else {
+          setUserRole(null);
+        }
+        setLoading(false);
+      }
+    );
+  
     return () => listener?.subscription?.unsubscribe();
   }, []);
+  
 
   return (
     <AuthContext.Provider value={{
       session,
       signInUser,
       signUpNewUser,
-      signInWithGoogle,
-      signUpWithGoogle,
+      signInOrUpWithGoogle,
       signOut,
       resetPassword,
       userRole,
