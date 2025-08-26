@@ -13,6 +13,7 @@ const CakeCustomization = () => {
     const [loading, setLoading] = useState(true);
     const [cakeImages, setCakeImages] = useState([]);
     const [decorations, setDecorations] = useState([]);
+    const [toppings, setToppings] = useState([]);
     const [selectedTool, setSelectedTool] = useState('select');
     const [selectedColor, setSelectedColor] = useState('#FF0000');
     const [textValue, setTextValue] = useState('');
@@ -21,6 +22,7 @@ const CakeCustomization = () => {
     const [canvasReady, setCanvasReady] = useState(false);
     const [selectedObject, setSelectedObject] = useState(null);
     const [objectUpdateTrigger, setObjectUpdateTrigger] = useState(0);
+    const [selectedAssetType, setSelectedAssetType] = useState('cake base');
 
     console.log('Initial state:', { loading, canvasReady, selectedColor });
 
@@ -30,15 +32,107 @@ const CakeCustomization = () => {
         console.log('New canvasReady value:', canvasReady);
     }, [canvasReady]);
 
-    // Helper function to get public image URL
+    // Helper function to get public image URL from Supabase storage
     const getPublicImageUrl = (path) => {
-        if (!path) return null;
+        if (!path) {
+            console.log('getPublicImageUrl: No path provided');
+            return null;
+        }
+
         // If the path is already a full URL, return it as is
         if (path.startsWith('http')) {
+            console.log('getPublicImageUrl: Path is already a URL:', path);
             return path;
         }
-        // Otherwise, construct the public URL
-        return supabase.storage.from("cake").getPublicUrl(path).data.publicUrl;
+
+        console.log('getPublicImageUrl: Processing path:', path);
+
+        try {
+            // Use the correct bucket name and handle folder structure
+            const bucketName = 'asset';
+            console.log(`getPublicImageUrl: Using bucket "${bucketName}"`);
+
+            // Construct the full path with folder structure
+            let fullPath = path;
+
+            // If the path doesn't already include a folder, determine which folder it should go in
+            // This is a fallback - ideally your ASSET table should include the folder in the src
+            if (!path.includes('/')) {
+                // You might want to add a folder field to your ASSET table to be more explicit
+                console.log(`getPublicImageUrl: Path doesn't include folder, using filename: ${path}`);
+            }
+
+            const { data, error } = supabase.storage.from(bucketName).getPublicUrl(fullPath);
+
+            if (error) {
+                console.log(`getPublicImageUrl: Error with bucket "${bucketName}":`, error);
+                return null;
+            }
+
+            if (data && data.publicUrl) {
+                console.log(`getPublicImageUrl: Success with bucket "${bucketName}":`, data.publicUrl);
+                return data.publicUrl;
+            }
+
+            console.error(`getPublicImageUrl: No public URL generated for bucket "${bucketName}"`);
+            return null;
+        } catch (error) {
+            console.error('getPublicImageUrl: Unexpected error:', error);
+            return null;
+        }
+    };
+
+    // Helper function to test if an image URL is accessible
+    const testImageUrl = async (url) => {
+        if (!url) return false;
+
+        try {
+            const response = await fetch(url, { method: 'HEAD' });
+            return response.ok;
+        } catch (error) {
+            console.log('testImageUrl: Error testing URL:', url, error);
+            return false;
+        }
+    };
+
+    // Helper function to test storage bucket structure
+    const testStorageBucket = async () => {
+        try {
+            console.log('=== TESTING STORAGE BUCKET STRUCTURE ===');
+            const bucketName = 'asset';
+
+            // Try to list files in the bucket
+            const { data: bucketData, error: bucketError } = await supabase.storage
+                .from(bucketName)
+                .list('', { limit: 100 });
+
+            if (bucketError) {
+                console.error('Error listing bucket contents:', bucketError);
+                return;
+            }
+
+            console.log('Bucket contents:', bucketData);
+
+            // Try to list files in specific folders
+            const folders = ['cake base', 'icing', 'topping'];
+            for (const folder of folders) {
+                try {
+                    const { data: folderData, error: folderError } = await supabase.storage
+                        .from(bucketName)
+                        .list(folder, { limit: 100 });
+
+                    if (folderError) {
+                        console.log(`Error listing folder "${folder}":`, folderError);
+                    } else {
+                        console.log(`Folder "${folder}" contents:`, folderData);
+                    }
+                } catch (folderError) {
+                    console.log(`Exception listing folder "${folder}":`, folderError);
+                }
+            }
+        } catch (error) {
+            console.error('Error testing storage bucket:', error);
+        }
     };
 
     // Color wheel functions
@@ -278,45 +372,121 @@ const CakeCustomization = () => {
                 console.log('Setting loading to true');
                 setLoading(true);
 
-                // Fetch cake bases
-                const { data: cakeData, error: cakeError } = await supabase
-                    .from("CAKE")
+                // Fetch assets from ASSET table
+                const { data: assetData, error: assetError } = await supabase
+                    .from("ASSET")
                     .select("*");
 
-                if (cakeError) {
-                    console.error("Error fetching cakes:", cakeError);
-                    toast.error("Failed to load cake images");
+                if (assetError) {
+                    console.error("Error fetching assets:", assetError);
+                    toast.error("Failed to load assets");
                     return;
                 }
 
-                // Fetch decorations (you might need to create this table)
-                const { data: decorationData, error: decorationError } = await supabase
-                    .from("DECORATIONS")
-                    .select("*");
-
-                if (decorationError) {
-                    console.log("No decorations table found, using sample data");
-                    // Use sample decoration data if table doesn't exist
-                    const sampleDecorations = [
-                        { id: 1, name: 'Sprinkles', image_path: 'decorations/sprinkles.png', category: 'toppings' },
-                        { id: 2, name: 'Fruits', image_path: 'decorations/fruits.png', category: 'toppings' },
-                        { id: 3, name: 'Chocolate Chips', image_path: 'decorations/chocolate-chips.png', category: 'toppings' },
-                        { id: 4, name: 'Flowers', image_path: 'decorations/flowers.png', category: 'decorations' },
-                        { id: 5, name: 'Balloons', image_path: 'decorations/balloons.png', category: 'decorations' }
-                    ];
-                    setDecorations(sampleDecorations);
-                } else {
-                    setDecorations(decorationData);
+                console.log('=== ASSET DATA DEBUG ===');
+                console.log('Raw asset data:', assetData);
+                console.log('Asset count:', assetData?.length || 0);
+                if (assetData && assetData.length > 0) {
+                    console.log('Sample asset:', assetData[0]);
+                    console.log('Asset structure:', Object.keys(assetData[0]));
                 }
 
-                // Process cake images with public URLs
-                const cakesWithImages = cakeData.map((cake) => ({
-                    ...cake,
-                    publicUrl: getPublicImageUrl(cake.cake_img)
-                }));
+                // Test the storage bucket structure
+                await testStorageBucket();
 
-                console.log('Setting cake images:', cakesWithImages);
+                // Separate assets based on type
+                const cakeBases = assetData.filter(asset => asset.type === 'cake base');
+                const icingAssets = assetData.filter(asset => asset.type === 'icing');
+                const toppingAssets = assetData.filter(asset => asset.type === 'topping');
+
+                console.log('Filtered cake bases:', cakeBases);
+                console.log('Filtered icing assets:', icingAssets);
+                console.log('Filtered topping assets:', toppingAssets);
+
+                // Process cake bases with public URLs
+                const cakesWithImages = cakeBases.map((asset) => {
+                    // Construct the full path with folder structure
+                    const fullPath = `cake base/${asset.src}`;
+                    const publicUrl = getPublicImageUrl(fullPath);
+                    console.log(`Processing cake base ${asset.src}:`, { asset, fullPath, publicUrl });
+                    return {
+                        cake_id: asset.asset_id,
+                        name: asset.src.replace('.png', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                        publicUrl: publicUrl,
+                        admin_id: asset.admin_id
+                    };
+                });
+
+                // Process icing assets with public URLs
+                const processedIcing = icingAssets.map((asset) => {
+                    // Construct the full path with folder structure
+                    const fullPath = `icing/${asset.src}`;
+                    const publicUrl = getPublicImageUrl(fullPath);
+                    console.log(`Processing icing ${asset.src}:`, { asset, fullPath, publicUrl });
+                    return {
+                        id: asset.asset_id,
+                        name: asset.src.replace('.png', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                        image_path: fullPath, // Store the full path for later use
+                        category: asset.type,
+                        admin_id: asset.admin_id
+                    };
+                });
+
+                // Process topping assets with public URLs
+                const processedToppings = toppingAssets.map((asset) => {
+                    // Construct the full path with folder structure
+                    const fullPath = `topping/${asset.src}`;
+                    const publicUrl = getPublicImageUrl(fullPath);
+                    console.log(`Processing topping ${asset.src}:`, { asset, fullPath, publicUrl });
+                    return {
+                        id: asset.asset_id,
+                        name: asset.src.replace('.png', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                        category: asset.type,
+                        admin_id: asset.admin_id
+                    };
+                });
+
+                console.log('=== PROCESSED DATA DEBUG ===');
+                console.log('Final cake images:', cakesWithImages);
+                console.log('Final icing assets:', processedIcing);
+                console.log('Final topping assets:', processedToppings);
+
+                // Test a few URLs to see if they're accessible
+                if (cakesWithImages.length > 0) {
+                    console.log('Testing first cake image URL...');
+                    const firstCakeUrl = cakesWithImages[0].publicUrl;
+                    console.log('First cake URL:', firstCakeUrl);
+                    if (firstCakeUrl) {
+                        const isAccessible = await testImageUrl(firstCakeUrl);
+                        console.log('First cake URL accessible:', isAccessible);
+                    }
+                }
+
+                if (processedIcing.length > 0) {
+                    console.log('Testing first icing URL...');
+                    const firstIcingUrl = getPublicImageUrl(processedIcing[0].image_path);
+                    console.log('First icing URL:', firstIcingUrl);
+                    if (firstIcingUrl) {
+                        const isAccessible = await testImageUrl(firstIcingUrl);
+                        console.log('First icing URL accessible:', isAccessible);
+                    }
+                }
+
+                if (cakesWithImages.length === 0) {
+                    console.warn('No cake bases found in ASSET table');
+                }
+
+                if (processedIcing.length === 0) {
+                    console.warn('No icing assets found in ASSET table');
+                }
+
+                if (processedToppings.length === 0) {
+                    console.warn('No topping assets found in ASSET table');
+                }
+
                 setCakeImages(cakesWithImages);
+                setDecorations(processedIcing);
+                setToppings(processedToppings);
             } catch (error) {
                 console.error("Error fetching images:", error);
                 toast.error("Failed to load images");
@@ -585,11 +755,11 @@ const CakeCustomization = () => {
         };
         img.onerror = (error) => {
             console.error('Image failed to load:', error);
-            console.log('Image src that failed:', cake.publicUrl || '/saved-cake.png');
+            console.log('Image src that failed:', cake.publicUrl);
             toast.error('Failed to load cake image');
         };
-        img.src = cake.publicUrl || '/saved-cake.png';
-        console.log('Image src set to:', cake.publicUrl || '/saved-cake.png');
+        img.src = cake.publicUrl;
+        console.log('Image src set to:', cake.publicUrl);
     };
 
     // Add decoration to canvas
@@ -599,9 +769,9 @@ const CakeCustomization = () => {
             return;
         }
 
-        const imageUrl = decoration.image_path ?
-            getPublicImageUrl(decoration.image_path) :
-            `/decorations/${decoration.name.toLowerCase().replace(' ', '-')}.png`;
+        // The image_path now contains the full path with folder structure
+        const imageUrl = getPublicImageUrl(decoration.image_path);
+        console.log('Adding decoration:', { decoration, imageUrl });
 
         const img = new Image();
         img.onload = () => {
@@ -616,6 +786,44 @@ const CakeCustomization = () => {
             canvas.current.setActiveObject(fabricImage);
             canvas.current.renderAll();
             toast.success(`${decoration.name} added to canvas`);
+        };
+        img.onerror = (error) => {
+            console.error('Decoration image failed to load:', error);
+            console.log('Image src that failed:', imageUrl);
+            toast.error('Failed to load decoration image');
+        };
+        img.src = imageUrl;
+    };
+
+    // Add topping to canvas
+    const addTopping = (topping) => {
+        if (!canvasReady || !canvas.current) {
+            toast.error('Canvas not ready');
+            return;
+        }
+
+        // Construct the full path with folder structure
+        const imageUrl = getPublicImageUrl(`topping/${topping.src}`);
+        console.log('Adding topping:', { topping, imageUrl });
+
+        const img = new Image();
+        img.onload = () => {
+            const fabricImage = new FabricImage(img);
+            fabricImage.scaleToWidth(60);
+            fabricImage.set({
+                left: 320,
+                top: 270,
+                name: 'topping'
+            });
+            canvas.current.add(fabricImage);
+            canvas.current.setActiveObject(fabricImage);
+            canvas.current.renderAll();
+            toast.success(`${topping.name} added to canvas`);
+        };
+        img.onerror = (error) => {
+            console.error('Topping image failed to load:', error);
+            console.log('Image src that failed:', imageUrl);
+            toast.error('Failed to load topping image');
         };
         img.src = imageUrl;
     };
@@ -904,55 +1112,147 @@ const CakeCustomization = () => {
                         </div>
                     )}
 
-                    {/* Assets Panel */}
+                    {/* Assets Panel with Tabs */}
                     <div className="flex-1 overflow-y-auto min-h-0">
-                        <div className="p-4">
-                            <h3 className="text-sm font-medium text-gray-900 mb-3">Cake Bases</h3>
-                            <div className="space-y-2">
-                                {cakeImages.map((cake) => (
-                                    <div key={cake.cake_id} className="group cursor-pointer">
-                                        <div className="relative">
-                                            <img
-                                                src={cake.publicUrl || "/saved-cake.png"}
-                                                alt={cake.name}
-                                                className="w-full h-16 object-cover rounded border border-gray-200 group-hover:border-blue-300 transition-colors"
-                                                onError={(e) => {
-                                                    e.target.src = "/saved-cake.png";
-                                                }}
-                                            />
-                                            <button
-                                                onClick={() => addCakeBase(cake)}
-                                                className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100"
-                                            >
-                                                <span className="text-white text-xs font-medium">Add</span>
-                                            </button>
-                                        </div>
-                                        <p className="text-xs text-gray-600 mt-1 truncate">{cake.name}</p>
-                                    </div>
-                                ))}
-                            </div>
+                        {/* Asset Type Tabs */}
+                        <div className="flex space-x-1 p-4 pb-2 bg-gray-50 border-b border-gray-200">
+                            <button
+                                onClick={() => setSelectedAssetType('cake base')}
+                                className={`flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors ${selectedAssetType === 'cake base'
+                                    ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                    }`}
+                            >
+                                Cake Bases
+                            </button>
+                            <button
+                                onClick={() => setSelectedAssetType('icing')}
+                                className={`flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors ${selectedAssetType === 'icing'
+                                    ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                    }`}
+                            >
+                                Icing
+                            </button>
+                            <button
+                                onClick={() => setSelectedAssetType('topping')}
+                                className={`flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors ${selectedAssetType === 'topping'
+                                    ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                    }`}
+                            >
+                                Toppings
+                            </button>
                         </div>
 
-                        <div className="p-4 border-t border-gray-200">
-                            <h3 className="text-sm font-medium text-gray-900 mb-3">Decorations</h3>
-                            <div className="space-y-2">
-                                {decorations.map((decoration) => (
-                                    <div key={decoration.id} className="group cursor-pointer">
-                                        <div className="relative">
-                                            <div className="w-full h-16 bg-gray-100 rounded border border-gray-200 group-hover:border-blue-300 transition-colors flex items-center justify-center">
-                                                <span className="text-gray-500 text-xs">{decoration.name}</span>
-                                            </div>
-                                            <button
-                                                onClick={() => addDecoration(decoration)}
-                                                className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100"
-                                            >
-                                                <span className="text-white text-xs font-medium">Add</span>
-                                            </button>
+                        {/* Asset Content */}
+                        <div className="p-4">
+                            {selectedAssetType === 'cake base' && (
+                                <div>
+                                    <h3 className="text-sm font-medium text-gray-900 mb-3">Cake Bases</h3>
+                                    {cakeImages.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {cakeImages.map((cake) => (
+                                                <div key={cake.cake_id} className="group cursor-pointer">
+                                                    <div className="relative">
+                                                        <img
+                                                            src={cake.publicUrl}
+                                                            alt={cake.name}
+                                                            className="w-full h-16 object-cover rounded border border-gray-200 group-hover:border-blue-300 transition-colors"
+                                                            onError={(e) => {
+                                                                e.target.src = "/saved-cake.png";
+                                                            }}
+                                                        />
+                                                        <button
+                                                            onClick={() => addCakeBase(cake)}
+                                                            className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-colors duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100"
+                                                        >
+                                                            <span className="text-white text-xs font-medium">Add</span>
+                                                        </button>
+                                                    </div>
+                                                    <p className="text-xs text-gray-600 mt-1 truncate">{cake.name}</p>
+                                                </div>
+                                            ))}
                                         </div>
-                                        <p className="text-xs text-gray-600 mt-1 truncate">{decoration.name}</p>
-                                    </div>
-                                ))}
-                            </div>
+                                    ) : (
+                                        <div className="text-sm text-gray-500 text-center py-4">
+                                            No cake bases found
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {selectedAssetType === 'icing' && (
+                                <div>
+                                    <h3 className="text-sm font-medium text-gray-900 mb-3">Icing & Decorations</h3>
+                                    {decorations.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {decorations.map((decoration) => (
+                                                <div key={decoration.id} className="group cursor-pointer">
+                                                    <div className="relative">
+                                                        <img
+                                                            src={getPublicImageUrl(decoration.image_path)}
+                                                            alt={decoration.name}
+                                                            className="w-full h-16 object-cover rounded border border-gray-200 group-hover:border-blue-300 transition-colors"
+                                                            onError={(e) => {
+                                                                console.error('Decoration image failed to load in UI:', decoration.image_path);
+                                                                e.target.src = "/saved-cake.png";
+                                                            }}
+                                                        />
+                                                        <button
+                                                            onClick={() => addDecoration(decoration)}
+                                                            className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-colors duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100"
+                                                        >
+                                                            <span className="text-white text-xs font-medium">Add</span>
+                                                        </button>
+                                                    </div>
+                                                    <p className="text-xs text-gray-600 mt-1 truncate">{decoration.name}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-sm text-gray-500 text-center py-4">
+                                            No icing decorations found
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {selectedAssetType === 'topping' && (
+                                <div>
+                                    <h3 className="text-sm font-medium text-gray-900 mb-3">Toppings</h3>
+                                    {toppings.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {toppings.map((topping) => (
+                                                <div key={topping.id} className="group cursor-pointer">
+                                                    <div className="relative">
+                                                        <img
+                                                            src={getPublicImageUrl(`topping/${topping.src}`)}
+                                                            alt={topping.name}
+                                                            className="w-full h-16 object-cover rounded border border-gray-200 group-hover:border-blue-300 transition-colors"
+                                                            onError={(e) => {
+                                                                console.error('Topping image failed to load in UI:', `topping/${topping.src}`);
+                                                                e.target.src = "/saved-cake.png";
+                                                            }}
+                                                        />
+                                                        <button
+                                                            onClick={() => addTopping(topping)}
+                                                            className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-colors duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100"
+                                                        >
+                                                            <span className="text-white text-xs font-medium">Add</span>
+                                                        </button>
+                                                    </div>
+                                                    <p className="text-xs text-gray-600 mt-1 truncate">{topping.name}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-sm text-gray-500 text-center py-4">
+                                            No toppings found
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
