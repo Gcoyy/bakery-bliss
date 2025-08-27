@@ -4,7 +4,7 @@ import { supabase } from "../supabaseClient";
 export const AuthContext = createContext();
 
 export const AuthContextProvider = ({ children }) => {
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState(undefined);
   const [userRole, setUserRole] = useState(null); // 'admin' or 'customer'
   const [loading, setLoading] = useState(true);   // To prevent route flicker
 
@@ -21,6 +21,18 @@ export const AuthContextProvider = ({ children }) => {
     }
 
     const authUser = signUpData.user;
+    console.log("Supabase signUp result:", signUpData);
+
+    // If no auth user (e.g., email confirmation required)
+    if (!authUser) {
+      setLoading(false);
+      return { success: true, message: "Verification email sent. Please check your inbox." };
+    }
+
+    // Update session
+    if (signUpData.session) {
+      setSession(signUpData.session);
+    }
 
     // Insert into CUSTOMER table
     const { error: insertError } = await supabase.from("CUSTOMER").insert([
@@ -39,7 +51,9 @@ export const AuthContextProvider = ({ children }) => {
       return { success: false, error: insertError };
     }
 
-    return { success: true, data: signUpData };
+    setUserRole("customer");
+    setLoading(false);
+    return { success: true, data: signUpData, userRole: "customer" };
   };
 
   // Sign in
@@ -69,7 +83,6 @@ export const AuthContextProvider = ({ children }) => {
       console.error("Sign-out error:", error);
     } else {
       setUserRole(null);
-      setSession(null);
     }
   };
 
@@ -116,73 +129,103 @@ export const AuthContextProvider = ({ children }) => {
   };
 
   // Determine role
-const fetchUserRole = (user) => {
-  if (!user) {
-    setUserRole(null);
-    return;
-  }
-
-  const role = user.user_metadata?.role || null;
-  setUserRole(role);
-};
-
-
-  // On auth state change
-useEffect(() => {
-  const init = async () => {
+  const fetchUserRole = async (userId) => {
     setLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    setSession(session);
-
-    if (session?.user) {
-      fetchUserRole(session.user); // no await needed
-    } else {
+    if (!userId) {
       setUserRole(null);
+      setLoading(false);
+      return;
     }
 
+    // Check CUSTOMER table
+    const { data: customer } = await supabase
+      .from("CUSTOMER")
+      .select("cus_id")
+      .eq("auth_user_id", userId)
+      .single();
+
+    if (customer) {
+      setUserRole("customer");
+      setLoading(false);
+      return;
+    }
+
+    // Check ADMIN table
+    const { data: admin } = await supabase
+      .from("ADMIN")
+      .select("admin_id")
+      .eq("admin_uid", userId)
+      .single();
+
+    if (admin) {
+      setUserRole("admin");
+      setLoading(false);
+      return;
+    }
+
+    // Unknown role
+    setUserRole(null);
     setLoading(false);
   };
 
-  init();
-
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    async (_event, session) => {
+  // On auth state change
+  useEffect(() => {
+    const init = async () => {
       setLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
-
-      const user = session?.user;
-      if (user) {
-        // Ensure user exists in CUSTOMER table
-        const { data: existing } = await supabase
-          .from("CUSTOMER")
-          .select("cus_id")
-          .eq("auth_user_id", user.id)
-          .maybeSingle();
-
-        if (!existing && user.user_metadata?.role === "customer") {
-          await supabase.from("CUSTOMER").insert([
-            {
-              cus_fname: user.user_metadata.given_name || "",
-              cus_lname: user.user_metadata.family_name || "",
-              cus_username: user.user_metadata.full_name || user.email,
-              cus_celno: 0,
-              email: user.email,
-              auth_user_id: user.id,
-            },
-          ]);
-        }
-
-        fetchUserRole(user); // fetch role from metadata
-      } else {
-        setUserRole(null);
-      }
-
+      await fetchUserRole(session?.user?.id);
       setLoading(false);
-    }
-  );
+    };
+  
+    init();
+  
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setLoading(true);
+        setSession(session);
+  
+        const user = session?.user;
+        if (user) {
+          // Check if user exists in CUSTOMER
+          const { data: existing } = await supabase
+            .from("CUSTOMER")
+            .select("cus_id")
+            .eq("auth_user_id", user.id)
+            .maybeSingle();
 
-  return () => listener?.subscription?.unsubscribe();
-}, []);
+          // Check if user exists in ADMIN
+          const { data: adminCheck } = await supabase
+            .from("ADMIN")
+            .select("admin_id")
+            .eq("admin_uid", user.id)
+            .maybeSingle();
+          
+          const isGoogleUser = user.identities?.some(id => id.provider === "google");
+          if (!adminCheck && !existing && isGoogleUser) {
+            // Insert new Google user
+            await supabase.from("CUSTOMER").insert([
+              {
+                cus_fname: user.user_metadata.given_name || "",
+                cus_lname: user.user_metadata.family_name || "",
+                cus_username: user.user_metadata.full_name || user.email,
+                cus_celno: 0,
+                email: user.email,
+                auth_user_id: user.id,
+              },
+            ]);
+          }
+  
+          await fetchUserRole(user.id);
+        } else {
+          setUserRole(null);
+        }
+        setLoading(false);
+      }
+    );
+  
+    return () => listener?.subscription?.unsubscribe();
+  }, []);
   
 
   return (

@@ -15,7 +15,7 @@ const SignUp = () => {
   const [showPasswordValidation, setShowPasswordValidation] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const { signUpNewUser, signUpWithGoogle } = UserAuth();
+  const { signUpNewUser, signInOrUpWithGoogle } = UserAuth();
   const navigate = useNavigate();
   //console.log("Email:", email, "Password:", password);
 
@@ -41,13 +41,14 @@ const SignUp = () => {
     setError("");
 
     try {
-      const result = await signUpWithGoogle();
+      const result = await signInOrUpWithGoogle();
       if (result.success) {
         toast.success("Redirecting to Google...");
         // The redirect will happen automatically via Supabase
       } else {
-        setError(result.error);
-        toast.error(result.error);
+        const errorMessage = result?.error?.message || result?.error || 'Google sign-in failed. Please try again.';  
+        setError(errorMessage);
+        toast.error(errorMessage);
       }
     } catch (err) {
       setError("An unexpected error occurred");
@@ -59,6 +60,7 @@ const SignUp = () => {
   };
 
   const handleSignUp = async (e) => {
+    console.log("handleSignUp called", email, password);
     e.preventDefault();
 
     if (loading) return; // Prevent multiple clicks
@@ -123,8 +125,9 @@ const SignUp = () => {
           window.scrollTo(0, 0);
         }
       } else {
-        setError(result.error.message);
-        toast.error(result.error.message);
+        const errorMessageSignUp = result?.error?.message || 'Sign-up failed. Please try again.';
+        setError(errorMessageSignUp);
+        toast.error(errorMessageSignUp);
       }
     } catch (err) {
       setError("An unexpected error occurred");
