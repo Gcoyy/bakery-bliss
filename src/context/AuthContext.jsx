@@ -4,7 +4,7 @@ import { supabase } from "../supabaseClient";
 export const AuthContext = createContext();
 
 export const AuthContextProvider = ({ children }) => {
-  const [session, setSession] = useState(undefined);
+  const [session, setSession] = useState(null);
   const [userRole, setUserRole] = useState(null); // 'admin' or 'customer'
   const [loading, setLoading] = useState(true);   // To prevent route flicker
 
@@ -130,10 +130,8 @@ export const AuthContextProvider = ({ children }) => {
 
   // Determine role
   const fetchUserRole = async (userId) => {
-    setLoading(true);
     if (!userId) {
       setUserRole(null);
-      setLoading(false);
       return;
     }
 
@@ -146,7 +144,6 @@ export const AuthContextProvider = ({ children }) => {
 
     if (customer) {
       setUserRole("customer");
-      setLoading(false);
       return;
     }
 
@@ -159,71 +156,45 @@ export const AuthContextProvider = ({ children }) => {
 
     if (admin) {
       setUserRole("admin");
-      setLoading(false);
       return;
     }
 
     // Unknown role
     setUserRole(null);
-    setLoading(false);
   };
 
   // On auth state change
   useEffect(() => {
     const init = async () => {
-      setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      await fetchUserRole(session?.user?.id);
-      setLoading(false);
-    };
-  
-    init();
-  
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setLoading(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
         setSession(session);
-  
-        const user = session?.user;
-        if (user) {
-          // Check if user exists in CUSTOMER
-          const { data: existing } = await supabase
-            .from("CUSTOMER")
-            .select("cus_id")
-            .eq("auth_user_id", user.id)
-            .maybeSingle();
+        setLoading(false);
 
-          // Check if user exists in ADMIN
-          const { data: adminCheck } = await supabase
-            .from("ADMIN")
-            .select("admin_id")
-            .eq("admin_uid", user.id)
-            .maybeSingle();
-          
-          const isGoogleUser = user.identities?.some(id => id.provider === "google");
-          if (!adminCheck && !existing && isGoogleUser) {
-            // Insert new Google user
-            await supabase.from("CUSTOMER").insert([
-              {
-                cus_fname: user.user_metadata.given_name || "",
-                cus_lname: user.user_metadata.family_name || "",
-                cus_username: user.user_metadata.full_name || user.email,
-                cus_celno: 0,
-                email: user.email,
-                auth_user_id: user.id,
-              },
-            ]);
-          }
-  
-          await fetchUserRole(user.id);
+        if (session?.user) {
+          await fetchUserRole(session.user.id);
         } else {
           setUserRole(null);
         }
-        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching session:", error);
+        setLoading(false); // only once, at the very end
       }
-    );
-  
+    };
+
+    init();
+
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    async (_event, session) => {
+      setSession(session);
+      if (session?.user) {
+        fetchUserRole(session.user.id);
+      } else {
+        setUserRole(null);
+      }
+    }
+  );
+
     return () => listener?.subscription?.unsubscribe();
   }, []);
   

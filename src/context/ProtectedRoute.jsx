@@ -8,7 +8,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
   if (loading) return <LoadingSpinner message="Checking authentication..." />;
 
-  if (!session) return <Navigate to="/login" />;
+  if (!session || !session.user) return <Navigate to="/login" />;
 
   if (!allowedRoles.includes(userRole)) {
     return <Navigate to="/" />;
