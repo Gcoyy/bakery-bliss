@@ -10,6 +10,13 @@ function RoleBasedRedirect() {
   const location = useLocation();
   const [role, setRole] = useState(null);
 
+  useEffect(() => {
+        if (session && location.pathname !== "/login") {
+      localStorage.setItem("lastPath", location.pathname);
+    }
+  }, [location.pathname, session]);
+
+
   // Fetch role from DB once session is ready
   useEffect(() => {
     const fetchRole = async () => {
@@ -21,7 +28,10 @@ function RoleBasedRedirect() {
         .eq("auth_user_id", session.user.id)
         .single();
 
-      if (customer?.role) setRole("customer");
+      if (customer?.role) {
+        setRole("customer");
+        return;
+      }
 
       const { data: admin } = await supabase
         .from("ADMIN")
@@ -35,8 +45,9 @@ function RoleBasedRedirect() {
     fetchRole();
   }, [session]);
 
-  useEffect(() => {
-    if (loading || role === null) return;
+  // Redirect based on role and lastPath
+useEffect(() => {
+    if (loading || role === null || session === undefined) return; // wait until resolved
 
     if (!session) {
       navigate("/login", { replace: true });
@@ -47,18 +58,22 @@ function RoleBasedRedirect() {
 
     if (role === "admin") {
       const safePath =
-        lastPath?.startsWith("/admin") ? lastPath : "/adminpage";
+        lastPath && lastPath.startsWith("/admin")
+          ? lastPath
+          : "/adminpage"; // fallback only if no valid lastPath
       if (location.pathname !== safePath) {
         navigate(safePath, { replace: true });
       }
     } else if (role === "customer") {
       const safePath =
-        lastPath?.startsWith("/admin") ? "/" : lastPath || "/";
+        lastPath && !lastPath.startsWith("/admin")
+          ? lastPath
+          : "/"; // fallback only if no valid lastPath
       if (location.pathname !== safePath) {
         navigate(safePath, { replace: true });
       }
     }
-  }, [session, loading, role, location.pathname]);
+  }, [session, loading, role, location.pathname, navigate]);
 
   if (loading || role === null) return <LoadingSpinner />;
 

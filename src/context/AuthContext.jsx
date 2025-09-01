@@ -135,18 +135,6 @@ export const AuthContextProvider = ({ children }) => {
       return;
     }
 
-    // Check CUSTOMER table
-    const { data: customer } = await supabase
-      .from("CUSTOMER")
-      .select("cus_id")
-      .eq("auth_user_id", userId)
-      .single();
-
-    if (customer) {
-      setUserRole("customer");
-      return;
-    }
-
     // Check ADMIN table
     const { data: admin } = await supabase
       .from("ADMIN")
@@ -156,6 +144,18 @@ export const AuthContextProvider = ({ children }) => {
 
     if (admin) {
       setUserRole("admin");
+      return;
+    }
+
+    // Check CUSTOMER table
+    const { data: customer } = await supabase
+      .from("CUSTOMER")
+      .select("cus_id")
+      .eq("auth_user_id", userId)
+      .single();
+
+    if (customer) {
+      setUserRole("customer");
       return;
     }
 
