@@ -21,8 +21,8 @@ const Header = () => {
           </div>
           {/* Logo Text */}
           <div className="text-white font-bold text-xl">
-            <span className="text-[#F8E6B4]">Connie </span>
-            <span className="text-white">de Cafe</span>
+            <span className="text-[#F8E6B4]">Bakery</span>
+            <span className="text-white">Bliss</span>
           </div>
         </div>
       </Link>

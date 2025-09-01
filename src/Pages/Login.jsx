@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { UserAuth } from "../context/AuthContext";
 import toast from 'react-hot-toast';
-import { supabase } from "../supabaseClient";
-import { useEffect } from "react";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -16,109 +14,62 @@ const Login = () => {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetMessage, setResetMessage] = useState("");
 
-  const { signInUser, resetPassword } = UserAuth();
+  const { session, signInUser, signInOrUpWithGoogle, resetPassword } = UserAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   //Console.log("Session inside Login:", session); //turn this on if you want to see if session is being set correctly
 
-  const getRedirectedPath = (isAdmin) => {
-    const lastPath = localStorage.getItem("lastPath");
-    const fromState = location.state?.from;
-    
-    if (isAdmin) {
-      return fromState || lastPath || "/adminpage";
-    } else {
-      return fromState || lastPath || "/";
-    }
-  };
-
-// Handle Google login redirect
-useEffect(() => {
-  const checkGoogleLogin = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-
-    if (session?.user) {
-      toast.success("Login successful! Redirecting...");
-      const userId = session.user.id;
-
-        // inside checkGoogleLogin
-        const { data: admin } = await supabase
-          .from("ADMIN")
-          .select("admin_id")
-          .eq("admin_uid", userId)
-          .single();
-
-        const redirectTo = getRedirectedPath(!!admin);
-        navigate(redirectTo, { replace: true });
-
-        window.scrollTo(0, 0);
-    }
-  };
-
-  checkGoogleLogin();
-}, [navigate]);
-
-  // Google sign-in handler
   const handleGoogleSignIn = async () => {
+    if (loading) return; // Prevent multiple clicks
+
+    setLoading(true);
+    setError("");
+
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/login`, // ensure it returns to login first
-        },
-      });
-
-      if (error) {
-        toast.error(error.message);
+      const result = await signInOrUpWithGoogle();
+      if (result.success) {
+        toast.success("Redirecting to Google...");
+        // The redirect will happen automatically via Supabase
+      } else {
+        setError(result.error);
+        toast.error(result.error);
       }
-
-      // Google login will redirect back, so handle user in an effect
     } catch (err) {
-      toast.error("Google sign-in failed");
+      setError("An unexpected error occurred");
+      toast.error("An unexpected error occurred");
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
-// Login form submission handler
-const handleLogin = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setError("");
+  const handleLogin = async (e) => {
+    e.preventDefault();
 
-  try {
-    const result = await signInUser({ email, password });
-    if (result.success) {
-      toast.success("Login successful! Redirecting...");
+    if (loading) return; // Prevent multiple clicks
 
-      const userId = result.data.user.id;
+    setLoading(true);
+    setError("");
 
-      const { data: admin } = await supabase
-        .from("ADMIN")
-        .select("admin_id")
-        .eq("admin_uid", userId)
-        .single();
-
-      const redirectTo = getRedirectedPath(!!admin);
-      navigate(redirectTo, { replace: true });
-
-      window.scrollTo(0, 0);
-    } else {
-      setError(result.error);
-      toast.error(result.error);
+    try {
+      const result = await signInUser({ email, password });
+      if (result.success) {
+        toast.success("Login successful!");
+        navigate("/redirect");
+        // Scroll to top after navigation
+        setTimeout(() => window.scrollTo(0, 0), 100);
+      } else {
+        setError(result.error);
+        toast.error(result.error);
+      }
+    } catch (err) {
+      setError("An unexpected error occurred");
+      toast.error("An unexpected error occurred");
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    setError("An unexpected error occurred");
-    toast.error("An unexpected error occurred");
-    console.error(err);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-// Forgot password handler
   const handleForgotPassword = async (e) => {
     e.preventDefault();
     setResetLoading(true);

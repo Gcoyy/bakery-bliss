@@ -1,7 +1,6 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { AnimatePresence } from "framer-motion";
-import { useEffect } from "react";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -38,6 +37,7 @@ function AppRoutes() {
         <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
         <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
         <Route path="/" element={<PageTransition><Home /></PageTransition>} />
+        <Route path="/redirect" element={<PageTransition><RoleBasedRedirect /></PageTransition>} />
         <Route path="/aboutus" element={<PageTransition><AboutUs /></PageTransition>} />
         <Route path="/contactus" element={<PageTransition><ContactUs /></PageTransition>} />
         <Route path="/cakecatalog" element={<PageTransition><CakeCatalog /></PageTransition>} />
@@ -87,12 +87,6 @@ function AppRoutes() {
 function App() {
   // Use the scroll to top hook
   useScrollToTop();
-  const location = useLocation();
-  
-  // Save last path to localStorage
-  useEffect(() => {
-    localStorage.setItem("lastPath", location.pathname);
-  }, [location.pathname]);
 
   return (
     <>

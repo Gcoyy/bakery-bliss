@@ -10,13 +10,6 @@ function RoleBasedRedirect() {
   const location = useLocation();
   const [role, setRole] = useState(null);
 
-  useEffect(() => {
-        if (session && location.pathname !== "/login") {
-      localStorage.setItem("lastPath", location.pathname);
-    }
-  }, [location.pathname, session]);
-
-
   // Fetch role from DB once session is ready
   useEffect(() => {
     const fetchRole = async () => {
@@ -28,10 +21,7 @@ function RoleBasedRedirect() {
         .eq("auth_user_id", session.user.id)
         .single();
 
-      if (customer?.role) {
-        setRole("customer");
-        return;
-      }
+      if (customer?.role) setRole("customer");
 
       const { data: admin } = await supabase
         .from("ADMIN")
@@ -45,9 +35,8 @@ function RoleBasedRedirect() {
     fetchRole();
   }, [session]);
 
-  // Redirect based on role and lastPath
-useEffect(() => {
-    if (loading || role === null || session === undefined) return; // wait until resolved
+  useEffect(() => {
+    if (loading || role === null) return;
 
     if (!session) {
       navigate("/login", { replace: true });
@@ -58,22 +47,18 @@ useEffect(() => {
 
     if (role === "admin") {
       const safePath =
-        lastPath && lastPath.startsWith("/admin")
-          ? lastPath
-          : "/adminpage"; // fallback only if no valid lastPath
+        lastPath?.startsWith("/admin") ? lastPath : "/adminpage";
       if (location.pathname !== safePath) {
         navigate(safePath, { replace: true });
       }
     } else if (role === "customer") {
       const safePath =
-        lastPath && !lastPath.startsWith("/admin")
-          ? lastPath
-          : "/"; // fallback only if no valid lastPath
+        lastPath?.startsWith("/admin") ? "/" : lastPath || "/";
       if (location.pathname !== safePath) {
         navigate(safePath, { replace: true });
       }
     }
-  }, [session, loading, role, location.pathname, navigate]);
+  }, [session, loading, role, location.pathname]);
 
   if (loading || role === null) return <LoadingSpinner />;
 
