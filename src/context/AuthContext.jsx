@@ -57,24 +57,29 @@ export const AuthContextProvider = ({ children }) => {
   };
 
   // Sign in
-  const signInUser = async ({ email, password }) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+// Sign in
+const signInUser = async ({ email, password }) => {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-      if (error) {
-        console.error("Sign-in error:", error);
-        return { success: false, error: error.message };
-      }
-
-      return { success: true, data };
-    } catch (error) {
-      console.error("Unexpected sign-in error:", error);
-      return { success: false, error: "Unexpected error" };
+    if (error) {
+      console.error("Sign-in error:", error);
+      return { success: false, error: error.message };
     }
-  };
+
+    const user = data.user;
+    const role = user?.user_metadata?.role || null;
+
+    return { success: true, data, role };
+  } catch (error) {
+    console.error("Unexpected sign-in error:", error);
+    return { success: false, error: "Unexpected error" };
+  }
+};
+
 
   // Sign out
   const signOut = async () => {

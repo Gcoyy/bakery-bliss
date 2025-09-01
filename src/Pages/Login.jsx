@@ -50,25 +50,34 @@ const Login = () => {
     setLoading(true);
     setError("");
 
-    try {
-      const result = await signInUser({ email, password });
-      if (result.success) {
-        toast.success("Login successful!");
-        navigate("/redirect");
-        // Scroll to top after navigation
-        setTimeout(() => window.scrollTo(0, 0), 100);
+ try {
+    const result = await signInUser({ email, password });
+    if (result.success) {
+      toast.success("Login successful!");
+
+      // ✅ Redirect based on role
+      if (result.role === "admin") {
+        navigate("/adminpage");
+      } else if (result.role === "customer") {
+        navigate("/");
       } else {
-        setError(result.error);
-        toast.error(result.error);
+        navigate("/"); // fallback in case role is missing
       }
-    } catch (err) {
-      setError("An unexpected error occurred");
-      toast.error("An unexpected error occurred");
-      console.error(err);
-    } finally {
-      setLoading(false);
+
+      // Scroll to top after navigation
+      setTimeout(() => window.scrollTo(0, 0), 100);
+    } else {
+      setError(result.error);
+      toast.error(result.error);
     }
-  };
+  } catch (err) {
+    setError("An unexpected error occurred");
+    toast.error("An unexpected error occurred");
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleForgotPassword = async (e) => {
     e.preventDefault();

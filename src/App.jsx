@@ -37,7 +37,6 @@ function AppRoutes() {
         <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
         <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
         <Route path="/" element={<PageTransition><Home /></PageTransition>} />
-        <Route path="/redirect" element={<PageTransition><RoleBasedRedirect /></PageTransition>} />
         <Route path="/aboutus" element={<PageTransition><AboutUs /></PageTransition>} />
         <Route path="/contactus" element={<PageTransition><ContactUs /></PageTransition>} />
         <Route path="/cakecatalog" element={<PageTransition><CakeCatalog /></PageTransition>} />
