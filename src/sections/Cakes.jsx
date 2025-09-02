@@ -2,6 +2,18 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 
+const getPublicImageUrl = (path) => {
+  if (!path) return null;
+
+  // If the path is already a full URL, return it as is
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+
+  // If it's a file path, generate the public URL
+  return supabase.storage.from("cake").getPublicUrl(path).data.publicUrl;
+};
+
 const Cakes = () => {
   const [rows, setRows] = useState([]);
   const [newRows, setNewRows] = useState([]);
@@ -322,8 +334,8 @@ const Cakes = () => {
   };
 
 
-  // Filter rows based on search term
-  const filteredRows = [...rows, ...newRows].filter((row) => {
+  // Filter rows based on search term - new rows first, then existing rows
+  const filteredRows = [...newRows, ...rows].filter((row) => {
     const name = row.name || "";
     const theme = row.theme || "";
     const tier = row.tier || 1;
@@ -340,16 +352,21 @@ const Cakes = () => {
   const uniqueTiers = [...new Set([...rows, ...newRows].map(row => row.tier).filter(Boolean))].sort((a, b) => a - b);
 
   return (
-    <div className="bg-white rounded-2xl shadow-md p-6 w-full border-4 border-[#AF524D] min-h-[80vh] max-h-[80vh] flex flex-col">
-      <div className="flex gap-4 items-center mb-6">
-        <h1 className="text-3xl font-semibold mb-4 text-[#381914]">Cakes</h1>
-        <div className="ml-auto flex items-center gap-2">
+    <div className="bg-white rounded-2xl shadow-lg p-8 w-full border-2 border-[#AF524D] min-h-[80vh] max-h-[80vh] flex flex-col">
+      {/* Header Section */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center mb-8">
+        <div className="flex-1">
+          <h1 className="text-4xl font-bold text-[#381914] mb-2">Cakes Management</h1>
+          <p className="text-gray-600">Manage your cake catalog and designs</p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
           {/* Theme Filter */}
           <div className="relative">
             <select
               value={themeFilter}
               onChange={(e) => setThemeFilter(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2 pl-10 pr-8 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-transparent appearance-none bg-white"
+              className="border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-8 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200 text-base appearance-none bg-white"
             >
               <option value="">All Themes</option>
               {uniqueThemes.map((theme) => (
@@ -358,9 +375,8 @@ const Cakes = () => {
                 </option>
               ))}
             </select>
-            {/* Filter Icon */}
             <svg
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -372,9 +388,8 @@ const Cakes = () => {
                 d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
               />
             </svg>
-            {/* Dropdown Arrow */}
             <svg
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -393,7 +408,7 @@ const Cakes = () => {
             <select
               value={tierFilter}
               onChange={(e) => setTierFilter(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2 pl-10 pr-8 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-transparent appearance-none bg-white"
+              className="border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-8 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200 text-base appearance-none bg-white"
             >
               <option value="">All Tiers</option>
               {uniqueTiers.map((tier) => (
@@ -402,9 +417,8 @@ const Cakes = () => {
                 </option>
               ))}
             </select>
-            {/* Filter Icon */}
             <svg
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -416,9 +430,8 @@ const Cakes = () => {
                 d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
               />
             </svg>
-            {/* Dropdown Arrow */}
             <svg
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -436,13 +449,13 @@ const Cakes = () => {
           <div className="relative">
             <input
               type="text"
-              placeholder="Search cake..."
+              placeholder="Search by cake name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-transparent"
+              className="border-2 border-gray-200 rounded-xl px-5 py-3 pl-12 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200 text-base"
             />
             <svg
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+              className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -458,228 +471,251 @@ const Cakes = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <table className="w-full border-collapse table-fixed">
-          <thead className="bg-gray-200 sticky top-0 z-10">
-            <tr>
-              <th className="text-left py-2 px-4 text-sm font-semibold w-1/6">Cake Name</th>
-              <th className="text-left py-2 px-4 text-sm font-semibold w-1/6">Theme</th>
-              <th className="text-left py-2 px-4 text-sm font-semibold w-1/6">Description</th>
-              <th className="text-left py-2 px-4 text-sm font-semibold w-1/6">Tiers</th>
-              <th className="text-left py-2 px-4 text-sm font-semibold w-1/6">Price</th>
-              <th className="text-left py-2 px-4 text-sm font-semibold w-1/6">Cake Image</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRows.map((row) => {
-              // Handle both new rows (id) and existing rows (cake_id)
-              const rowId = row.cake_id || row.id;
-              const isSelected = selectedRowId === rowId;
-              const edited = editedValues[rowId] || {};
-              const isEditingName =
-                editingField.id === rowId && editingField.field === "name";
-              console.log({
-                rowId: rowId,
-                selected: selectedRowId === rowId,
-                editing: editingField.id === rowId,
-              });
+      {/* Cakes Table */}
+      <div className="flex-1 overflow-hidden bg-gray-50 rounded-xl border border-gray-200">
+        <div className="overflow-auto h-full max-h-[45vh] pb-4">
+          <table className="w-full border-collapse table-fixed">
+            <thead className="bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white sticky top-0 z-20">
+              <tr>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Cake Name</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Theme</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Description</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Tiers</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Price</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Cake Image</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredRows.map((row) => {
+                // Handle both new rows (id) and existing rows (cake_id)
+                const rowId = row.cake_id || row.id;
+                const isSelected = selectedRowId === rowId;
+                const edited = editedValues[rowId] || {};
+                const isEditingName =
+                  editingField.id === rowId && editingField.field === "name";
 
-              return (
-                <tr
-                  key={rowId}
-                  className={`border-t text-sm cursor-pointer ${isSelected ? 'bg-yellow-100' : 'hover:bg-gray-100'
-                    }`}
-                  onClick={() => handleSelectRow(rowId)}
-                >
-                  <td className="py-2 px-4">
-                    <div className="flex items-center gap-2">
-                      {isEditingName ? (
-                        <input
-                          type="text"
-                          className="border rounded px-2 py-1 w-40"
-                          value={editedName}
-                          onChange={(e) => setEditedName(e.target.value)}
-                          onBlur={() => {
-                            handleFieldChange(rowId, "name", editedName);
-                            setEditingField({ id: null, field: null });
-                          }}
-                          autoFocus
-                        />
-                      ) : (
-                        <>
-                          <div className="flex-grow truncate">
-                            {edited.name ?? row.name}
-                          </div>
-                          <span
-                            className="cursor-pointer hover:text-blue-700 flex-shrink-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingField({ id: rowId, field: "name" });
-                              setEditedName(edited.name ?? row.name);
+                return (
+                  <tr
+                    key={rowId}
+                    className={`transition-all duration-200 cursor-pointer ${isSelected
+                      ? 'bg-blue-50 border-l-4 border-l-blue-500 shadow-md'
+                      : 'hover:bg-gray-100 border-l-4 border-l-transparent'
+                      }`}
+                    onClick={() => handleSelectRow(rowId)}
+                  >
+                    <td className="py-2 px-4">
+                      <div className="flex items-center gap-2">
+                        {isEditingName ? (
+                          <input
+                            type="text"
+                            className="border rounded px-2 py-1 w-40"
+                            value={editedName}
+                            onChange={(e) => setEditedName(e.target.value)}
+                            onBlur={() => {
+                              handleFieldChange(rowId, "name", editedName);
+                              setEditingField({ id: null, field: null });
                             }}
-                          >
-                            <svg key={`edit-name-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </td>
-
-                  <td className="py-2 px-4">
-                    <div className="flex items-center gap-2">
-                      {editingField.id === rowId && editingField.field === "theme" ? (
-                        <input
-                          type="text"
-                          className="border rounded px-2 py-1 w-20"
-                          value={editedTheme}
-                          onChange={(e) => setEditedTheme(e.target.value)}
-                          onBlur={() => {
-                            handleFieldChange(rowId, "theme", editedTheme);
-                            setEditingField({ id: null, field: null });
-                          }}
-                          autoFocus
-                        />
-                      ) : (
-                        <>
-                          <div className="flex-grow truncate">
-                            {edited.theme ?? row.theme}
-                          </div>
-                          <span
-                            className="cursor-pointer hover:text-blue-700 flex-shrink-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingField({ id: rowId, field: "theme" });
-                              setEditedTheme(edited.theme ?? row.theme);
-                            }}
-                          >
-                            <svg key={`edit-theme-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </td>
-
-                  <td className="py-2 px-4">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-grow truncate">
-                        {edited.description ?? row.description}
-                      </div>
-                      <span
-                        className="cursor-pointer hover:text-blue-700 flex-shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDescriptionEdit(rowId, edited.description ?? row.description);
-                        }}
-                      >
-                        <svg key={`edit-description-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </span>
-                    </div>
-                  </td>
-
-                  <td className="py-2 px-4">
-                    <div className="flex items-center gap-2">
-                      {editingField.id === rowId && editingField.field === "tier" ? (
-                        <input
-                          type="number"
-                          className="border rounded px-2 py-1 w-16"
-                          value={editedTier}
-                          onChange={(e) => setEditedTier(e.target.value)}
-                          onBlur={() => {
-                            handleFieldChange(rowId, "tier", parseInt(editedTier) || 1);
-                            setEditingField({ id: null, field: null });
-                          }}
-                          autoFocus
-                        />
-                      ) : (
-                        <>
-                          <div className="truncate">
-                            {edited.tier ?? row.tier}
-                          </div>
-                          <span
-                            className="cursor-pointer hover:text-blue-700 flex-shrink-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingField({ id: rowId, field: "tier" });
-                              setEditedTier(edited.tier ?? row.tier);
-                            }}
-                          >
-                            <svg key={`edit-tier-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </td>
-
-                  <td className="py-2 px-4">
-                    <div className="flex items-center gap-2">
-                      {editingField.id === rowId && editingField.field === "price" ? (
-                        <input
-                          type="number"
-                          className="border rounded px-2 py-1 w-16"
-                          value={editedPrice}
-                          onChange={(e) => setEditedPrice(e.target.value)}
-                          onBlur={() => {
-                            handleFieldChange(rowId, "price", parseFloat(editedPrice) || 0);
-                            setEditingField({ id: null, field: null });
-                          }}
-                          autoFocus
-                        />
-                      ) : (
-                        <>
-                          <div className="truncate">
-                            ₱{edited.price ?? row.price}
-                          </div>
-                          <span
-                            className="cursor-pointer hover:text-blue-700 flex-shrink-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingField({ id: rowId, field: "price" });
-                              setEditedPrice(edited.price ?? row.price);
-                            }}
-                          >
-                            <svg key={`edit-price-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </td>
-
-                  <td className="py-2 px-4">
-                    <div className="relative">
-                      {uploadingImage === rowId ? (
-                        <div className="w-16 h-16 bg-gray-200 rounded border-2 border-dashed border-gray-300 flex items-center justify-center">
-                          <div className="flex flex-col items-center">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#AF524D]"></div>
-                            <span className="text-xs text-gray-500 mt-1">Uploading...</span>
-                          </div>
-                        </div>
-                      ) : edited.cake_img || row.cake_img ? (
-                        <div className="w-16 h-16 rounded overflow-hidden border border-gray-300">
-                          <img
-                            src={edited.cake_img || row.cake_img}
-                            alt="Cake"
-                            className="w-full h-full object-cover"
+                            autoFocus
                           />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
-                            <label className="cursor-pointer opacity-0 hover:opacity-100 transition-opacity duration-200">
-                              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        ) : (
+                          <>
+                            <div className="flex-grow truncate">
+                              {edited.name ?? row.name}
+                            </div>
+                            <span
+                              className="cursor-pointer hover:text-blue-700 flex-shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingField({ id: rowId, field: "name" });
+                                setEditedName(edited.name ?? row.name);
+                              }}
+                            >
+                              <svg key={`edit-name-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                               </svg>
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="py-2 px-4">
+                      <div className="flex items-center gap-2">
+                        {editingField.id === rowId && editingField.field === "theme" ? (
+                          <input
+                            type="text"
+                            className="border rounded px-2 py-1 w-20"
+                            value={editedTheme}
+                            onChange={(e) => setEditedTheme(e.target.value)}
+                            onBlur={() => {
+                              handleFieldChange(rowId, "theme", editedTheme);
+                              setEditingField({ id: null, field: null });
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          <>
+                            <div className="flex-grow truncate">
+                              {edited.theme ?? row.theme}
+                            </div>
+                            <span
+                              className="cursor-pointer hover:text-blue-700 flex-shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingField({ id: rowId, field: "theme" });
+                                setEditedTheme(edited.theme ?? row.theme);
+                              }}
+                            >
+                              <svg key={`edit-theme-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="py-2 px-4">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-grow truncate">
+                          {edited.description ?? row.description}
+                        </div>
+                        <span
+                          className="cursor-pointer hover:text-blue-700 flex-shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDescriptionEdit(rowId, edited.description ?? row.description);
+                          }}
+                        >
+                          <svg key={`edit-description-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                      </div>
+                    </td>
+
+                    <td className="py-2 px-4">
+                      <div className="flex items-center gap-2">
+                        {editingField.id === rowId && editingField.field === "tier" ? (
+                          <input
+                            type="number"
+                            className="border rounded px-2 py-1 w-16"
+                            value={editedTier}
+                            onChange={(e) => setEditedTier(e.target.value)}
+                            onBlur={() => {
+                              handleFieldChange(rowId, "tier", parseInt(editedTier) || 1);
+                              setEditingField({ id: null, field: null });
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          <>
+                            <div className="truncate">
+                              {edited.tier ?? row.tier}
+                            </div>
+                            <span
+                              className="cursor-pointer hover:text-blue-700 flex-shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingField({ id: rowId, field: "tier" });
+                                setEditedTier(edited.tier ?? row.tier);
+                              }}
+                            >
+                              <svg key={`edit-tier-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="py-2 px-4">
+                      <div className="flex items-center gap-2">
+                        {editingField.id === rowId && editingField.field === "price" ? (
+                          <input
+                            type="number"
+                            className="border rounded px-2 py-1 w-16"
+                            value={editedPrice}
+                            onChange={(e) => setEditedPrice(e.target.value)}
+                            onBlur={() => {
+                              handleFieldChange(rowId, "price", parseFloat(editedPrice) || 0);
+                              setEditingField({ id: null, field: null });
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          <>
+                            <div className="truncate">
+                              ₱{edited.price ?? row.price}
+                            </div>
+                            <span
+                              className="cursor-pointer hover:text-blue-700 flex-shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingField({ id: rowId, field: "price" });
+                                setEditedPrice(edited.price ?? row.price);
+                              }}
+                            >
+                              <svg key={`edit-price-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="py-2 px-4">
+                      <div className="relative">
+                        {uploadingImage === rowId ? (
+                          <div className="w-16 h-16 bg-gray-200 rounded border-2 border-dashed border-gray-300 flex items-center justify-center">
+                            <div className="flex flex-col items-center">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#AF524D]"></div>
+                              <span className="text-xs text-gray-500 mt-1">Uploading...</span>
+                            </div>
+                          </div>
+                        ) : edited.cake_img || row.cake_img ? (
+                          <div className="relative w-16 h-16 rounded overflow-hidden border border-gray-300 group">
+                            <img
+                              src={getPublicImageUrl(edited.cake_img || row.cake_img)}
+                              alt="Cake"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-gray-200 flex items-center justify-center hidden">
+                              <span className="text-xs text-gray-500">No Image</span>
+                            </div>
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
+                              <label className="cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => handleImageUpload(e, rowId)}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-16 h-16 bg-gray-200 rounded border-2 border-dashed border-gray-300 flex items-center justify-center hover:border-[#AF524D] transition-colors duration-200">
+                            <label className="cursor-pointer flex flex-col items-center">
+                              <svg className="w-6 h-6 text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                              </svg>
+                              <span className="text-xs text-gray-500">Upload</span>
                               <input
                                 type="file"
                                 accept="image/*"
@@ -689,59 +725,75 @@ const Cakes = () => {
                               />
                             </label>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="w-16 h-16 bg-gray-200 rounded border-2 border-dashed border-gray-300 flex items-center justify-center hover:border-[#AF524D] transition-colors duration-200">
-                          <label className="cursor-pointer flex flex-col items-center">
-                            <svg className="w-6 h-6 text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                            </svg>
-                            <span className="text-xs text-gray-500">Upload</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => handleImageUpload(e, rowId)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </label>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div className="mt-6 flex justify-end gap-4 flex-wrap">
+      {/* Action Buttons */}
+      <div className="mt-8 flex flex-col sm:flex-row justify-between gap-4">
+        <div className="flex gap-3">
+          <button
+            className="bg-[#AF524D] hover:bg-[#8B3A3A] text-white px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            onClick={handleAddRow}
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Add New Cake
+            </div>
+          </button>
+
+          <button
+            className={`px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${selectedRowId
+              ? 'bg-red-600 hover:bg-red-700 text-white hover:shadow-xl transform hover:-translate-y-0.5'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            onClick={handleDeleteRow}
+            disabled={!selectedRowId}
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete Cake
+            </div>
+          </button>
+        </div>
+
         <button
-          className="bg-[#D9D9D9] text-black px-6 py-2 rounded-full cursor-pointer hover:bg-gray-300 transition-colors"
-          onClick={handleAddRow}
-        >
-          ADD
-        </button>
-        <button
-          className={`px-6 py-2 rounded-full transition-colors ${selectedRowId
-            ? 'bg-[#D9D9D9] text-black cursor-pointer hover:bg-gray-300'
-            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-          onClick={handleDeleteRow}
-          disabled={!selectedRowId}
-        >
-          DELETE
-        </button>
-        <button
-          className={`px-6 py-2 rounded-full transition-colors ${saving
+          className={`px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${saving
             ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-            : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'
+            : 'bg-green-600 hover:bg-green-700 text-white hover:shadow-xl transform hover:-translate-y-0.5'
             }`}
           onClick={handleSaveChanges}
           disabled={saving}
         >
-          {saving ? 'Saving...' : 'SAVE CHANGES'}
+          <div className="flex items-center gap-2">
+            {saving ? (
+              <>
+                <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving Changes...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Save All Changes
+              </>
+            )}
+          </div>
         </button>
       </div>
 

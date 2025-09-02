@@ -58,15 +58,15 @@ function AppRoutes() {
           path="/adminpage"
           element={
             <ProtectedRoute allowedRoles={["admin"]}>
-              <PageTransition><AdminPage /></PageTransition>
+              <AdminPage />
             </ProtectedRoute>
           }
         >
-          <Route index element={<Inventory />} />
-          <Route path="inventory" element={<Inventory />} />
-          <Route path="cakes" element={<Cakes />} />
-          <Route path="cake orders" element={<CakeOrders />} />
-          <Route path="custom cake assets" element={<Assets />} />
+          <Route index element={<PageTransition><Inventory /></PageTransition>} />
+          <Route path="inventory" element={<PageTransition><Inventory /></PageTransition>} />
+          <Route path="cakes" element={<PageTransition><Cakes /></PageTransition>} />
+          <Route path="cake orders" element={<PageTransition><CakeOrders /></PageTransition>} />
+          <Route path="custom cake assets" element={<PageTransition><Assets /></PageTransition>} />
         </Route>
 
         <Route

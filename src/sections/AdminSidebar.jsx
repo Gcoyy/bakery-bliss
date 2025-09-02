@@ -2,7 +2,20 @@ import { Link, useLocation } from "react-router-dom"
 
 const AdminSidebar = () => {
   const location = useLocation();
-  const currentPath = location.pathname.split('/').pop();
+
+  // Get the current path segment after /adminpage/
+  const pathSegments = location.pathname.split('/');
+  const adminIndex = pathSegments.indexOf('adminpage');
+  const currentPath = adminIndex !== -1 && pathSegments[adminIndex + 1] ? pathSegments[adminIndex + 1] : 'inventory';
+
+  // Debug logging
+  console.log('🔍 AdminSidebar Debug:', {
+    fullPath: location.pathname,
+    pathSegments,
+    adminIndex,
+    currentPath,
+    decodedPath: decodeURIComponent(currentPath)
+  });
 
   return (
     <aside className="w-52 bg-white border-4 border-[#AF524D] py-4 px-2 rounded-2xl max-h-fit">
@@ -13,14 +26,24 @@ const AdminSidebar = () => {
           { name: "Cakes", path: "cakes" },
           { name: "Custom Cake Assets", path: "custom cake assets" },
         ].map((opt, i) => {
-          const isActive = opt.isExternal ? location.pathname === opt.path : currentPath === opt.path;
+          // Check if this option is active - handle URL encoding
+          const decodedCurrentPath = decodeURIComponent(currentPath);
+          const isActive = decodedCurrentPath === opt.path;
+
+          console.log(`🔍 Checking ${opt.name}:`, {
+            optPath: opt.path,
+            currentPath,
+            decodedCurrentPath,
+            isActive
+          });
+
           return (
             <Link
               key={i}
-              to={opt.isExternal ? opt.path : `/adminpage/${opt.path}`}
-              className={`block text-sm px-3 py-2 rounded border transition-colors ${isActive
-                ? 'bg-[#AF524D] text-white border-[#AF524D]'
-                : 'text-black-700 hover:bg-[#DFBFA6] border-black/50'
+              to={`/adminpage/${opt.path}`}
+              className={`block text-sm px-3 py-2 rounded border transition-all duration-200 ${isActive
+                ? 'bg-[#AF524D] text-white border-[#AF524D] shadow-md transform scale-105'
+                : 'text-gray-700 hover:bg-[#DFBFA6] border-gray-300 hover:border-[#AF524D] hover:text-[#AF524D]'
                 }`}
             >
               {opt.name}

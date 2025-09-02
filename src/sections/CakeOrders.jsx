@@ -602,8 +602,8 @@ const CakeOrders = () => {
     }
   };
 
-  // Filter rows based on search term
-  const filteredRows = [...rows, ...newRows].filter((row) => {
+  // Filter rows based on search term - new rows first, then existing rows
+  const filteredRows = [...newRows, ...rows].filter((row) => {
     const customer = row.customer || "";
     const cake = row.cake || "";
     const theme = row.cake_theme || "";
@@ -653,16 +653,16 @@ const CakeOrders = () => {
 
       {/* Orders Table */}
       <div className="flex-1 overflow-hidden bg-gray-50 rounded-xl border border-gray-200">
-        <div className="overflow-x-auto h-full">
-          <table className="w-full border-collapse">
-            <thead className="bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white sticky top-0 z-10">
+        <div className="overflow-auto h-full max-h-[45vh] pb-4">
+          <table className="w-full border-collapse table-fixed">
+            <thead className="bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white sticky top-0 z-20">
               <tr>
-                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide">Customer Details</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide">Cake Information</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide">Order Details</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide">Schedule & Delivery</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide">Payment Details</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide">Receipt</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Customer Details</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Cake Information</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Order Details</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Schedule & Delivery</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Payment Details</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Receipt</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">

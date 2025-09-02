@@ -448,27 +448,32 @@ const Inventory = () => {
     }
   };
 
-  // Filter rows based on search term
-  const filteredRows = [...rows, ...newRows].filter((row) => {
+  // Filter rows based on search term - new rows first, then existing rows
+  const filteredRows = [...newRows, ...rows].filter((row) => {
     const name = row.name || "";
     return name.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   return (
-    <div className="bg-white rounded-2xl shadow-md p-6 w-full border-4 border-[#AF524D] min-h-[80vh] max-h-[80vh] flex flex-col">
-      <div className="flex gap-4 items-center mb-6">
-        <h1 className="text-3xl font-semibold mb-4 text-[#381914]">Inventory</h1>
-        <div className="ml-auto flex items-center gap-2">
-          <div className="relative">
+    <div className="bg-white rounded-2xl shadow-lg p-8 w-full border-2 border-[#AF524D] min-h-[80vh] max-h-[80vh] flex flex-col">
+      {/* Header Section */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center mb-8">
+        <div className="flex-1">
+          <h1 className="text-4xl font-bold text-[#381914] mb-2">Inventory Management</h1>
+          <p className="text-gray-600">Manage your bakery ingredients and stock levels</p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+          <div className="relative flex-1 sm:flex-none">
             <input
               type="text"
-              placeholder="Search ingredients..."
+              placeholder="Search by ingredient name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-transparent"
+              className="w-full sm:w-80 border-2 border-gray-200 rounded-xl px-5 py-3 pl-12 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200 text-base"
             />
             <svg
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+              className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -484,179 +489,218 @@ const Inventory = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <table className="w-full border-collapse table-fixed">
-          <thead className="bg-gray-200 sticky top-0 z-10">
-            <tr>
-              <th className="text-left py-2 px-4 text-sm font-semibold w-1/4">Item Name</th>
-              <th className="text-left py-2 px-4 text-sm font-semibold w-1/4">Quantity</th>
-              <th className="text-left py-2 px-4 text-sm font-semibold w-1/4">Unit</th>
-              <th className="text-left py-2 px-4 text-sm font-semibold w-1/4">Last Updated</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRows.map((row) => {
-              const isSelected = selectedRowId === row.inven_id;
-              const edited = editedValues[row.inven_id] || {};
-              const isEditingName =
-                editingField.id === row.inven_id && editingField.field === "name";
-              console.log({
-                rowId: row.inven_id,
-                selected: selectedRowId === row.inven_id,
-                editing: editingField.id === row.inven_id,
-              });
+      {/* Inventory Table */}
+      <div className="flex-1 overflow-hidden bg-gray-50 rounded-xl border border-gray-200">
+        <div className="overflow-auto h-full max-h-[45vh] pb-4">
+          <table className="w-full border-collapse table-fixed">
+            <thead className="bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white sticky top-0 z-20">
+              <tr>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/4">Item Name</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/4">Quantity</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/4">Unit</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/4">Last Updated</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredRows.map((row) => {
+                const isSelected = selectedRowId === row.inven_id;
+                const edited = editedValues[row.inven_id] || {};
+                const isEditingName =
+                  editingField.id === row.inven_id && editingField.field === "name";
 
-              return (
-                <tr
-                  key={row.inven_id}
-                  className={`border-t text-sm cursor-pointer ${isSelected ? 'bg-yellow-100' : 'hover:bg-gray-100'
-                    }`}
-                  onClick={() => handleSelectRow(row.inven_id)}
-                >
-                  <td className="py-2 px-4">
-                    <div className="flex items-center gap-2">
-                      {isEditingName ? (
-                        <input
-                          type="text"
-                          className="border rounded px-2 py-1 w-40"
-                          value={editedName}
-                          onChange={(e) => setEditedName(e.target.value)}
-                          onBlur={() => {
-                            handleFieldChange(row.inven_id, "name", editedName);
-                            setEditingField({ id: null, field: null });
-                          }}
-                          autoFocus
-                        />
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <span>{edited.name ?? row.name}</span>
-                          <span
-                            className="cursor-pointer hover:text-blue-700"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingField({ id: row.inven_id, field: "name" });
-                              setEditedName(edited.name ?? row.name);
+                return (
+                  <tr
+                    key={row.inven_id}
+                    className={`transition-all duration-200 cursor-pointer ${isSelected
+                      ? 'bg-blue-50 border-l-4 border-l-blue-500 shadow-md'
+                      : 'hover:bg-gray-100 border-l-4 border-l-transparent'
+                      }`}
+                    onClick={() => handleSelectRow(row.inven_id)}
+                  >
+                    {/* Item Name Column */}
+                    <td className="py-6 px-6 align-top">
+                      <div className="space-y-2">
+                        {isEditingName ? (
+                          <input
+                            type="text"
+                            className="border-2 border-gray-200 rounded-lg px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D]"
+                            value={editedName}
+                            onChange={(e) => setEditedName(e.target.value)}
+                            onBlur={() => {
+                              handleFieldChange(row.inven_id, "name", editedName);
+                              setEditingField({ id: null, field: null });
                             }}
-                          >
-                            <svg width="16" height="16" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                              <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
+                            autoFocus
+                          />
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-semibold text-gray-900 text-base">
+                              {edited.name ?? row.name}
+                            </h4>
+                            <button
+                              className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingField({ id: row.inven_id, field: "name" });
+                                setEditedName(edited.name ?? row.name);
+                              }}
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
 
-                  <td className="py-2 px-4">
-                    <div className="flex items-center gap-2">
-                      {editingField.id === row.inven_id && editingField.field === "quantity" ? (
-                        <input
-                          type="number"
-                          className="border rounded px-2 py-1 w-20"
-                          value={editedQuantity}
-                          onChange={(e) => setEditedQuantity(e.target.value)}
-                          onBlur={() => {
-                            handleFieldChange(row.inven_id, "quantity", editedQuantity);
-                            setEditingField({ id: null, field: null });
-                          }}
-                          autoFocus
-                        />
-                      ) : (
-                        <div
-                          className="flex items-center gap-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingField({ id: row.inven_id, field: "quantity" });
-                            setEditedQuantity(edited.quantity ?? row.quantity);
-                          }}
-                        >
-                          <span>{edited.quantity ?? row.quantity}</span>
-                          <span className="cursor-pointer hover:text-blue-700">
-                            <svg width="16" height="16" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                              <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
+                    {/* Quantity Column */}
+                    <td className="py-6 px-6 align-top">
+                      <div className="space-y-2">
+                        {editingField.id === row.inven_id && editingField.field === "quantity" ? (
+                          <input
+                            type="number"
+                            className="border-2 border-gray-200 rounded-lg px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D]"
+                            value={editedQuantity}
+                            onChange={(e) => setEditedQuantity(e.target.value)}
+                            onBlur={() => {
+                              handleFieldChange(row.inven_id, "quantity", editedQuantity);
+                              setEditingField({ id: null, field: null });
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <span className="text-lg font-semibold text-gray-900">
+                              {edited.quantity ?? row.quantity}
+                            </span>
+                            <button
+                              className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingField({ id: row.inven_id, field: "quantity" });
+                                setEditedQuantity(edited.quantity ?? row.quantity);
+                              }}
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
 
-                  <td className="py-2 px-4">
-                    <div className="flex items-center gap-2">
-                      {editingField.id === row.inven_id && editingField.field === "unit" ? (
-                        <input
-                          type="text"
-                          className="border rounded px-2 py-1 w-20"
-                          value={editedUnit}
-                          onChange={(e) => setEditedUnit(e.target.value)}
-                          onBlur={() => {
-                            handleFieldChange(row.inven_id, "unit", editedUnit);
-                            setEditingField({ id: null, field: null });
-                          }}
-                          autoFocus
-                        />
-                      ) : (
-                        <div
-                          className="flex items-center gap-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingField({ id: row.inven_id, field: "unit" });
-                            setEditedUnit(edited.unit ?? row.unit ?? "pcs");
-                          }}
-                        >
-                          <span>{edited.unit ?? row.unit ?? "pcs"}</span>
-                          <span className="cursor-pointer hover:text-blue-700">
-                            <svg width="16" height="16" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
+                    {/* Unit Column */}
+                    <td className="py-6 px-6 align-top">
+                      <div className="space-y-2">
+                        {editingField.id === row.inven_id && editingField.field === "unit" ? (
+                          <input
+                            type="text"
+                            className="border-2 border-gray-200 rounded-lg px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D]"
+                            value={editedUnit}
+                            onChange={(e) => setEditedUnit(e.target.value)}
+                            onBlur={() => {
+                              handleFieldChange(row.inven_id, "unit", editedUnit);
+                              setEditingField({ id: null, field: null });
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                              {edited.unit ?? row.unit ?? "pcs"}
+                            </span>
+                            <button
+                              className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingField({ id: row.inven_id, field: "unit" });
+                                setEditedUnit(edited.unit ?? row.unit ?? "pcs");
+                              }}
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
 
-                  <td className="py-2 px-4">
-                    <div className='flex items-center gap-2'>
-                      {new Date(row.updated).toLocaleDateString()}
-                      <img src="/clock.svg" alt="" />
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    {/* Last Updated Column */}
+                    <td className="py-6 px-6 align-top">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600">
+                            {new Date(row.updated).toLocaleDateString()}
+                          </span>
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div className="mt-6 flex justify-end gap-4 flex-wrap">
+      {/* Action Buttons */}
+      <div className="mt-8 flex flex-col sm:flex-row justify-between gap-4">
+        <div className="flex gap-3">
+          <button
+            className="bg-[#AF524D] hover:bg-[#8B3A3A] text-white px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            onClick={handleAddRow}
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Add New Item
+            </div>
+          </button>
+
+          <button
+            className={`px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${selectedRowId
+              ? 'bg-red-600 hover:bg-red-700 text-white hover:shadow-xl transform hover:-translate-y-0.5'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            onClick={handleDeleteRow}
+            disabled={!selectedRowId}
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete Item
+            </div>
+          </button>
+        </div>
+
         <button
-          className="bg-[#D9D9D9] text-black px-6 py-2 rounded-full cursor-pointer hover:bg-gray-300 transition-colors"
-          onClick={handleAddRow}
-        >
-          ADD
-        </button>
-        <button
-          className={`px-6 py-2 rounded-full transition-colors ${selectedRowId
-            ? 'bg-[#D9D9D9] text-black cursor-pointer hover:bg-gray-300'
-            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-          onClick={handleDeleteRow}
-          disabled={!selectedRowId}
-        >
-          DELETE
-        </button>
-        <button
-          className={`px-6 py-2 rounded-full transition-colors ${saving
+          className={`px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${saving
             ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-            : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'
+            : 'bg-green-600 hover:bg-green-700 text-white hover:shadow-xl transform hover:-translate-y-0.5'
             }`}
           onClick={handleSaveChanges}
           disabled={saving}
         >
-          {saving ? 'Saving...' : 'SAVE CHANGES'}
+          <div className="flex items-center gap-2">
+            {saving ? (
+              <>
+                <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving Changes...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Save All Changes
+              </>
+            )}
+          </div>
         </button>
       </div>
     </div>
