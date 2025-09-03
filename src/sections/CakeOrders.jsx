@@ -263,24 +263,84 @@ const CakeOrders = () => {
 
     const isNew = selectedRowId.toString().startsWith("new-");
     if (isNew) {
+      // For new rows, just remove from local state
+      console.log('🗑️ Deleting new order from local state:', selectedRowId);
       setNewRows(newRows.filter((row) => row.order_id !== selectedRowId));
+      setSelectedRowId(null);
+      toast.success("Order deleted successfully");
     } else {
+      // For existing rows, delete from database and storage
       try {
-        const { error } = await supabase
+        console.log('🗑️ Deleting existing order from database:', selectedRowId);
+
+        // Find the row to get the receipt path for storage deletion
+        const rowToDelete = rows.find(row => row.order_id === selectedRowId);
+
+        // Delete from database first
+        const { error: dbError } = await supabase
           .from('CAKE-ORDERS')
           .delete()
           .eq('order_id', selectedRowId);
 
-        if (error) {
-          console.error("Error deleting order:", error);
-          toast.error("Failed to delete order");
-        } else {
-          setRows(rows.filter((row) => row.order_id !== selectedRowId));
-          setSelectedRowId(null);
-          toast.success("Order deleted successfully");
+        if (dbError) {
+          console.error("❌ Database deletion error:", dbError);
+          toast.error(`Failed to delete order: ${dbError.message}`);
+          return;
         }
+
+        console.log('✅ Order deleted from database successfully');
+
+        // Delete the receipt from storage if it exists
+        if (rowToDelete?.receipt_path) {
+          try {
+            console.log('🗑️ Attempting to delete receipt from storage:', rowToDelete.receipt_path);
+
+            // Extract the file path from the receipt URL
+            let filePath = rowToDelete.receipt_path;
+
+            // If it's a full URL, extract just the path part
+            if (rowToDelete.receipt_path.includes('/storage/v1/object/public/receipts/')) {
+              filePath = rowToDelete.receipt_path.split('/storage/v1/object/public/receipts/')[1];
+              console.log('📁 Extracted file path from URL:', filePath);
+            } else if (rowToDelete.receipt_path.startsWith('http')) {
+              // Handle other URL formats
+              const urlParts = rowToDelete.receipt_path.split('/receipts/');
+              if (urlParts.length > 1) {
+                filePath = urlParts[1];
+                console.log('📁 Extracted file path from alternative URL:', filePath);
+              }
+            }
+
+            // Only attempt deletion if we have a valid file path
+            if (filePath && filePath !== rowToDelete.receipt_path) {
+              console.log('🗑️ Deleting receipt from storage bucket:', filePath);
+
+              const { error: storageError } = await supabase.storage
+                .from('receipts')
+                .remove([filePath]);
+
+              if (storageError) {
+                console.warn("⚠️ Storage deletion warning:", storageError);
+                // Don't fail the whole operation if storage deletion fails
+              } else {
+                console.log('✅ Receipt deleted from storage successfully');
+              }
+            } else {
+              console.log('⚠️ Could not extract valid file path for storage deletion');
+            }
+          } catch (storageError) {
+            console.warn("⚠️ Storage deletion error:", storageError);
+            // Don't fail the whole operation if storage deletion fails
+          }
+        }
+
+        // Remove from local state
+        setRows(rows.filter((row) => row.order_id !== selectedRowId));
+        setSelectedRowId(null);
+        toast.success("Order deleted successfully");
+
       } catch (error) {
-        console.error("Error deleting order:", error);
+        console.error("❌ Unexpected error during deletion:", error);
         toast.error("Failed to delete order");
       }
     }

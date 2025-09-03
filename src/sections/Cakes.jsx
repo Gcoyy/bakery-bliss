@@ -75,26 +75,87 @@ const Cakes = () => {
 
     const isNew = selectedRowId.toString().startsWith("new-");
     if (isNew) {
+      // For new rows, just remove from local state
+      console.log('🗑️ Deleting new cake from local state:', selectedRowId);
       setNewRows(newRows.filter((row) => row.id !== selectedRowId));
+      setSelectedRowId(null);
+      toast.success("Cake deleted successfully");
     } else {
+      // For existing rows, delete from database and storage
       try {
-        const { error } = await supabase
+        console.log('🗑️ Deleting existing cake from database:', selectedRowId);
+
+        // Find the row to get the image path for storage deletion
+        const rowToDelete = rows.find(row => row.cake_id === selectedRowId);
+
+        // Delete from database first
+        const { error: dbError } = await supabase
           .from('CAKE')
           .delete()
-          .eq('cake_id', selectedRowId); // Use cake_id consistently
+          .eq('cake_id', selectedRowId);
 
-        if (error) {
-          console.error("Delete error:", error);
+        if (dbError) {
+          console.error("❌ Database deletion error:", dbError);
+          toast.error(`Failed to delete cake: ${dbError.message}`);
           return;
         }
 
+        console.log('✅ Cake deleted from database successfully');
+
+        // Delete the cake image from storage if it exists
+        if (rowToDelete?.cake_img) {
+          try {
+            console.log('🗑️ Attempting to delete cake image from storage:', rowToDelete.cake_img);
+
+            // Extract the file path from the image URL
+            let filePath = rowToDelete.cake_img;
+
+            // If it's a full URL, extract just the path part
+            if (rowToDelete.cake_img.includes('/storage/v1/object/public/cake/')) {
+              filePath = rowToDelete.cake_img.split('/storage/v1/object/public/cake/')[1];
+              console.log('📁 Extracted file path from URL:', filePath);
+            } else if (rowToDelete.cake_img.startsWith('http')) {
+              // Handle other URL formats
+              const urlParts = rowToDelete.cake_img.split('/cake/');
+              if (urlParts.length > 1) {
+                filePath = urlParts[1];
+                console.log('📁 Extracted file path from alternative URL:', filePath);
+              }
+            }
+
+            // Only attempt deletion if we have a valid file path
+            if (filePath && filePath !== rowToDelete.cake_img) {
+              console.log('🗑️ Deleting cake image from storage bucket:', filePath);
+
+              const { error: storageError } = await supabase.storage
+                .from('cake')
+                .remove([filePath]);
+
+              if (storageError) {
+                console.warn("⚠️ Storage deletion warning:", storageError);
+                // Don't fail the whole operation if storage deletion fails
+              } else {
+                console.log('✅ Cake image deleted from storage successfully');
+              }
+            } else {
+              console.log('⚠️ Could not extract valid file path for storage deletion');
+            }
+          } catch (storageError) {
+            console.warn("⚠️ Storage deletion error:", storageError);
+            // Don't fail the whole operation if storage deletion fails
+          }
+        }
+
+        // Remove from local state
         setRows(rows.filter((row) => row.cake_id !== selectedRowId));
+        setSelectedRowId(null);
+        toast.success("Cake deleted successfully");
+
       } catch (error) {
-        console.error("Error in delete operation:", error);
+        console.error("❌ Unexpected error during deletion:", error);
+        toast.error("Failed to delete cake");
       }
     }
-
-    setSelectedRowId(null);
   };
 
   const handleFieldChange = (id, field, value) => {
