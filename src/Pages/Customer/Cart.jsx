@@ -15,6 +15,7 @@ const Cart = () => {
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [receiptFile, setReceiptFile] = useState(null);
     const [uploading, setUploading] = useState(false);
+    const [cancellingOrder, setCancellingOrder] = useState(false);
 
     // Helper function to get public image URL
     const getPublicImageUrl = (path) => {
@@ -60,6 +61,12 @@ const Cart = () => {
                              cake_img
                          )
                      ),
+                     CUSTOM-CAKE (
+                         cc_id,
+                         cc_img,
+                         order_id,
+                         cus_id
+                     ),
                      PAYMENT (
                          payment_id,
                          payment_method,
@@ -80,6 +87,7 @@ const Cart = () => {
             // Process the data to flatten it for easier display
             const processedOrders = [];
             data.forEach(order => {
+                // Process regular cake orders
                 if (order['CAKE-ORDERS'] && order['CAKE-ORDERS'].length > 0) {
                     order['CAKE-ORDERS'].forEach(cakeOrder => {
                         processedOrders.push({
@@ -91,12 +99,40 @@ const Cart = () => {
                             order_status: order.order_status || 'Pending',
                             quantity: cakeOrder.quantity,
                             cake_id: cakeOrder.cake_id,
+                            order_type: 'regular',
                             CAKE: cakeOrder.CAKE ? {
                                 ...cakeOrder.CAKE,
                                 publicUrl: getPublicImageUrl(cakeOrder.CAKE.cake_img)
                             } : null,
                             payment: order.PAYMENT?.[0] || null,
                             total_price: cakeOrder.CAKE ? cakeOrder.CAKE.price * cakeOrder.quantity : 0
+                        });
+                    });
+                }
+
+                // Process custom cake orders
+                if (order['CUSTOM-CAKE'] && order['CUSTOM-CAKE'].length > 0) {
+                    order['CUSTOM-CAKE'].forEach(customCake => {
+                        // Get public URL for custom cake image
+                        const customCakeUrl = supabase.storage.from('cust.cakes').getPublicUrl(customCake.cc_img).data.publicUrl;
+
+                        processedOrders.push({
+                            order_id: order.order_id,
+                            order_date: order.order_date,
+                            delivery_method: order.delivery_method,
+                            order_schedule: order.order_schedule,
+                            delivery_address: order.delivery_address,
+                            order_status: order.order_status || 'Pending',
+                            quantity: 1, // Custom cakes are typically 1 per order
+                            cc_id: customCake.cc_id,
+                            order_type: 'custom',
+                            CAKE: {
+                                name: 'Custom Cake Design',
+                                price: 5000, // Base price for custom cakes
+                                publicUrl: customCakeUrl
+                            },
+                            payment: order.PAYMENT?.[0] || null,
+                            total_price: 5000 // Base price for custom cakes
                         });
                     });
                 }
@@ -135,6 +171,53 @@ const Cart = () => {
                 return;
             }
             setReceiptFile(file);
+        }
+    };
+
+    // Cancel order function
+    const cancelOrder = async (order) => {
+        if (cancellingOrder) return;
+
+        const confirmed = window.confirm(
+            `Are you sure you want to cancel order #${order.order_id}? This action cannot be undone.`
+        );
+
+        if (!confirmed) return;
+
+        setCancellingOrder(true);
+        try {
+            // Update order status to 'Cancelled'
+            const { error: orderError } = await supabase
+                .from('ORDER')
+                .update({ order_status: 'Cancelled' })
+                .eq('order_id', order.order_id);
+
+            if (orderError) {
+                console.error('Error cancelling order:', orderError);
+                toast.error('Failed to cancel order. Please try again.');
+                return;
+            }
+
+            // Update payment status to 'Cancelled'
+            const { error: paymentError } = await supabase
+                .from('PAYMENT')
+                .update({ payment_status: 'Cancelled' })
+                .eq('order_id', order.order_id);
+
+            if (paymentError) {
+                console.error('Error updating payment status:', paymentError);
+                // Don't show error to user as order was already cancelled
+            }
+
+            toast.success('Order cancelled successfully!');
+
+            // Refresh orders
+            fetchOrders();
+        } catch (error) {
+            console.error('Error cancelling order:', error);
+            toast.error('Failed to cancel order. Please try again.');
+        } finally {
+            setCancellingOrder(false);
         }
     };
 
@@ -333,6 +416,11 @@ const Cart = () => {
                                                     <div>
                                                         <h3 className="font-semibold text-[#381914]">
                                                             {order.CAKE ? order.CAKE.name : 'Cake'}
+                                                            {order.order_type === 'custom' && (
+                                                                <span className="ml-2 inline-block px-2 py-1 bg-[#AF524D] text-white text-xs rounded-full">
+                                                                    Custom
+                                                                </span>
+                                                            )}
                                                         </h3>
                                                         <p className="text-sm text-gray-600">
                                                             Order ID: {order.order_id}
@@ -364,7 +452,17 @@ const Cart = () => {
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <div className="flex justify-end mt-4">
+                                                <div className="flex justify-end gap-3 mt-4">
+                                                    <button
+                                                        onClick={() => cancelOrder(order)}
+                                                        disabled={cancellingOrder}
+                                                        className={`py-2 px-6 rounded-lg font-semibold text-sm transition-all duration-200 ${cancellingOrder
+                                                            ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                                            : 'bg-red-500 text-white hover:bg-red-600 shadow-md hover:shadow-lg transform hover:scale-105'
+                                                            }`}
+                                                    >
+                                                        {cancellingOrder ? 'Cancelling...' : 'Cancel Order'}
+                                                    </button>
                                                     <button
                                                         onClick={() => openPaymentModal(order)}
                                                         disabled={orderLoading}
@@ -418,6 +516,11 @@ const Cart = () => {
                                                     <div>
                                                         <h3 className="font-semibold text-[#381914]">
                                                             {order.CAKE ? order.CAKE.name : 'Cake'}
+                                                            {order.order_type === 'custom' && (
+                                                                <span className="ml-2 inline-block px-2 py-1 bg-[#AF524D] text-white text-xs rounded-full">
+                                                                    Custom
+                                                                </span>
+                                                            )}
                                                         </h3>
                                                         <p className="text-sm text-gray-600">
                                                             Order ID: {order.order_id}
@@ -492,6 +595,11 @@ const Cart = () => {
                                                     <div>
                                                         <h3 className="font-semibold text-[#381914]">
                                                             {order.CAKE ? order.CAKE.name : 'Cake'}
+                                                            {order.order_type === 'custom' && (
+                                                                <span className="ml-2 inline-block px-2 py-1 bg-[#AF524D] text-white text-xs rounded-full">
+                                                                    Custom
+                                                                </span>
+                                                            )}
                                                         </h3>
                                                         <p className="text-sm text-gray-600">
                                                             Order ID: {order.order_id}
@@ -565,6 +673,11 @@ const Cart = () => {
                                                     <div>
                                                         <h3 className="font-semibold text-[#381914]">
                                                             {order.CAKE ? order.CAKE.name : 'Cake'}
+                                                            {order.order_type === 'custom' && (
+                                                                <span className="ml-2 inline-block px-2 py-1 bg-[#AF524D] text-white text-xs rounded-full">
+                                                                    Custom
+                                                                </span>
+                                                            )}
                                                         </h3>
                                                         <p className="text-sm text-gray-600">
                                                             Order ID: {order.order_id}

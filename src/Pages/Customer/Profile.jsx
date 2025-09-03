@@ -10,13 +10,7 @@ import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 
-function chunkArray(array, size) {
-  const chunked = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunked.push(array.slice(i, i + size));
-  }
-  return chunked;
-}
+
 
 
 const Profile = () => {
@@ -32,6 +26,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [customCakes, setCustomCakes] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [selectedCakeImage, setSelectedCakeImage] = useState(null);
   const navigate = useNavigate();
 
   // Default phone number to display when none is stored
@@ -109,7 +104,14 @@ const Profile = () => {
           .eq("cus_id", profile.cus_id);
 
         if (error) throw error;
-        setCustomCakes(data);
+
+        // Add public URL for each custom cake image
+        const customCakesWithUrls = data.map(cake => ({
+          ...cake,
+          publicUrl: cake.cc_img ? supabase.storage.from('cust.cakes').getPublicUrl(cake.cc_img).data.publicUrl : null
+        }));
+
+        setCustomCakes(customCakesWithUrls);
       } catch (error) {
         console.error("Error fetching custom cakes:", error.message);
       }
@@ -118,8 +120,7 @@ const Profile = () => {
     if (profile) fetchCustomCakes();
   }, [profile]);
 
-  // Function to chunk the custom cakes into groups of 4
-  const cakeGroups = chunkArray(customCakes, 4);
+
 
 
   // Function to handle phone number edit
@@ -413,48 +414,108 @@ const Profile = () => {
           <p className='text-2xl font-bold cursor-default'>Saved Custom Cakes:</p>
         </div>
 
-        <div className="relative w-full min-h-[40vh] mt-10 bg-[#F3F0EA] rounded-r-3xl rounded-l-3xl py-6 px-4">
+        <div className="relative w-full min-h-[50vh] mt-10 bg-[#F3F0EA] rounded-r-3xl rounded-l-3xl py-8 px-6">
           {customCakes.length > 0 ? (
-            <Swiper
-              modules={[Navigation]}
-              navigation={{
-                nextEl: '.custom-next',
-                prevEl: '.custom-prev',
-              }}
-              spaceBetween={20}
-              slidesPerView={1}
-              loop={false}
-              className="w-full h-full"
-            >
-              {cakeGroups.map((group, i) => (
-                <SwiperSlide key={i}>
-                  <div className="flex justify-center gap-4">
-                    {group.map((cake, idx) => (
-                      <div key={idx} className="bg-white rounded-3xl shadow-lg overflow-hidden w-56 text-center">
+            customCakes.length > 5 ? (
+              <Swiper
+                modules={[Navigation]}
+                navigation={{
+                  nextEl: '.custom-next',
+                  prevEl: '.custom-prev',
+                }}
+                spaceBetween={24}
+                slidesPerView="auto"
+                centeredSlides={false}
+                loop={false}
+                className="w-full h-full"
+                breakpoints={{
+                  1024: {
+                    slidesPerView: 4,
+                    spaceBetween: 24,
+                  },
+                  768: {
+                    slidesPerView: 3,
+                    spaceBetween: 20,
+                  },
+                  640: {
+                    slidesPerView: 2,
+                    spaceBetween: 16,
+                  },
+                  480: {
+                    slidesPerView: 1,
+                    spaceBetween: 12,
+                  }
+                }}
+              >
+                {customCakes.map((cake, idx) => (
+                  <SwiperSlide key={idx} className="!w-auto">
+                    <div className="bg-white rounded-2xl shadow-lg overflow-hidden w-64 h-80 text-center hover:shadow-xl transition-shadow duration-300 cursor-pointer">
+                      <div
+                        className="relative h-56 overflow-hidden"
+                        onClick={() => setSelectedCakeImage(cake.publicUrl)}
+                      >
                         <img
-                          src={cake.preview_url || "/placeholder.jpg"}
+                          src={cake.publicUrl || "/placeholder.jpg"}
                           alt={`Custom Cake ${cake.cc_id}`}
-                          className="rounded-t-3xl object-cover h-40 w-full"
+                          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                          onError={(e) => {
+                            e.target.src = "/placeholder.jpg";
+                          }}
                         />
-                        <div className="bg-[#3B3B3B] text-white py-2 px-2 rounded-b-3xl">
-                          <h3 className="font-bold text-lg">Custom Cake #{cake.cc_id}</h3>
-                          <p className="text-sm italic">Order #{cake.order_id}</p>
-                          <p className="text-xs text-blue-200 underline">click to size</p>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                          <div className="bg-white bg-opacity-90 rounded-full p-2 opacity-0 hover:opacity-100 transition-opacity duration-300">
+                            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                            </svg>
+                          </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </SwiperSlide>
-              ))}
+                      <div className="bg-[#3B3B3B] text-white py-4 px-4 h-24 flex items-center justify-center">
+                        <h3 className="font-bold text-lg">Custom Cake #{cake.cc_id}</h3>
+                      </div>
+                    </div>
+                  </SwiperSlide>
+                ))}
 
-              {/* Navigation Arrows */}
-              <div className="custom-prev absolute top-1/2 left-0 -translate-y-1/2 bg-gray-500 rounded-r-lg px-3 py-4 cursor-pointer z-10 text-white text-2xl">
-                &lt;
+                {/* Navigation Arrows */}
+                <div className="custom-prev absolute top-1/2 left-2 -translate-y-1/2 bg-gray-600 hover:bg-gray-700 rounded-full w-12 h-12 flex items-center justify-center cursor-pointer z-10 text-white text-xl transition-colors duration-200 shadow-lg">
+                  &lt;
+                </div>
+                <div className="custom-next absolute top-1/2 right-2 -translate-y-1/2 bg-gray-600 hover:bg-gray-700 rounded-full w-12 h-12 flex items-center justify-center cursor-pointer z-10 text-white text-xl transition-colors duration-200 shadow-lg">
+                  &gt;
+                </div>
+              </Swiper>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 justify-items-center">
+                {customCakes.map((cake, idx) => (
+                  <div key={idx} className="bg-white rounded-2xl shadow-lg overflow-hidden w-64 h-80 text-center hover:shadow-xl transition-shadow duration-300 cursor-pointer">
+                    <div
+                      className="relative h-56 overflow-hidden"
+                      onClick={() => setSelectedCakeImage(cake.publicUrl)}
+                    >
+                      <img
+                        src={cake.publicUrl || "/placeholder.jpg"}
+                        alt={`Custom Cake ${cake.cc_id}`}
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                        onError={(e) => {
+                          e.target.src = "/placeholder.jpg";
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                        <div className="bg-white bg-opacity-90 rounded-full p-2 opacity-0 hover:opacity-100 transition-opacity duration-300">
+                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-[#3B3B3B] text-white py-4 px-4 h-24 flex items-center justify-center">
+                      <h3 className="font-bold text-lg">Custom Cake #{cake.cc_id}</h3>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="custom-next absolute top-1/2 right-0 -translate-y-1/2 bg-gray-500 rounded-l-lg px-3 py-4 cursor-pointer z-10 text-white text-2xl">
-                &gt;
-              </div>
-            </Swiper>
+            )
           ) : (
             <div className="flex flex-col items-center justify-center h-full py-12">
               <div className="text-center">
@@ -471,6 +532,30 @@ const Profile = () => {
           )}
         </div>
       </div>
+
+      {/* Image Modal */}
+      {selectedCakeImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedCakeImage(null)}
+        >
+          <div className="relative w-full h-full max-w-7xl max-h-full flex items-center justify-center">
+            <img
+              src={selectedCakeImage}
+              alt="Custom Cake Design"
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            />
+            <button
+              onClick={() => setSelectedCakeImage(null)}
+              className="absolute top-4 right-4 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-3 transition-all duration-200 shadow-lg"
+            >
+              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
