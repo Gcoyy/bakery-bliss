@@ -3,10 +3,14 @@ import { Canvas, FabricText, FabricImage } from 'fabric';
 import { supabase } from '../../supabaseClient';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { useNavigate } from 'react-router-dom';
+import { UserAuth } from '../../context/AuthContext';
 
 const CakeCustomization = () => {
     console.log('=== CakeCustomization Component Initialized ===');
 
+    const navigate = useNavigate();
+    const { session, userRole } = UserAuth();
     const canvasRef = useRef(null);
     const canvas = useRef(null);
     const colorWheelRef = useRef(null);
@@ -24,7 +28,43 @@ const CakeCustomization = () => {
     const [objectUpdateTrigger, setObjectUpdateTrigger] = useState(0);
     const [selectedAssetType, setSelectedAssetType] = useState('cake base');
 
+    // Order modal states
+    const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+    const [currentStep, setCurrentStep] = useState(1);
+    const [orderDate, setOrderDate] = useState("");
+    const [orderTime, setOrderTime] = useState("");
+    const [orderType, setOrderType] = useState("Pickup");
+    const [deliveryAddress, setDeliveryAddress] = useState("");
+    const [cakeQuantity, setCakeQuantity] = useState(1);
+    const [isOrderTypeDropdownOpen, setIsOrderTypeDropdownOpen] = useState(false);
+    const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+    const [customCakeImage, setCustomCakeImage] = useState(null);
+
     console.log('Initial state:', { loading, canvasReady, selectedColor });
+
+    // Check authentication on component mount
+    useEffect(() => {
+        if (!session || !session.user) {
+            console.log('User not authenticated, waiting 5 seconds to check again...');
+
+            // Wait 5 seconds before checking again
+            const checkTimer = setTimeout(() => {
+                // Check again after 5 seconds
+                if (!session || !session.user) {
+                    console.log('User still not authenticated after 5 seconds, redirecting to login');
+                    toast.error('Please log in to access the cake customization tool');
+                    navigate('/login');
+                } else {
+                    console.log('User authenticated after 5 seconds:', session.user);
+                }
+            }, 5000);
+
+            // Cleanup timer if component unmounts
+            return () => clearTimeout(checkTimer);
+        } else {
+            console.log('User authenticated:', session.user);
+        }
+    }, [session, navigate]);
 
     // Track canvasReady changes
     useEffect(() => {
@@ -80,6 +120,37 @@ const CakeCustomization = () => {
             console.error('getPublicImageUrl: Unexpected error:', error);
             return null;
         }
+    };
+
+    // Helper function to convert image to data URL to avoid CORS issues
+    const imageToDataURL = (url) => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                resolve(canvas.toDataURL());
+            };
+            img.onerror = () => {
+                // If CORS fails, try without crossOrigin
+                const img2 = new Image();
+                img2.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = img2.width;
+                    canvas.height = img2.height;
+                    ctx.drawImage(img2, 0, 0);
+                    resolve(canvas.toDataURL());
+                };
+                img2.onerror = reject;
+                img2.src = url;
+            };
+            img.src = url;
+        });
     };
 
     // Helper function to test if an image URL is accessible
@@ -405,10 +476,9 @@ const CakeCustomization = () => {
 
                 // Process cake bases with public URLs
                 const cakesWithImages = cakeBases.map((asset) => {
-                    // Construct the full path with folder structure
-                    const fullPath = `cake base/${asset.src}`;
-                    const publicUrl = getPublicImageUrl(fullPath);
-                    console.log(`Processing cake base ${asset.src}:`, { asset, fullPath, publicUrl });
+                    // Use the asset.src directly as it should already contain the full path
+                    const publicUrl = getPublicImageUrl(asset.src);
+                    console.log(`Processing cake base ${asset.src}:`, { asset, publicUrl });
                     return {
                         cake_id: asset.asset_id,
                         name: asset.src.replace('.png', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
@@ -419,14 +489,13 @@ const CakeCustomization = () => {
 
                 // Process icing assets with public URLs
                 const processedIcing = icingAssets.map((asset) => {
-                    // Construct the full path with folder structure
-                    const fullPath = `icing/${asset.src}`;
-                    const publicUrl = getPublicImageUrl(fullPath);
-                    console.log(`Processing icing ${asset.src}:`, { asset, fullPath, publicUrl });
+                    // Use the asset.src directly as it should already contain the full path
+                    const publicUrl = getPublicImageUrl(asset.src);
+                    console.log(`Processing icing ${asset.src}:`, { asset, publicUrl });
                     return {
                         id: asset.asset_id,
                         name: asset.src.replace('.png', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                        image_path: fullPath, // Store the full path for later use
+                        image_path: asset.src, // Store the src path for later use
                         category: asset.type,
                         admin_id: asset.admin_id
                     };
@@ -434,13 +503,13 @@ const CakeCustomization = () => {
 
                 // Process topping assets with public URLs
                 const processedToppings = toppingAssets.map((asset) => {
-                    // Construct the full path with folder structure
-                    const fullPath = `topping/${asset.src}`;
-                    const publicUrl = getPublicImageUrl(fullPath);
-                    console.log(`Processing topping ${asset.src}:`, { asset, fullPath, publicUrl });
+                    // Use the asset.src directly as it should already contain the full path
+                    const publicUrl = getPublicImageUrl(asset.src);
+                    console.log(`Processing topping ${asset.src}:`, { asset, publicUrl });
                     return {
                         id: asset.asset_id,
                         name: asset.src.replace('.png', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                        src: asset.src, // Add src property for consistency
                         category: asset.type,
                         admin_id: asset.admin_id
                     };
@@ -736,29 +805,64 @@ const CakeCustomization = () => {
         }
 
         console.log('Creating image for cake base');
-        const img = new Image();
-        img.onload = () => {
-            console.log('Image loaded successfully, creating FabricImage');
-            const fabricImage = new FabricImage(img);
-            fabricImage.scaleToWidth(300);
-            fabricImage.set({
-                left: 250,
-                top: 200,
-                name: 'cake-base'
-            });
-            console.log('Adding fabric image to canvas');
-            canvas.current.add(fabricImage);
-            canvas.current.setActiveObject(fabricImage);
-            canvas.current.renderAll();
-            console.log('Cake base added successfully');
-            toast.success(`${cake.name} added to canvas`);
+
+        // Try to load image with CORS support first
+        const loadImageWithFallback = async () => {
+            try {
+                // First try with crossOrigin
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = cake.publicUrl;
+                });
+
+                console.log('Image loaded successfully with CORS, creating FabricImage');
+                const fabricImage = new FabricImage(img);
+                fabricImage.scaleToWidth(300);
+                fabricImage.set({
+                    left: 250,
+                    top: 200,
+                    name: 'cake-base'
+                });
+                console.log('Adding fabric image to canvas');
+                canvas.current.add(fabricImage);
+                canvas.current.setActiveObject(fabricImage);
+                canvas.current.renderAll();
+                console.log('Cake base added successfully');
+
+            } catch (corsError) {
+                console.log('CORS failed, trying data URL conversion...');
+                try {
+                    // Fallback: convert to data URL
+                    const dataURL = await imageToDataURL(cake.publicUrl);
+                    const img = new Image();
+                    img.onload = () => {
+                        console.log('Image loaded successfully via data URL, creating FabricImage');
+                        const fabricImage = new FabricImage(img);
+                        fabricImage.scaleToWidth(300);
+                        fabricImage.set({
+                            left: 250,
+                            top: 200,
+                            name: 'cake-base'
+                        });
+                        console.log('Adding fabric image to canvas');
+                        canvas.current.add(fabricImage);
+                        canvas.current.setActiveObject(fabricImage);
+                        canvas.current.renderAll();
+                        console.log('Cake base added successfully');
+                    };
+                    img.src = dataURL;
+                } catch (fallbackError) {
+                    console.error('Both CORS and data URL conversion failed:', fallbackError);
+                    toast.error('Failed to load cake image');
+                }
+            }
         };
-        img.onerror = (error) => {
-            console.error('Image failed to load:', error);
-            console.log('Image src that failed:', cake.publicUrl);
-            toast.error('Failed to load cake image');
-        };
-        img.src = cake.publicUrl;
+
+        loadImageWithFallback();
         console.log('Image src set to:', cake.publicUrl);
     };
 
@@ -773,26 +877,57 @@ const CakeCustomization = () => {
         const imageUrl = getPublicImageUrl(decoration.image_path);
         console.log('Adding decoration:', { decoration, imageUrl });
 
-        const img = new Image();
-        img.onload = () => {
-            const fabricImage = new FabricImage(img);
-            fabricImage.scaleToWidth(80);
-            fabricImage.set({
-                left: 300,
-                top: 250,
-                name: 'decoration'
-            });
-            canvas.current.add(fabricImage);
-            canvas.current.setActiveObject(fabricImage);
-            canvas.current.renderAll();
-            toast.success(`${decoration.name} added to canvas`);
+        // Try to load image with CORS support first
+        const loadImageWithFallback = async () => {
+            try {
+                // First try with crossOrigin
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = imageUrl;
+                });
+
+                const fabricImage = new FabricImage(img);
+                fabricImage.scaleToWidth(80);
+                fabricImage.set({
+                    left: 300,
+                    top: 250,
+                    name: 'decoration'
+                });
+                canvas.current.add(fabricImage);
+                canvas.current.setActiveObject(fabricImage);
+                canvas.current.renderAll();
+
+            } catch (corsError) {
+                console.log('CORS failed for decoration, trying data URL conversion...');
+                try {
+                    // Fallback: convert to data URL
+                    const dataURL = await imageToDataURL(imageUrl);
+                    const img = new Image();
+                    img.onload = () => {
+                        const fabricImage = new FabricImage(img);
+                        fabricImage.scaleToWidth(80);
+                        fabricImage.set({
+                            left: 300,
+                            top: 250,
+                            name: 'decoration'
+                        });
+                        canvas.current.add(fabricImage);
+                        canvas.current.setActiveObject(fabricImage);
+                        canvas.current.renderAll();
+                    };
+                    img.src = dataURL;
+                } catch (fallbackError) {
+                    console.error('Both CORS and data URL conversion failed for decoration:', fallbackError);
+                    toast.error('Failed to load decoration image');
+                }
+            }
         };
-        img.onerror = (error) => {
-            console.error('Decoration image failed to load:', error);
-            console.log('Image src that failed:', imageUrl);
-            toast.error('Failed to load decoration image');
-        };
-        img.src = imageUrl;
+
+        loadImageWithFallback();
     };
 
     // Add topping to canvas
@@ -802,30 +937,61 @@ const CakeCustomization = () => {
             return;
         }
 
-        // Construct the full path with folder structure
-        const imageUrl = getPublicImageUrl(`topping/${topping.src}`);
+        // Use the topping.src directly as it should already contain the full path
+        const imageUrl = getPublicImageUrl(topping.src);
         console.log('Adding topping:', { topping, imageUrl });
 
-        const img = new Image();
-        img.onload = () => {
-            const fabricImage = new FabricImage(img);
-            fabricImage.scaleToWidth(60);
-            fabricImage.set({
-                left: 320,
-                top: 270,
-                name: 'topping'
-            });
-            canvas.current.add(fabricImage);
-            canvas.current.setActiveObject(fabricImage);
-            canvas.current.renderAll();
-            toast.success(`${topping.name} added to canvas`);
+        // Try to load image with CORS support first
+        const loadImageWithFallback = async () => {
+            try {
+                // First try with crossOrigin
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = imageUrl;
+                });
+
+                const fabricImage = new FabricImage(img);
+                fabricImage.scaleToWidth(60);
+                fabricImage.set({
+                    left: 320,
+                    top: 270,
+                    name: 'topping'
+                });
+                canvas.current.add(fabricImage);
+                canvas.current.setActiveObject(fabricImage);
+                canvas.current.renderAll();
+
+            } catch (corsError) {
+                console.log('CORS failed for topping, trying data URL conversion...');
+                try {
+                    // Fallback: convert to data URL
+                    const dataURL = await imageToDataURL(imageUrl);
+                    const img = new Image();
+                    img.onload = () => {
+                        const fabricImage = new FabricImage(img);
+                        fabricImage.scaleToWidth(60);
+                        fabricImage.set({
+                            left: 320,
+                            top: 270,
+                            name: 'topping'
+                        });
+                        canvas.current.add(fabricImage);
+                        canvas.current.setActiveObject(fabricImage);
+                        canvas.current.renderAll();
+                    };
+                    img.src = dataURL;
+                } catch (fallbackError) {
+                    console.error('Both CORS and data URL conversion failed for topping:', fallbackError);
+                    toast.error('Failed to load topping image');
+                }
+            }
         };
-        img.onerror = (error) => {
-            console.error('Topping image failed to load:', error);
-            console.log('Image src that failed:', imageUrl);
-            toast.error('Failed to load topping image');
-        };
-        img.src = imageUrl;
+
+        loadImageWithFallback();
     };
 
     // Add text to canvas
@@ -853,7 +1019,6 @@ const CakeCustomization = () => {
         canvas.current.setActiveObject(text);
         canvas.current.renderAll();
         setTextValue('');
-        toast.success('Text added to canvas');
     };
 
     // Change color of selected object
@@ -930,7 +1095,6 @@ const CakeCustomization = () => {
         if (activeObject) {
             canvas.current.remove(activeObject);
             canvas.current.renderAll();
-            toast.success('Object deleted');
         } else {
             toast.error('Please select an object first');
         }
@@ -949,31 +1113,328 @@ const CakeCustomization = () => {
         toast.success('Canvas cleared');
     };
 
-    // Export design
-    const exportDesign = () => {
+    // Z-index control functions
+    const bringToFront = () => {
+        if (!canvasReady || !canvas.current || !canvas.current.getActiveObject) {
+            toast.error('Canvas not ready');
+            return;
+        }
+
+        const activeObject = canvas.current.getActiveObject();
+        if (activeObject) {
+            canvas.current.bringToFront(activeObject);
+            canvas.current.renderAll();
+            setObjectUpdateTrigger(prev => prev + 1);
+        } else {
+            toast.error('Please select an object first');
+        }
+    };
+
+    const sendToBack = () => {
+        if (!canvasReady || !canvas.current || !canvas.current.getActiveObject) {
+            toast.error('Canvas not ready');
+            return;
+        }
+
+        const activeObject = canvas.current.getActiveObject();
+        if (activeObject) {
+            canvas.current.sendToBack(activeObject);
+            canvas.current.renderAll();
+            setObjectUpdateTrigger(prev => prev + 1);
+        } else {
+            toast.error('Please select an object first');
+        }
+    };
+
+    const bringForward = () => {
+        if (!canvasReady || !canvas.current || !canvas.current.getActiveObject) {
+            toast.error('Canvas not ready');
+            return;
+        }
+
+        const activeObject = canvas.current.getActiveObject();
+        if (activeObject) {
+            canvas.current.bringForward(activeObject);
+            canvas.current.renderAll();
+            setObjectUpdateTrigger(prev => prev + 1);
+        } else {
+            toast.error('Please select an object first');
+        }
+    };
+
+    const sendBackward = () => {
+        if (!canvasReady || !canvas.current || !canvas.current.getActiveObject) {
+            toast.error('Canvas not ready');
+            return;
+        }
+
+        const activeObject = canvas.current.getActiveObject();
+        if (activeObject) {
+            canvas.current.sendBackwards(activeObject);
+            canvas.current.renderAll();
+            setObjectUpdateTrigger(prev => prev + 1);
+        } else {
+            toast.error('Please select an object first');
+        }
+    };
+
+    // Save design to bucket and create order
+    const exportDesign = async () => {
         if (!canvasReady || !canvas.current) {
             toast.error('Canvas not ready');
             return;
         }
 
-        const dataURL = canvas.current.toDataURL({
-            format: 'png',
-            quality: 1
-        });
+        try {
+            // Show loading state
+            toast.loading('Preparing your custom cake design...');
 
-        const link = document.createElement('a');
-        link.download = 'custom-cake-design.png';
-        link.href = dataURL;
-        link.click();
-        toast.success('Design exported successfully');
+            // Convert canvas to blob
+            const dataURL = canvas.current.toDataURL({
+                format: 'png',
+                quality: 1
+            });
+
+            // Convert data URL to blob
+            const response = await fetch(dataURL);
+            const blob = await response.blob();
+
+            // Store the image data for later use
+            setCustomCakeImage({
+                dataURL,
+                blob,
+                filename: `custom_cake_${Date.now()}.png`
+            });
+
+            // Set default order values
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            setOrderDate(tomorrow.toISOString().split('T')[0]);
+            setOrderTime("14:00");
+            setCakeQuantity(1);
+            setCurrentStep(1);
+
+            // Close loading toast and open order modal
+            toast.dismiss();
+            setIsOrderModalOpen(true);
+
+        } catch (error) {
+            console.error('Error preparing design:', error);
+            toast.error('Failed to prepare design');
+        }
+    };
+
+    // Order modal functions
+    const closeOrderModal = () => {
+        setIsOrderModalOpen(false);
+        setOrderDate("");
+        setOrderTime("");
+        setOrderType("Pickup");
+        setDeliveryAddress("");
+        setCakeQuantity(1);
+        setCurrentStep(1);
+        setIsOrderTypeDropdownOpen(false);
+        setIsPlacingOrder(false);
+        setCustomCakeImage(null);
+    };
+
+    const nextStep = () => {
+        if (currentStep < 3) {
+            setCurrentStep(currentStep + 1);
+        }
+    };
+
+    const prevStep = () => {
+        if (currentStep > 1) {
+            setCurrentStep(currentStep - 1);
+        }
+    };
+
+    // Handle placing the custom cake order
+    const handlePlaceOrder = async () => {
+        if (isPlacingOrder) {
+            return;
+        }
+
+        if (!customCakeImage || !orderDate || !orderTime || (orderType === "Delivery" && !deliveryAddress)) {
+            toast.error('Please fill in all required fields');
+            return;
+        }
+
+        setIsPlacingOrder(true);
+
+        try {
+            console.log('Starting custom cake order placement...');
+
+            // Get customer ID from authentication
+            const { data: customerData, error: customerError } = await supabase
+                .from('CUSTOMER')
+                .select('cus_id')
+                .eq('auth_user_id', session.user.id)
+                .single();
+
+            if (customerError || !customerData) {
+                console.error('Error fetching customer ID:', customerError);
+                toast.error('Customer information not found. Please try again.');
+                return;
+            }
+
+            const cusId = customerData.cus_id;
+
+            // Upload image to Supabase storage
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('cust.cakes')
+                .upload(customCakeImage.filename, customCakeImage.blob, {
+                    contentType: 'image/png',
+                    upsert: false
+                });
+
+            if (uploadError) {
+                console.error('Upload error:', uploadError);
+                toast.error('Failed to save design to storage');
+                return;
+            }
+
+            console.log('Image uploaded successfully:', uploadData);
+
+            // Get the next CC ID
+            const { data: maxIdData } = await supabase
+                .from('CUSTOM-CAKE')
+                .select('cc_id')
+                .order('cc_id', { ascending: false })
+                .limit(1);
+
+            const nextCcId = maxIdData && maxIdData.length > 0 ? maxIdData[0].cc_id + 1 : 6001;
+
+            // Create order with proper scheduling
+            const scheduledDate = new Date(`${orderDate}T${orderTime}`);
+            const orderInsertData = {
+                order_date: new Date().toISOString().split('T')[0],
+                delivery_method: orderType,
+                order_schedule: scheduledDate.toISOString(), // Include full datetime with time
+                delivery_address: orderType === "Delivery" ? deliveryAddress : null,
+                cus_id: cusId,
+                order_status: 'Pending'
+            };
+
+            console.log('Attempting to create order with data:', orderInsertData);
+
+            const { data: orderData, error: orderError } = await supabase
+                .from('ORDER')
+                .insert([orderInsertData])
+                .select()
+                .single();
+
+            if (orderError) {
+                console.error('Error creating order:', orderError);
+                console.error('Order error details:', {
+                    message: orderError.message,
+                    details: orderError.details,
+                    hint: orderError.hint,
+                    code: orderError.code
+                });
+                toast.error(`Failed to create order: ${orderError.message}`);
+                return;
+            }
+
+            console.log('Order created successfully:', orderData);
+            console.log('Order ID from database:', orderData.order_id);
+
+            // Insert into CUSTOM-CAKE table
+            const customCakeData = {
+                cc_id: nextCcId,
+                cc_img: customCakeImage.filename,
+                order_id: orderData.order_id,
+                cus_id: cusId,
+                auth_user_id: session.user.id
+            };
+
+            console.log('Attempting to create custom cake record with data:', customCakeData);
+
+            const { data: insertData, error: insertError } = await supabase
+                .from('CUSTOM-CAKE')
+                .insert(customCakeData);
+
+            if (insertError) {
+                console.error('Database insert error:', insertError);
+                console.error('Custom cake error details:', {
+                    message: insertError.message,
+                    details: insertError.details,
+                    hint: insertError.hint,
+                    code: insertError.code
+                });
+                toast.error(`Failed to save cake design to database: ${insertError.message}`);
+                return;
+            }
+
+            console.log('Custom cake record created:', insertData);
+
+            // Create payment record
+            const customCakePrice = 5000; // Base price for custom cakes
+            const totalPrice = customCakePrice * cakeQuantity;
+
+            const paymentData = {
+                payment_method: "Cash",
+                amount_paid: totalPrice,
+                payment_date: new Date().toISOString().split('T')[0],
+                payment_status: "Unpaid",
+                receipt: null,
+                order_id: orderData.order_id
+            };
+
+            console.log('Attempting to create payment record with data:', paymentData);
+
+            const { error: paymentError } = await supabase
+                .from('PAYMENT')
+                .insert([paymentData]);
+
+            if (paymentError) {
+                console.error('Error creating payment:', paymentError);
+                console.error('Payment error details:', {
+                    message: paymentError.message,
+                    details: paymentError.details,
+                    hint: paymentError.hint,
+                    code: paymentError.code
+                });
+                toast.error(`Failed to create payment record: ${paymentError.message}`);
+                return;
+            }
+
+            console.log('Payment record created successfully');
+
+            // Show success notification
+            toast.success('Custom cake order placed successfully!', {
+                duration: 4000,
+                position: 'top-center',
+                style: {
+                    background: '#10B981',
+                    color: '#fff',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                },
+            });
+
+            // Advance to success step
+            setCurrentStep(3);
+
+        } catch (error) {
+            console.error('Error placing order:', error);
+            toast.error('Failed to place order. Please try again.', {
+                duration: 4000,
+                position: 'top-center',
+            });
+        } finally {
+            setIsPlacingOrder(false);
+        }
     };
 
     console.log('=== Render called ===');
-    console.log('Current state:', { loading, canvasReady, selectedColor, cakeImages: cakeImages.length });
+    console.log('Current state:', { loading, canvasReady, selectedColor, cakeImages: cakeImages.length, session: !!session });
 
-    if (loading) {
-        console.log('Showing loading spinner');
-        return <LoadingSpinner message="Loading cake designer..." />;
+    // Show loading spinner while checking authentication or loading data
+    if (!session || !session.user || loading) {
+        console.log('Showing loading spinner - session:', !!session, 'loading:', loading);
+        return <LoadingSpinner message={!session ? "Checking authentication, please wait..." : "Loading cake designer..."} />;
     }
 
     return (
@@ -1028,6 +1489,43 @@ const CakeCustomization = () => {
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                    </button>
+                    <div className="h-4 w-px bg-gray-300"></div>
+                    <button
+                        onClick={bringToFront}
+                        className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                        title="Bring to Front"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                        </svg>
+                    </button>
+                    <button
+                        onClick={sendToBack}
+                        className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                        title="Send to Back"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8V20m0 0l-4-4m4 4l4-4M7 4v12m0 0l-4-4m4 4l4-4" />
+                        </svg>
+                    </button>
+                    <button
+                        onClick={bringForward}
+                        className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                        title="Bring Forward"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                        </svg>
+                    </button>
+                    <button
+                        onClick={sendBackward}
+                        className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                        title="Send Backward"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
                         </svg>
                     </button>
                     <div className="h-4 w-px bg-gray-300"></div>
@@ -1158,7 +1656,8 @@ const CakeCustomization = () => {
                                                         <img
                                                             src={cake.publicUrl}
                                                             alt={cake.name}
-                                                            className="w-full h-16 object-cover rounded border border-gray-200 group-hover:border-blue-300 transition-colors"
+                                                            className="w-full object-contain rounded border border-gray-200 group-hover:border-blue-300 transition-colors"
+                                                            style={{ height: 'auto', maxHeight: '80px' }}
                                                             onError={(e) => {
                                                                 e.target.src = "/saved-cake.png";
                                                             }}
@@ -1193,7 +1692,8 @@ const CakeCustomization = () => {
                                                         <img
                                                             src={getPublicImageUrl(decoration.image_path)}
                                                             alt={decoration.name}
-                                                            className="w-full h-16 object-cover rounded border border-gray-200 group-hover:border-blue-300 transition-colors"
+                                                            className="w-full object-contain rounded border border-gray-200 group-hover:border-blue-300 transition-colors"
+                                                            style={{ height: 'auto', maxHeight: '80px' }}
                                                             onError={(e) => {
                                                                 console.error('Decoration image failed to load in UI:', decoration.image_path);
                                                                 e.target.src = "/saved-cake.png";
@@ -1227,11 +1727,12 @@ const CakeCustomization = () => {
                                                 <div key={topping.id} className="group cursor-pointer">
                                                     <div className="relative">
                                                         <img
-                                                            src={getPublicImageUrl(`topping/${topping.src}`)}
+                                                            src={getPublicImageUrl(topping.src)}
                                                             alt={topping.name}
-                                                            className="w-full h-16 object-cover rounded border border-gray-200 group-hover:border-blue-300 transition-colors"
+                                                            className="w-full object-contain rounded border border-gray-200 group-hover:border-blue-300 transition-colors"
+                                                            style={{ height: 'auto', maxHeight: '80px' }}
                                                             onError={(e) => {
-                                                                console.error('Topping image failed to load in UI:', `topping/${topping.src}`);
+                                                                console.error('Topping image failed to load in UI:', topping.src);
                                                                 e.target.src = "/saved-cake.png";
                                                             }}
                                                         />
@@ -1270,27 +1771,66 @@ const CakeCustomization = () => {
                     {selectedObject ? (
                         // Use objectUpdateTrigger to force re-render when object properties change
                         <div key={objectUpdateTrigger} className="space-y-4">
-                            {/* Color Picker - Only show when object is selected */}
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Color</label>
-                                <div className="flex flex-col items-center space-y-3">
-                                    <canvas
-                                        ref={colorWheelRef}
-                                        width="120"
-                                        height="120"
-                                        className="border border-gray-300 rounded cursor-pointer"
-                                        onMouseDown={handleMouseDown}
-                                        title="Click and drag to select color"
-                                    />
-                                    <div className="flex items-center space-x-2">
-                                        <span className="text-sm text-gray-600 font-mono">{selectedColor}</span>
+                            {/* Color Picker - Only show when text object is selected */}
+                            {selectedObject.type === 'text' && (
+                                <div>
+                                    <label className="block text-xs text-gray-600 mb-1">Color</label>
+                                    <div className="flex flex-col items-center space-y-3">
+                                        <canvas
+                                            ref={colorWheelRef}
+                                            width="120"
+                                            height="120"
+                                            className="border border-gray-300 rounded cursor-pointer"
+                                            onMouseDown={handleMouseDown}
+                                            title="Click and drag to select color"
+                                        />
+                                        <div className="flex items-center space-x-2">
+                                            <span className="text-sm text-gray-600 font-mono">{selectedColor}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
                             <div>
                                 <label className="block text-xs text-gray-600 mb-1">Type</label>
                                 <div className="text-sm font-medium text-gray-900 capitalize">
                                     {selectedObject.type}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs text-gray-600 mb-1">Layer Order</label>
+                                <div className="text-sm font-medium text-gray-900">
+                                    {canvas.current.getObjects().indexOf(selectedObject) + 1} of {canvas.current.getObjects().length}
+                                </div>
+                                <div className="flex gap-1 mt-2">
+                                    <button
+                                        onClick={sendBackward}
+                                        className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                                        title="Send Backward"
+                                    >
+                                        ↓
+                                    </button>
+                                    <button
+                                        onClick={bringForward}
+                                        className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                                        title="Bring Forward"
+                                    >
+                                        ↑
+                                    </button>
+                                    <button
+                                        onClick={sendToBack}
+                                        className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                                        title="Send to Back"
+                                    >
+                                        ⬇
+                                    </button>
+                                    <button
+                                        onClick={bringToFront}
+                                        className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                                        title="Bring to Front"
+                                    >
+                                        ⬆
+                                    </button>
                                 </div>
                             </div>
 
@@ -1404,6 +1944,360 @@ const CakeCustomization = () => {
                     )}
                 </div>
             </div>
+
+            {/* Order Modal */}
+            {isOrderModalOpen && customCakeImage && (
+                <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        {/* Modal Header */}
+                        <div className="flex justify-between items-center p-6 border-b border-gray-200">
+                            <h2 className="text-2xl font-bold text-[#381914]">Complete Your Custom Cake Order</h2>
+                            <button
+                                onClick={closeOrderModal}
+                                className="text-gray-500 hover:text-gray-700 text-2xl font-bold cursor-pointer"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        {/* Breadcrumb Navigation */}
+                        <div className="px-6 py-4 border-b border-gray-100">
+                            <div className="flex items-center justify-center space-x-4">
+                                <div className={`flex items-center ${currentStep >= 1 ? 'text-[#AF524D]' : 'text-gray-400'}`}>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${currentStep >= 1 ? 'bg-[#AF524D] text-white' : 'bg-gray-200 text-gray-500'}`}>
+                                        1
+                                    </div>
+                                    <span className="ml-2 text-sm font-medium">Order Details</span>
+                                </div>
+
+                                <div className={`w-8 h-1 ${currentStep >= 2 ? 'bg-[#AF524D]' : 'bg-gray-200'}`}></div>
+
+                                <div className={`flex items-center ${currentStep >= 2 ? 'text-[#AF524D]' : 'text-gray-400'}`}>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${currentStep >= 2 ? 'bg-[#AF524D] text-white' : 'bg-gray-200 text-gray-500'}`}>
+                                        2
+                                    </div>
+                                    <span className="ml-2 text-sm font-medium">Review</span>
+                                </div>
+
+                                <div className={`w-8 h-1 ${currentStep >= 3 ? 'bg-[#AF524D]' : 'bg-gray-200'}`}></div>
+
+                                <div className={`flex items-center ${currentStep >= 3 ? 'text-[#AF524D]' : 'text-gray-400'}`}>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${currentStep >= 3 ? 'bg-[#AF524D] text-white' : 'bg-gray-200 text-gray-500'}`}>
+                                        3
+                                    </div>
+                                    <span className="ml-2 text-sm font-medium">Success</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="p-6">
+                            {/* Custom Cake Preview */}
+                            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                                <div className="flex items-center gap-4">
+                                    <img
+                                        src={customCakeImage.dataURL}
+                                        alt="Custom Cake Design"
+                                        className="w-16 h-16 object-contain rounded-lg"
+                                    />
+                                    <div>
+                                        <h3 className="font-semibold text-[#381914]">Custom Cake Design</h3>
+                                        <p className="text-sm text-gray-600">₱5,000 (base price)</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Step 1: Order Details */}
+                            {currentStep === 1 && (
+                                <div className="space-y-6">
+                                    {/* Quantity Selection */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-[#381914] mb-2">
+                                            Quantity *
+                                        </label>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setCakeQuantity(Math.max(1, cakeQuantity - 1))}
+                                                className="w-10 h-10 rounded-full border-2 border-[#AF524D] text-[#AF524D] hover:bg-[#AF524D] hover:text-white transition-colors flex items-center justify-center font-bold text-lg"
+                                            >
+                                                -
+                                            </button>
+                                            <span className="w-16 text-center font-semibold text-[#381914] text-lg">
+                                                {cakeQuantity}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setCakeQuantity(cakeQuantity + 1)}
+                                                className="w-10 h-10 rounded-full border-2 border-[#AF524D] text-[#AF524D] hover:bg-[#AF524D] hover:text-white transition-colors flex items-center justify-center font-bold text-lg"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Date Selection */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-[#381914] mb-2">
+                                            Pickup/Delivery Date *
+                                        </label>
+                                        <div className="relative">
+                                            <div className="flex items-center gap-3 p-3 border-2 border-[#AF524D] rounded-lg bg-white">
+                                                <div className="flex-shrink-0">
+                                                    <svg className="w-6 h-6 text-[#AF524D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                                    </svg>
+                                                </div>
+                                                <div className="flex-1">
+                                                    <input
+                                                        type="date"
+                                                        value={orderDate}
+                                                        onChange={(e) => setOrderDate(e.target.value)}
+                                                        min={new Date().toISOString().split('T')[0]}
+                                                        className="w-full bg-transparent border-none outline-none text-[#381914] font-medium cursor-pointer"
+                                                        required
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Time Selection */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-[#381914] mb-2">
+                                            Pickup/Delivery Time *
+                                        </label>
+                                        <div className="relative">
+                                            <div className="flex items-center gap-3 p-3 border-2 border-[#AF524D] rounded-lg bg-white">
+                                                <div className="flex-shrink-0">
+                                                    <svg className="w-6 h-6 text-[#AF524D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                    </svg>
+                                                </div>
+                                                <div className="flex-1">
+                                                    <input
+                                                        type="time"
+                                                        value={orderTime}
+                                                        onChange={(e) => setOrderTime(e.target.value)}
+                                                        className="w-full bg-transparent border-none outline-none text-[#381914] font-medium cursor-pointer"
+                                                        required
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Order Type */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-[#381914] mb-2">
+                                            Order Type
+                                        </label>
+                                        <div className="relative">
+                                            <div
+                                                className="flex items-center gap-3 p-3 border-2 border-[#AF524D] rounded-lg bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+                                                onClick={() => setIsOrderTypeDropdownOpen(!isOrderTypeDropdownOpen)}
+                                            >
+                                                <div className="flex-shrink-0">
+                                                    <svg className="w-6 h-6 text-[#AF524D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                                    </svg>
+                                                </div>
+                                                <div className="flex-1">
+                                                    <span className="text-[#381914] font-medium">
+                                                        {orderType}
+                                                    </span>
+                                                </div>
+                                                <div className="flex-shrink-0">
+                                                    <svg
+                                                        className={`w-5 h-5 text-[#AF524D] transition-transform ${isOrderTypeDropdownOpen ? 'rotate-180' : ''}`}
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                                                    </svg>
+                                                </div>
+                                            </div>
+
+                                            {/* Custom Dropdown */}
+                                            {isOrderTypeDropdownOpen && (
+                                                <div className="absolute top-full left-0 right-0 mt-1 bg-white border-2 border-[#AF524D] rounded-lg shadow-lg z-10">
+                                                    <div
+                                                        className="p-3 hover:bg-[#AF524D] hover:text-white cursor-pointer transition-colors border-b border-gray-100"
+                                                        onClick={() => {
+                                                            setOrderType("Pickup");
+                                                            setIsOrderTypeDropdownOpen(false);
+                                                        }}
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                                            </svg>
+                                                            <span className="font-medium">Pickup</span>
+                                                        </div>
+                                                    </div>
+                                                    <div
+                                                        className="p-3 hover:bg-[#AF524D] hover:text-white cursor-pointer transition-colors"
+                                                        onClick={() => {
+                                                            setOrderType("Delivery");
+                                                            setIsOrderTypeDropdownOpen(false);
+                                                        }}
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                                            </svg>
+                                                            <span className="font-medium">Delivery</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Delivery Address */}
+                                    {orderType === "Delivery" && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-[#381914] mb-2">
+                                                Delivery Address
+                                            </label>
+                                            <textarea
+                                                value={deliveryAddress}
+                                                onChange={(e) => setDeliveryAddress(e.target.value)}
+                                                placeholder="Enter your complete delivery address..."
+                                                rows="3"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-transparent resize-none"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Action Buttons */}
+                                    <div className="flex gap-4 justify-end">
+                                        <button
+                                            onClick={closeOrderModal}
+                                            className="px-6 py-2 bg-gray-300 text-gray-700 rounded-full hover:bg-gray-400 transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={nextStep}
+                                            disabled={!orderDate || !orderTime || (orderType === "Delivery" && !deliveryAddress)}
+                                            className={`px-6 py-2 rounded-full transition-colors ${!orderDate || !orderTime || (orderType === "Delivery" && !deliveryAddress)
+                                                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                                : 'bg-[#AF524D] text-white hover:bg-[#8B3D3A]'
+                                                }`}
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Step 2: Review Order */}
+                            {currentStep === 2 && (
+                                <div className="space-y-6">
+                                    <h3 className="text-lg font-semibold text-[#381914] mb-4">Review Your Order</h3>
+
+                                    {/* Order Summary */}
+                                    <div className="p-4 bg-gray-50 rounded-lg">
+                                        <h4 className="font-semibold text-[#381914] mb-4">Order Summary</h4>
+                                        <div className="space-y-3 text-sm">
+                                            <div className="flex justify-between">
+                                                <span className="font-medium">Cake:</span>
+                                                <span>Custom Cake Design</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="font-medium">Quantity:</span>
+                                                <span>{cakeQuantity}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="font-medium">Price per cake:</span>
+                                                <span>₱5,000</span>
+                                            </div>
+                                            <div className="flex justify-between border-t border-gray-200 pt-2">
+                                                <span className="font-semibold">Total Price:</span>
+                                                <span className="font-semibold">₱{5000 * cakeQuantity}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="font-medium">Date:</span>
+                                                <span>{orderDate ? new Date(orderDate).toLocaleDateString() : 'Not selected'}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="font-medium">Time:</span>
+                                                <span>{orderTime ? new Date(`2000-01-01T${orderTime}`).toLocaleTimeString('en-US', {
+                                                    hour: 'numeric',
+                                                    minute: '2-digit',
+                                                    hour12: true
+                                                }) : 'Not selected'}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="font-medium">Type:</span>
+                                                <span>{orderType}</span>
+                                            </div>
+                                            {orderType === "Delivery" && deliveryAddress && (
+                                                <div className="flex justify-between">
+                                                    <span className="font-medium">Address:</span>
+                                                    <span className="text-right max-w-xs truncate">{deliveryAddress}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="flex gap-4 justify-between items-center pt-4 border-t border-gray-200">
+                                        <button
+                                            onClick={prevStep}
+                                            className="px-6 py-2 bg-gray-300 text-gray-700 rounded-full hover:bg-gray-400 transition-colors"
+                                        >
+                                            Back
+                                        </button>
+
+                                        <button
+                                            onClick={handlePlaceOrder}
+                                            disabled={isPlacingOrder}
+                                            className={`px-6 py-2 rounded-full transition-colors ${isPlacingOrder
+                                                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                                : 'bg-[#AF524D] text-white hover:bg-[#8B3D3A]'
+                                                }`}
+                                        >
+                                            {isPlacingOrder ? 'Placing Order...' : 'Place Order'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Step 3: Order Success */}
+                            {currentStep === 3 && (
+                                <div className="space-y-6">
+                                    <h3 className="text-lg font-semibold text-[#381914] mb-4">Order Successfully Placed!</h3>
+
+                                    <div className="p-6 bg-green-50 border border-green-200 rounded-lg text-center">
+                                        <div className="flex items-center justify-center gap-3 mb-4">
+                                            <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                        </div>
+                                        <h4 className="font-semibold text-green-800 text-xl mb-2">Thank you for your order!</h4>
+                                        <p className="text-green-700 text-sm mb-4">
+                                            Your custom cake order has been successfully placed.
+                                        </p>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="flex gap-4 justify-center">
+                                        <button
+                                            onClick={closeOrderModal}
+                                            className="px-6 py-2 bg-[#AF524D] text-white rounded-full hover:bg-[#8B3D3A] transition-colors"
+                                        >
+                                            Done
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
