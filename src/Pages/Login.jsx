@@ -50,34 +50,34 @@ const Login = () => {
     setLoading(true);
     setError("");
 
- try {
-    const result = await signInUser({ email, password });
-    if (result.success) {
-      toast.success("Login successful!");
+    try {
+      const result = await signInUser({ email, password });
+      if (result.success) {
+        toast.success("Login successful!");
 
-      // ✅ Redirect based on role
-      if (result.role === "admin") {
-        navigate("/adminpage");
-      } else if (result.role === "customer") {
-        navigate("/");
+        // ✅ Redirect based on role
+        if (result.role === "admin") {
+          navigate("/adminpage");
+        } else if (result.role === "customer") {
+          navigate("/");
+        } else {
+          navigate("/"); // fallback in case role is missing
+        }
+
+        // Scroll to top after navigation
+        setTimeout(() => window.scrollTo(0, 0), 100);
       } else {
-        navigate("/"); // fallback in case role is missing
+        setError(result.error);
+        toast.error(result.error);
       }
-
-      // Scroll to top after navigation
-      setTimeout(() => window.scrollTo(0, 0), 100);
-    } else {
-      setError(result.error);
-      toast.error(result.error);
+    } catch (err) {
+      setError("An unexpected error occurred");
+      toast.error("An unexpected error occurred");
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    setError("An unexpected error occurred");
-    toast.error("An unexpected error occurred");
-    console.error(err);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleForgotPassword = async (e) => {
     e.preventDefault();
@@ -109,20 +109,20 @@ const Login = () => {
   };
 
   return (
-    <div className="bg-[url('/Background.png')] bg-cover bg-top min-h-screen w-full flex items-center justify-center p-4">
-      <div className="bg-[linear-gradient(to_bottom,_white_0%,_#DFDAC7_11%,_#52514B_100%)] flex items-center justify-center gap-6 md:gap-10 flex-col w-full max-w-sm sm:max-w-md md:max-w-lg h-auto py-6 md:py-10 px-4 md:px-8 rounded-2xl md:rounded-3xl shadow-lg">
+    <div className="bg-[url('/Background.png')] bg-cover bg-center min-h-screen w-full flex items-center justify-center p-4">
+      <div className="bg-[linear-gradient(to_bottom,_white_0%,_#DFDAC7_11%,_#A8A599_100%)] flex items-center justify-center gap-6 md:gap-10 flex-col w-full max-w-sm sm:max-w-md md:max-w-lg h-auto py-6 md:py-10 px-4 md:px-8 rounded-2xl md:rounded-3xl shadow-2xl border-2 border-[#AF524D]">
         <div className="text-center">
-          <h1 className="text-2xl md:text-3xl font-bold">Welcome back!</h1>
-          <p className="text-xs md:text-sm mt-1">Please enter your details below</p>
+          <h1 className="text-2xl md:text-3xl font-bold font-jost text-[#492220]">Welcome back!</h1>
+          <p className="text-xs md:text-sm mt-1 text-[#492220]/80">Please enter your details below</p>
         </div>
 
         <form onSubmit={handleLogin} className="flex flex-col space-y-3 md:space-y-4 w-full">
           <div>
-            <label htmlFor="email" className="text-sm md:text-base">
+            <label htmlFor="email" className="text-sm md:text-base text-[#492220] font-medium">
               Email: <span className="text-red-500">*</span>
             </label>
             <input
-              className="w-full bg-white text-black rounded-md px-2 py-1 md:py-2 border border-black-300 focus:outline-none focus:ring-2 focus:ring-[#AF524D] text-sm md:text-base"
+              className="w-full bg-white/90 text-[#492220] rounded-lg px-3 py-2 md:py-3 border-2 border-[#AF524D]/30 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] text-sm md:text-base shadow-sm"
               type="email"
               id="email"
               required
@@ -132,12 +132,12 @@ const Login = () => {
           </div>
 
           <div>
-            <label htmlFor="password" className="text-sm md:text-base">
+            <label htmlFor="password" className="text-sm md:text-base text-[#492220] font-medium">
               Password: <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <input
-                className="w-full bg-white text-black rounded-md px-2 py-1 md:py-2 pr-10 border border-black-300 focus:outline-none focus:ring-2 focus:ring-[#AF524D] text-sm md:text-base"
+                className="w-full bg-white/90 text-[#492220] rounded-lg px-3 py-2 md:py-3 pr-10 border-2 border-[#AF524D]/30 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] text-sm md:text-base shadow-sm"
                 type={showPassword ? "text" : "password"}
                 id="password"
                 required
@@ -170,7 +170,7 @@ const Login = () => {
                 type="checkbox"
                 id="rememberMe"
               />
-              <label className="cursor-pointer text-sm md:text-base" htmlFor="rememberMe">
+              <label className="cursor-pointer text-sm md:text-base text-[#492220] font-medium" htmlFor="rememberMe">
                 Remember me
               </label>
             </div>
@@ -178,7 +178,7 @@ const Login = () => {
             <button
               type="button"
               onClick={() => setShowForgotPassword(true)}
-              className="cursor-pointer hover:underline hover:text-[#82171C] text-xs md:text-sm transition ease-in-out hover:font-semibold self-start sm:self-auto"
+              className="cursor-pointer hover:underline hover:text-[#AF524D] text-xs md:text-sm transition ease-in-out hover:font-semibold self-start sm:self-auto text-[#492220]"
             >
               Forgot password?
             </button>
@@ -188,7 +188,7 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="bg-[#82171C] text-white font-bold px-4 md:px-6 py-2 md:py-3 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-[#FFECB5] hover:text-gray-800 duration-300 tracking-wide w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
+              className="bg-[#AF524D] text-white font-bold px-4 md:px-6 py-2 md:py-3 rounded-lg cursor-pointer transition ease-in-out delay-100 hover:bg-[#8B3A3A] duration-300 tracking-wide w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
               {loading ? "Logging in..." : "LOGIN"}
             </button>
@@ -198,7 +198,7 @@ const Login = () => {
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-[linear-gradient(to_bottom,_white_0%,_#DFDAC7_11%,_#52514B_100%)] text-gray-500">Or continue with</span>
+                <span className="px-2 bg-[linear-gradient(to_bottom,_white_0%,_#DFDAC7_11%,_#A8A599_100%)] text-[#492220]/70">Or continue with</span>
               </div>
             </div>
 
@@ -206,7 +206,7 @@ const Login = () => {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={loading}
-              className="flex items-center justify-center gap-3 bg-white text-gray-700 font-semibold px-4 md:px-6 py-2 md:py-3 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-gray-50 border-2 border-gray-300 duration-300 tracking-wide w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
+              className="flex items-center justify-center gap-3 bg-white/90 text-[#492220] font-semibold px-4 md:px-6 py-2 md:py-3 rounded-lg cursor-pointer transition ease-in-out delay-100 hover:bg-white border-2 border-[#AF524D]/30 hover:border-[#AF524D] duration-300 tracking-wide w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base shadow-sm hover:shadow-md"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -220,7 +220,7 @@ const Login = () => {
             <hr />
 
             <Link
-              className="bg-[#DFAD56]/80 text-white font-bold px-4 md:px-6 py-2 md:py-3 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-[#FFECB5] hover:text-gray-800 duration-300 tracking-wide w-full text-center text-sm md:text-base"
+              className="bg-[#DFAD56] text-white font-bold px-4 md:px-6 py-2 md:py-3 rounded-lg cursor-pointer transition ease-in-out delay-100 hover:bg-[#C49A4A] duration-300 tracking-wide w-full text-center text-sm md:text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               to="/signup"
             >
               SIGN UP
