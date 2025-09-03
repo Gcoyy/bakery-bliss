@@ -158,7 +158,8 @@ const AboutUs = () => {
         </div>
       </motion.div>
 
-      {/* Location Section - Offset Layout */}
+      {/* Location Section - Offset Layout - COMMENTED OUT UNTIL GOOGLE MAPS API KEY IS CONFIGURED */}
+      {/* 
       <motion.div
         initial={{ opacity: 0, y: 50 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -195,7 +196,6 @@ const AboutUs = () => {
           </div>
         </div>
 
-        {/* Decorative Element */}
         <motion.div
           initial={{ opacity: 0, scale: 0 }}
           whileInView={{ opacity: 1, scale: 1 }}
@@ -204,6 +204,7 @@ const AboutUs = () => {
           className="absolute -bottom-8 -left-8 w-40 h-40 bg-[#EBD187] rounded-full opacity-20 z-10"
         ></motion.div>
       </motion.div>
+      */}
 
       {/* Call to Action - Centered with Flair */}
       <motion.div
