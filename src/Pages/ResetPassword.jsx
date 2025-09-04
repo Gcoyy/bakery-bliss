@@ -10,7 +10,25 @@ const ResetPassword = () => {
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [isValidToken, setIsValidToken] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showPasswordValidation, setShowPasswordValidation] = useState(false);
   const navigate = useNavigate();
+
+  // Password validation checks
+  const passwordChecks = {
+    length: newPassword.length >= 6,
+    uppercase: /[A-Z]/.test(newPassword),
+    lowercase: /[a-z]/.test(newPassword),
+    number: /[0-9]/.test(newPassword),
+    special: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword)
+  };
+
+  const handlePasswordChange = (e) => {
+    const newPasswordValue = e.target.value;
+    setNewPassword(newPasswordValue);
+    setShowPasswordValidation(newPasswordValue.length > 0);
+  };
 
   useEffect(() => {
     // Check if we have a valid session (user clicked reset link)
@@ -362,34 +380,98 @@ const ResetPassword = () => {
             <label htmlFor="newPassword" className="text-sm md:text-base text-[#492220] font-medium">
               New Password: <span className="text-red-500">*</span>
             </label>
-            <input
-              type="password"
-              id="newPassword"
-              required
-              minLength={6}
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full bg-white/90 text-[#492220] rounded-lg px-3 py-2 md:py-3 border-2 border-[#AF524D]/30 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] text-sm md:text-base shadow-sm"
-              placeholder="Enter new password"
-            />
-            <p className="text-xs text-[#492220]/60 mt-1">
-              Password must be at least 6 characters with uppercase, lowercase, and special characters
-            </p>
+            <div className="relative">
+              <input
+                type={showNewPassword ? "text" : "password"}
+                id="newPassword"
+                required
+                minLength={6}
+                value={newPassword}
+                onChange={handlePasswordChange}
+                onFocus={() => setShowPasswordValidation(newPassword.length > 0)}
+                onBlur={() => setShowPasswordValidation(false)}
+                className="w-full bg-white/90 text-[#492220] rounded-lg px-3 py-2 md:py-3 pr-12 border-2 border-[#AF524D]/30 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] text-sm md:text-base shadow-sm"
+                placeholder="Enter new password"
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 transition-colors duration-200"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+              >
+                {showNewPassword ? (
+                  <svg className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                  </svg>
+                ) : (
+                  <svg className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+              </button>
+
+              {/* Password Validation Popup */}
+              {showPasswordValidation && (
+                <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl p-4 z-20 w-fit">
+                  <div className="text-sm font-medium text-gray-800 mb-3">Password Requirements:</div>
+                  <div className="space-y-2">
+                    <div className={`flex items-center text-sm ${passwordChecks.length ? 'text-green-600' : 'text-red-500'}`}>
+                      <span className={`w-2 h-2 rounded-full mr-3 ${passwordChecks.length ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                      At least 6 characters
+                    </div>
+                    <div className={`flex items-center text-sm ${passwordChecks.uppercase ? 'text-green-600' : 'text-red-500'}`}>
+                      <span className={`w-2 h-2 rounded-full mr-3 ${passwordChecks.uppercase ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                      One capital letter (A-Z)
+                    </div>
+                    <div className={`flex items-center text-sm ${passwordChecks.lowercase ? 'text-green-600' : 'text-red-500'}`}>
+                      <span className={`w-2 h-2 rounded-full mr-3 ${passwordChecks.lowercase ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                      One lowercase letter (a-z)
+                    </div>
+                    <div className={`flex items-center text-sm ${passwordChecks.number ? 'text-green-600' : 'text-red-500'}`}>
+                      <span className={`w-2 h-2 rounded-full mr-3 ${passwordChecks.number ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                      One number (0-9)
+                    </div>
+                    <div className={`flex items-center text-sm ${passwordChecks.special ? 'text-green-600' : 'text-red-500'}`}>
+                      <span className={`w-2 h-2 rounded-full mr-3 ${passwordChecks.special ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                      One special character (!@#$%^&*)
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
             <label htmlFor="confirmPassword" className="text-sm md:text-base text-[#492220] font-medium">
               Confirm Password: <span className="text-red-500">*</span>
             </label>
-            <input
-              type="password"
-              id="confirmPassword"
-              required
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full bg-white/90 text-[#492220] rounded-lg px-3 py-2 md:py-3 border-2 border-[#AF524D]/30 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] text-sm md:text-base shadow-sm"
-              placeholder="Confirm new password"
-            />
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                id="confirmPassword"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full bg-white/90 text-[#492220] rounded-lg px-3 py-2 md:py-3 pr-12 border-2 border-[#AF524D]/30 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] text-sm md:text-base shadow-sm"
+                placeholder="Confirm new password"
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 transition-colors duration-200"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? (
+                  <svg className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                  </svg>
+                ) : (
+                  <svg className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-col space-y-3 pt-2">
