@@ -249,35 +249,30 @@ const ResetPassword = () => {
 
     if (!hasMinLength) {
       setError('Password must be at least 6 characters long');
-      toast.error('Password too short. Please use at least 6 characters.');
       setLoading(false);
       return;
     }
 
     if (!hasUpperCase) {
       setError('Password must contain at least one capital letter');
-      toast.error('Password must contain at least one capital letter.');
       setLoading(false);
       return;
     }
 
     if (!hasLowerCase) {
       setError('Password must contain at least one lowercase letter');
-      toast.error('Password must contain at least one lowercase letter.');
       setLoading(false);
       return;
     }
 
     if (!hasSpecialChar) {
       setError('Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)');
-      toast.error('Password must contain at least one special character.');
       setLoading(false);
       return;
     }
 
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match');
-      toast.error('Passwords do not match. Please try again.');
       setLoading(false);
       return;
     }
@@ -292,7 +287,6 @@ const ResetPassword = () => {
           ? 'This reset link has expired. Please request a new password reset.'
           : error.message;
         setError(errorMessage);
-        toast.error('Failed to update password. Please try again.');
       } else {
         setStatus('Password updated successfully! Redirecting to login...');
         toast.success('Password updated successfully!');
@@ -312,7 +306,6 @@ const ResetPassword = () => {
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
-      toast.error('Something went wrong. Please try again.');
       console.error(err);
     } finally {
       setLoading(false);
