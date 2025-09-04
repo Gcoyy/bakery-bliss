@@ -57,7 +57,6 @@ const ResetPassword = () => {
         if (session && isPasswordRecovery) {
           console.log('Valid password recovery session found, user can reset password');
           setIsValidToken(true);
-          setStatus('Please enter your new password');
         } else if (session && !isPasswordRecovery) {
           // If there's a session but it's not a password recovery session,
           // redirect to appropriate page based on role
@@ -92,7 +91,6 @@ const ResetPassword = () => {
             if (data.session) {
               console.log('Session created from URL tokens');
               setIsValidToken(true);
-              setStatus('Please enter your new password');
             } else {
               console.error('Failed to create session from tokens:', error);
 
@@ -115,7 +113,6 @@ const ResetPassword = () => {
                   if (manualData.session) {
                     console.log('Manual session recovery successful');
                     setIsValidToken(true);
-                    setStatus('Please enter your new password');
                   } else {
                     console.error('Manual session recovery failed:', manualError);
                     setError('Failed to validate reset link. Please try again.');
@@ -143,7 +140,6 @@ const ResetPassword = () => {
           if (data.session) {
             console.log('Session created from search params');
             setIsValidToken(true);
-            setStatus('Please enter your new password');
           } else {
             console.error('Failed to create session from search params:', error);
 
@@ -163,7 +159,6 @@ const ResetPassword = () => {
                 if (manualData.session) {
                   console.log('Manual session recovery from search params successful');
                   setIsValidToken(true);
-                  setStatus('Please enter your new password');
                 } else {
                   console.error('Manual session recovery from search params failed:', manualError);
                   setError('Failed to validate reset link. Please try again.');
@@ -200,7 +195,6 @@ const ResetPassword = () => {
         if (session) {
           console.log('Password recovery session established from auth state change');
           setIsValidToken(true);
-          setStatus('Please enter your new password');
           setError('');
         }
       } else if (event === 'SIGNED_IN' && session && !session?.user?.recovery) {
@@ -272,7 +266,7 @@ const ResetPassword = () => {
     }
 
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
+      toast.error('Passwords do not match. Please try again.');
       setLoading(false);
       return;
     }
