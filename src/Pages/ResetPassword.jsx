@@ -309,19 +309,19 @@ const ResetPassword = () => {
 
   if (!isValidToken) {
     return (
-      <div className="bg-[url('/Background.png')] bg-cover bg-center h-screen w-full flex items-center justify-center p-4">
-        <div className="bg-[linear-gradient(to_bottom,_white_0%,_#DFDAC7_11%,_#52514B_100%)] flex items-center justify-center flex-col max-w-md w-full rounded-3xl shadow-2xl p-8">
-          <div className="text-center w-full">
+      <div className="bg-[url('/Background.png')] bg-cover bg-center min-h-screen w-full flex items-center justify-center p-4">
+        <div className="bg-[linear-gradient(to_bottom,_white_0%,_#DFDAC7_11%,_#A8A599_100%)] flex items-center justify-center gap-6 md:gap-10 flex-col w-full max-w-sm sm:max-w-md md:max-w-lg h-auto py-6 md:py-10 px-4 md:px-8 rounded-2xl md:rounded-3xl shadow-2xl border-2 border-[#AF524D]">
+          <div className="text-center">
             <div className="mb-6">
-              <svg className="w-20 h-20 text-red-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-16 h-16 md:w-20 md:h-20 text-[#AF524D] mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-[#381914] mb-4">Invalid Reset Link</h1>
-            <p className="text-gray-600 mb-8 leading-relaxed text-sm">{error}</p>
+            <h1 className="text-2xl md:text-3xl font-bold font-jost text-[#492220] mb-4">Invalid Reset Link</h1>
+            <p className="text-sm md:text-base text-[#492220]/80 mb-8 leading-relaxed">{error}</p>
             <button
               onClick={handleBackToLogin}
-              className="bg-[#82171C] text-white font-bold px-8 py-3 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-[#FFECB5] hover:text-gray-800 duration-300 tracking-wide w-full"
+              className="bg-[#AF524D] hover:bg-[#8B3F3A] text-white font-bold px-6 py-3 md:px-8 md:py-4 rounded-lg cursor-pointer transition ease-in-out delay-100 duration-300 tracking-wide w-full text-sm md:text-base shadow-lg hover:shadow-xl"
             >
               Back to Login
             </button>
@@ -332,21 +332,34 @@ const ResetPassword = () => {
   }
 
   return (
-    <div className="bg-[url('/Background.png')] bg-cover bg-center h-screen w-full flex items-center justify-center p-4">
-      <div className="bg-[linear-gradient(to_bottom,_white_0%,_#DFDAC7_11%,_#52514B_100%)] flex items-center justify-center flex-col max-w-md w-full rounded-3xl shadow-2xl p-8">
-        <div className="text-center w-full mb-6">
+    <div className="bg-[url('/Background.png')] bg-cover bg-center min-h-screen w-full flex items-center justify-center p-4">
+      <div className="bg-[linear-gradient(to_bottom,_white_0%,_#DFDAC7_11%,_#A8A599_100%)] flex items-center justify-center gap-6 md:gap-10 flex-col w-full max-w-sm sm:max-w-md md:max-w-lg h-auto py-6 md:py-10 px-4 md:px-8 rounded-2xl md:rounded-3xl shadow-2xl border-2 border-[#AF524D]">
+        <div className="text-center">
           <div className="mb-4">
-            <svg className="w-16 h-16 text-[#AF524D] mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-16 h-16 md:w-20 md:h-20 text-[#AF524D] mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-[#381914] mb-2">Reset Your Password</h1>
-          <p className="text-sm text-gray-600">Enter your new password below</p>
+          <h1 className="text-2xl md:text-3xl font-bold font-jost text-[#492220] mb-2">Reset Your Password</h1>
+          <p className="text-xs md:text-sm text-[#492220]/80">Enter your new password below</p>
         </div>
 
-        <form onSubmit={handlePasswordReset} className="flex flex-col space-y-5 w-full">
+        {/* Status and Error Messages */}
+        {status && (
+          <div className="w-full p-3 bg-green-100 border border-green-400 text-green-700 rounded-lg text-sm">
+            {status}
+          </div>
+        )}
+
+        {error && (
+          <div className="w-full p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handlePasswordReset} className="flex flex-col space-y-3 md:space-y-4 w-full">
           <div>
-            <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="newPassword" className="text-sm md:text-base text-[#492220] font-medium">
               New Password: <span className="text-red-500">*</span>
             </label>
             <input
@@ -356,16 +369,16 @@ const ResetPassword = () => {
               minLength={6}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full bg-white text-black rounded-md px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-transparent transition-colors"
+              className="w-full bg-white/90 text-[#492220] rounded-lg px-3 py-2 md:py-3 border-2 border-[#AF524D]/30 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] text-sm md:text-base shadow-sm"
               placeholder="Enter new password"
             />
-            <p className="text-xs text-gray-300 mt-2">
-              New password must be 6 characters
+            <p className="text-xs text-[#492220]/60 mt-1">
+              Password must be at least 6 characters with uppercase, lowercase, and special characters
             </p>
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="confirmPassword" className="text-sm md:text-base text-[#492220] font-medium">
               Confirm Password: <span className="text-red-500">*</span>
             </label>
             <input
@@ -374,7 +387,7 @@ const ResetPassword = () => {
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full bg-white text-black rounded-md px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-transparent transition-colors"
+              className="w-full bg-white/90 text-[#492220] rounded-lg px-3 py-2 md:py-3 border-2 border-[#AF524D]/30 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] text-sm md:text-base shadow-sm"
               placeholder="Confirm new password"
             />
           </div>
@@ -383,11 +396,11 @@ const ResetPassword = () => {
             <button
               type="submit"
               disabled={loading}
-              className="bg-[#82171C] text-white font-bold px-6 py-3 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-[#FFECB5] hover:text-gray-800 duration-300 tracking-wide w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              className="bg-[#AF524D] hover:bg-[#8B3F3A] text-white font-bold px-6 py-3 md:px-8 md:py-4 rounded-lg cursor-pointer transition ease-in-out delay-100 duration-300 tracking-wide w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm md:text-base shadow-lg hover:shadow-xl"
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ml-1 mr-3 h-4 w-4 md:h-5 md:w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
@@ -401,7 +414,7 @@ const ResetPassword = () => {
             <button
               type="button"
               onClick={handleBackToLogin}
-              className="bg-gray-500 text-white font-bold px-6 py-3 rounded-md cursor-pointer transition ease-in-out delay-100 hover:bg-gray-600 duration-300 tracking-wide w-full"
+              className="bg-[#6B7280] hover:bg-[#4B5563] text-white font-bold px-6 py-3 md:px-8 md:py-4 rounded-lg cursor-pointer transition ease-in-out delay-100 duration-300 tracking-wide w-full text-sm md:text-base shadow-lg hover:shadow-xl"
             >
               Back to Login
             </button>
