@@ -29,10 +29,41 @@ const ResetPassword = () => {
         const { data: { session } } = await supabase.auth.getSession();
         console.log('Session found:', !!session);
 
-        if (session) {
-          console.log('Valid session found, user can reset password');
+        // Check if this is a password recovery session
+        const isPasswordRecovery = session?.user?.recovery ||
+          hash?.includes('type=recovery') ||
+          searchParams.get('type') === 'recovery' ||
+          hash?.includes('access_token') ||
+          searchParams.has('access_token');
+
+        if (session && isPasswordRecovery) {
+          console.log('Valid password recovery session found, user can reset password');
           setIsValidToken(true);
           setStatus('Please enter your new password');
+        } else if (session && !isPasswordRecovery) {
+          // If there's a session but it's not a password recovery session,
+          // redirect to appropriate page based on role
+          console.log('Regular session found, redirecting away from reset page');
+          const { data: customer } = await supabase
+            .from("CUSTOMER")
+            .select("cus_id")
+            .eq("auth_user_id", session.user.id)
+            .single();
+
+          const { data: admin } = await supabase
+            .from("ADMIN")
+            .select("admin_id")
+            .eq("admin_uid", session.user.id)
+            .single();
+
+          if (admin) {
+            navigate('/adminpage');
+          } else if (customer) {
+            navigate('/');
+          } else {
+            navigate('/login');
+          }
+          return;
         } else if (hash && (hash.includes('access_token') || hash.includes('refresh_token'))) {
           // Handle the case where Supabase sends tokens in URL hash
           console.log('Tokens found in URL hash, attempting to get session');
@@ -147,13 +178,38 @@ const ResetPassword = () => {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('Auth state change:', event, !!session);
-      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session?.user?.recovery)) {
         if (session) {
-          console.log('Session established from auth state change');
+          console.log('Password recovery session established from auth state change');
           setIsValidToken(true);
           setStatus('Please enter your new password');
           setError('');
         }
+      } else if (event === 'SIGNED_IN' && session && !session?.user?.recovery) {
+        // Regular sign in, not password recovery - redirect away
+        console.log('Regular sign in detected, redirecting away from reset page');
+        const redirectUser = async () => {
+          const { data: customer } = await supabase
+            .from("CUSTOMER")
+            .select("cus_id")
+            .eq("auth_user_id", session.user.id)
+            .single();
+
+          const { data: admin } = await supabase
+            .from("ADMIN")
+            .select("admin_id")
+            .eq("admin_uid", session.user.id)
+            .single();
+
+          if (admin) {
+            navigate('/adminpage');
+          } else if (customer) {
+            navigate('/');
+          } else {
+            navigate('/login');
+          }
+        };
+        redirectUser();
       }
     });
 
