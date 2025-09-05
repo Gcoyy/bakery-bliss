@@ -39,8 +39,28 @@ const CakeCustomization = () => {
     const [isOrderTypeDropdownOpen, setIsOrderTypeDropdownOpen] = useState(false);
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
     const [customCakeImage, setCustomCakeImage] = useState(null);
+    const [isScrollLocked, setIsScrollLocked] = useState(false);
 
     console.log('Initial state:', { loading, canvasReady, selectedColor });
+
+    // Scroll lock functionality
+    useEffect(() => {
+        if (isScrollLocked) {
+            // Disable scrolling
+            document.body.style.overflow = 'hidden';
+            document.documentElement.style.overflow = 'hidden';
+        } else {
+            // Enable scrolling
+            document.body.style.overflow = 'unset';
+            document.documentElement.style.overflow = 'unset';
+        }
+
+        // Cleanup on unmount
+        return () => {
+            document.body.style.overflow = 'unset';
+            document.documentElement.style.overflow = 'unset';
+        };
+    }, [isScrollLocked]);
 
     // Check authentication on component mount
     useEffect(() => {
@@ -1443,6 +1463,26 @@ const CakeCustomization = () => {
             <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                     <h1 className="text-lg font-semibold text-gray-900">Cake Designer</h1>
+                    <div className="h-4 w-px bg-gray-300"></div>
+                    {/* Scroll Lock Toggle */}
+                    <button
+                        onClick={() => setIsScrollLocked(!isScrollLocked)}
+                        className={`p-2 rounded hover:bg-gray-100 transition-colors ${isScrollLocked
+                            ? 'bg-red-100 text-red-600'
+                            : 'text-gray-600'
+                            }`}
+                        title={isScrollLocked ? "Unlock Scrolling" : "Lock Scrolling"}
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {isScrollLocked ? (
+                                // Lock icon (when scroll is disabled)
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            ) : (
+                                // Unlock icon (when scroll is enabled)
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                            )}
+                        </svg>
+                    </button>
                     <div className="h-4 w-px bg-gray-300"></div>
                     <div className="flex items-center space-x-2">
                         <button
