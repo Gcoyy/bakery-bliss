@@ -17,6 +17,115 @@ const getPublicImageUrl = (path) => {
   return supabase.storage.from("cake").getPublicUrl(path).data.publicUrl;
 };
 
+// Blocked dates utility functions
+const isDateTimeBlocked = async (date, time = null) => {
+  try {
+    const { data: blockedDates, error } = await supabase
+      .from('BLOCKED-TIMES')
+      .select('*')
+      .eq('start_date', date);
+
+    if (error) {
+      console.error('Error fetching blocked dates:', error);
+      return { isBlocked: false, reason: null };
+    }
+
+    if (!blockedDates || blockedDates.length === 0) {
+      return { isBlocked: false, reason: null };
+    }
+
+    // If no time specified, check if any full day blocks exist
+    if (!time) {
+      const fullDayBlock = blockedDates.find(blocked => blocked.whole_day);
+      if (fullDayBlock) {
+        return { isBlocked: true, reason: fullDayBlock.reason };
+      }
+      return { isBlocked: false, reason: null };
+    }
+
+    // Check time-specific blocks
+    const timeStr = time.includes(':') ? time : `${time}:00`;
+
+    for (const blocked of blockedDates) {
+      // Skip full day blocks for time checks
+      if (blocked.whole_day) {
+        continue;
+      }
+
+      // Check if the time falls within the blocked time range
+      if (blocked.start_time && blocked.end_time) {
+        const blockedStart = blocked.start_time;
+        const blockedEnd = blocked.end_time;
+
+        // Handle time comparison
+        if (timeStr >= blockedStart && timeStr <= blockedEnd) {
+          return { isBlocked: true, reason: blocked.reason };
+        }
+      }
+    }
+
+    return { isBlocked: false, reason: null };
+  } catch (error) {
+    console.error('Error checking blocked dates:', error);
+    return { isBlocked: false, reason: null };
+  }
+};
+
+const getAvailableTimeSlots = async (date) => {
+  try {
+    const { data: blockedDates, error } = await supabase
+      .from('BLOCKED-TIMES')
+      .select('*')
+      .eq('start_date', date);
+
+    if (error) {
+      console.error('Error fetching blocked dates:', error);
+      return [];
+    }
+
+    // Find all blocked times for this date
+    const blockedForDate = blockedDates || [];
+
+    // If there's a full day block, no time slots are available
+    const fullDayBlock = blockedForDate.find(blocked => blocked.whole_day);
+    if (fullDayBlock) {
+      return [];
+    }
+
+    // Generate time slots (every 30 minutes from 8 AM to 8 PM)
+    const timeSlots = [];
+    for (let hour = 8; hour <= 20; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+
+        // Check if this time slot is blocked
+        const isBlocked = blockedForDate.some(blocked => {
+          if (!blocked.start_time || !blocked.end_time) return false;
+          return timeStr >= blocked.start_time && timeStr <= blocked.end_time;
+        });
+
+        if (!isBlocked) {
+          timeSlots.push(timeStr);
+        }
+      }
+    }
+
+    return timeSlots;
+  } catch (error) {
+    console.error('Error getting available time slots:', error);
+    return [];
+  }
+};
+
+const formatTime = (timeString) => {
+  if (!timeString) return 'N/A';
+  const [hours, minutes] = timeString.split(':');
+  const hour = parseInt(hours);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${minutes} ${ampm}`;
+};
+
 const CakeCatalog = () => {
   const navigate = useNavigate();
   const { session } = UserAuth();
@@ -42,6 +151,37 @@ const CakeCatalog = () => {
   const [isOrderTypeDropdownOpen, setIsOrderTypeDropdownOpen] = useState(false);
   const [orderId, setOrderId] = useState('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
+  const [isDateBlocked, setIsDateBlocked] = useState(false);
+  const [blockedReason, setBlockedReason] = useState('');
+  const [isCheckingBlockedDates, setIsCheckingBlockedDates] = useState(false);
+
+  // Check blocked dates when date changes
+  const checkBlockedDates = async (date, time = null) => {
+    if (!date) return;
+
+    setIsCheckingBlockedDates(true);
+    try {
+      const { isBlocked, reason } = await isDateTimeBlocked(date, time);
+      setIsDateBlocked(isBlocked);
+      setBlockedReason(reason || '');
+
+      if (!isBlocked) {
+        // Get available time slots for the selected date
+        const timeSlots = await getAvailableTimeSlots(date);
+        setAvailableTimeSlots(timeSlots);
+      } else {
+        setAvailableTimeSlots([]);
+      }
+    } catch (error) {
+      console.error('Error checking blocked dates:', error);
+      setIsDateBlocked(false);
+      setBlockedReason('');
+      setAvailableTimeSlots([]);
+    } finally {
+      setIsCheckingBlockedDates(false);
+    }
+  };
 
   // Add to cart functionality
   const addToCart = (cake) => {
@@ -838,7 +978,10 @@ const CakeCatalog = () => {
                           <input
                             type="date"
                             value={orderDate}
-                            onChange={(e) => setOrderDate(e.target.value)}
+                            onChange={(e) => {
+                              setOrderDate(e.target.value);
+                              checkBlockedDates(e.target.value, orderTime);
+                            }}
                             min={new Date().toISOString().split('T')[0]}
                             className="w-full bg-transparent border-none outline-none text-[#492220] font-medium cursor-pointer"
                             required
@@ -846,15 +989,45 @@ const CakeCatalog = () => {
                         </div>
                       </div>
                       {orderDate && (
-                        <div className="mt-3 p-3 bg-gradient-to-r from-[#AF524D]/10 to-[#8B3A3A]/10 rounded-xl border border-[#AF524D]/20">
-                          <p className="text-sm text-[#492220] font-medium">
-                            Selected: {new Date(orderDate).toLocaleDateString('en-US', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
-                          </p>
+                        <div className="mt-3 space-y-2">
+                          <div className="p-3 bg-gradient-to-r from-[#AF524D]/10 to-[#8B3A3A]/10 rounded-xl border border-[#AF524D]/20">
+                            <p className="text-sm text-[#492220] font-medium">
+                              Selected: {new Date(orderDate).toLocaleDateString('en-US', {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </p>
+                          </div>
+
+                          {isCheckingBlockedDates && (
+                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                              <div className="flex items-center gap-2">
+                                <svg className="animate-spin w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <p className="text-sm text-blue-600 font-medium">Checking availability...</p>
+                              </div>
+                            </div>
+                          )}
+
+                          {isDateBlocked && !isCheckingBlockedDates && (
+                            <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                              <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                </svg>
+                                <div>
+                                  <p className="text-sm text-red-600 font-medium">This date is not available for orders</p>
+                                  {blockedReason && (
+                                    <p className="text-xs text-red-500 mt-1">Reason: {blockedReason}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -868,35 +1041,50 @@ const CakeCatalog = () => {
                       </svg>
                       Pickup/Delivery Time *
                     </label>
-                    <div className="relative">
-                      <div className="flex items-center gap-3 p-4 bg-white/70 border border-[#AF524D]/20 rounded-xl focus-within:ring-2 focus-within:ring-[#AF524D]/30 focus-within:border-[#AF524D] transition-all duration-200">
-                        <div className="flex-shrink-0">
-                          <svg className="w-5 h-5 text-[#AF524D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
+
+                    {isDateBlocked ? (
+                      <div className="p-4 bg-gray-100 border border-gray-300 rounded-xl">
+                        <p className="text-sm text-gray-500 text-center">No time slots available for this date</p>
+                      </div>
+                    ) : availableTimeSlots.length > 0 ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto">
+                          {availableTimeSlots.map((timeSlot) => (
+                            <button
+                              key={timeSlot}
+                              type="button"
+                              onClick={() => setOrderTime(timeSlot)}
+                              className={`p-3 rounded-xl text-sm font-medium transition-all duration-200 ${orderTime === timeSlot
+                                ? 'bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white shadow-lg'
+                                : 'bg-white/70 border border-[#AF524D]/20 text-[#492220] hover:bg-[#AF524D]/10 hover:border-[#AF524D]/40'
+                                }`}
+                            >
+                              {formatTime(timeSlot)}
+                            </button>
+                          ))}
                         </div>
-                        <div className="flex-1">
-                          <input
-                            type="time"
-                            value={orderTime}
-                            onChange={(e) => setOrderTime(e.target.value)}
-                            className="w-full bg-transparent border-none outline-none text-[#492220] font-medium cursor-pointer"
-                            required
-                          />
+                        {orderTime && (
+                          <div className="p-3 bg-gradient-to-r from-[#AF524D]/10 to-[#8B3A3A]/10 rounded-xl border border-[#AF524D]/20">
+                            <p className="text-sm text-[#492220] font-medium">
+                              Selected: {formatTime(orderTime)}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : orderDate && !isCheckingBlockedDates ? (
+                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                          </svg>
+                          <p className="text-sm text-yellow-600 font-medium">No available time slots for this date</p>
                         </div>
                       </div>
-                      {orderTime && (
-                        <div className="mt-3 p-3 bg-gradient-to-r from-[#AF524D]/10 to-[#8B3A3A]/10 rounded-xl border border-[#AF524D]/20">
-                          <p className="text-sm text-[#492220] font-medium">
-                            Selected: {new Date(`2000-01-01T${orderTime}`).toLocaleTimeString('en-US', {
-                              hour: 'numeric',
-                              minute: '2-digit',
-                              hour12: true
-                            })}
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                    ) : (
+                      <div className="p-4 bg-gray-100 border border-gray-300 rounded-xl">
+                        <p className="text-sm text-gray-500 text-center">Select a date to see available times</p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Order Type */}
@@ -1008,8 +1196,8 @@ const CakeCatalog = () => {
                     </button>
                     <button
                       onClick={nextStep}
-                      disabled={!orderDate || !orderTime || (orderType === "Delivery" && !deliveryAddress)}
-                      className={`px-6 py-3 rounded-xl transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none ${!orderDate || !orderTime || (orderType === "Delivery" && !deliveryAddress)
+                      disabled={!orderDate || !orderTime || (orderType === "Delivery" && !deliveryAddress) || isDateBlocked || isCheckingBlockedDates}
+                      className={`px-6 py-3 rounded-xl transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none ${!orderDate || !orderTime || (orderType === "Delivery" && !deliveryAddress) || isDateBlocked || isCheckingBlockedDates
                         ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
                         : 'bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white hover:from-[#8B3A3A] hover:to-[#AF524D]'
                         }`}

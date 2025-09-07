@@ -57,28 +57,28 @@ export const AuthContextProvider = ({ children }) => {
   };
 
   // Sign in
-// Sign in
-const signInUser = async ({ email, password }) => {
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+  // Sign in
+  const signInUser = async ({ email, password }) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      console.error("Sign-in error:", error);
-      return { success: false, error: error.message };
+      if (error) {
+        console.error("Sign-in error:", error);
+        return { success: false, error: error.message };
+      }
+
+      const user = data.user;
+      const role = user?.user_metadata?.role || null;
+
+      return { success: true, data, role };
+    } catch (error) {
+      console.error("Unexpected sign-in error:", error);
+      return { success: false, error: "Unexpected error" };
     }
-
-    const user = data.user;
-    const role = user?.user_metadata?.role || null;
-
-    return { success: true, data, role };
-  } catch (error) {
-    console.error("Unexpected sign-in error:", error);
-    return { success: false, error: "Unexpected error" };
-  }
-};
+  };
 
 
   // Sign out
@@ -141,25 +141,25 @@ const signInUser = async ({ email, password }) => {
     }
 
     // Check CUSTOMER table
-    const { data: customer } = await supabase
+    const { data: customer, error: customerError } = await supabase
       .from("CUSTOMER")
       .select("cus_id")
       .eq("auth_user_id", userId)
-      .single();
+      .maybeSingle();
 
-    if (customer) {
+    if (customer && !customerError) {
       setUserRole("customer");
       return;
     }
 
     // Check ADMIN table
-    const { data: admin } = await supabase
+    const { data: admin, error: adminError } = await supabase
       .from("ADMIN")
       .select("admin_id")
       .eq("admin_uid", userId)
-      .single();
+      .maybeSingle();
 
-    if (admin) {
+    if (admin && !adminError) {
       setUserRole("admin");
       return;
     }
@@ -189,20 +189,20 @@ const signInUser = async ({ email, password }) => {
 
     init();
 
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    async (_event, session) => {
-      setSession(session);
-      if (session?.user) {
-        fetchUserRole(session.user.id);
-      } else {
-        setUserRole(null);
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        if (session?.user) {
+          fetchUserRole(session.user.id);
+        } else {
+          setUserRole(null);
+        }
       }
-    }
-  );
+    );
 
     return () => listener?.subscription?.unsubscribe();
   }, []);
-  
+
 
   return (
     <AuthContext.Provider value={{

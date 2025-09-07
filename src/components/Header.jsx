@@ -11,7 +11,7 @@ const Header = () => {
 
   // Fetch pending orders count
   const fetchPendingOrdersCount = async () => {
-    if (!session?.user) {
+    if (!session?.user || userRole !== 'customer') {
       setPendingOrdersCount(0);
       return;
     }
@@ -64,7 +64,7 @@ const Header = () => {
     return () => {
       window.removeEventListener('orderUpdated', handleOrderUpdate);
     };
-  }, [session?.user]);
+  }, [session?.user, userRole]);
 
   return (
     <header className="relative w-full h-[14vh] overflow-hidden">
@@ -101,7 +101,7 @@ const Header = () => {
             {[
               ...(userRole === "admin" ? [
                 { to: "/adminpage", label: "Dashboard" },
-                { to: "/temp", label: "Temp" },
+                { to: "/temp", label: "QR Code Upload" },
               ] : [
                 { to: "/", label: "Home" },
                 { to: "/cakecustomization", label: "Cake Customization" },
@@ -151,7 +151,7 @@ const Header = () => {
                 {[
                   ...(userRole === "admin" ? [
                     { to: "/adminpage", label: "Dashboard" },
-                    { to: "/temp", label: "Temp" },
+                    { to: "/temp", label: "QR Code Upload" },
                   ] : [
                     { to: "/", label: "Home" },
                     { to: "/cakecustomization", label: "Cake Customization" },

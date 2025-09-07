@@ -22,6 +22,9 @@ import Inventory from "./sections/Inventory";
 import Cakes from "./sections/Cakes";
 import CakeOrders from "./sections/CakeOrders";
 import Assets from "./sections/Assets";
+import BlockedDates from "./sections/BlockedDates";
+import RecipeManagement from "./sections/RecipeManagement";
+import QRCodeUpload from "./sections/QRCodeUpload";
 import ProtectedRoute from "./context/ProtectedRoute";
 import AdminPage from "./Pages/Admin/AdminPage";
 import AdminProfile from "./Pages/Admin/AdminProfile";
@@ -36,7 +39,12 @@ function AppRoutes() {
         <Route path="/signup" element={<PageTransition><SignUp /></PageTransition>} />
         <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
         <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
-        <Route path="/" element={<PageTransition><Home /></PageTransition>} />
+
+        {/* Root path with role-based redirect */}
+        <Route path="/" element={<RoleBasedRedirect />} />
+
+        {/* Public routes */}
+        <Route path="/home" element={<PageTransition><Home /></PageTransition>} />
         <Route path="/aboutus" element={<PageTransition><AboutUs /></PageTransition>} />
         <Route path="/contactus" element={<PageTransition><ContactUs /></PageTransition>} />
         <Route path="/cakecatalog" element={<PageTransition><CakeCatalog /></PageTransition>} />
@@ -67,6 +75,8 @@ function AppRoutes() {
           <Route path="cakes" element={<PageTransition><Cakes /></PageTransition>} />
           <Route path="cake orders" element={<PageTransition><CakeOrders /></PageTransition>} />
           <Route path="custom cake assets" element={<PageTransition><Assets /></PageTransition>} />
+          <Route path="blocked dates" element={<PageTransition><BlockedDates /></PageTransition>} />
+          <Route path="recipe management" element={<PageTransition><RecipeManagement /></PageTransition>} />
         </Route>
 
         <Route
@@ -74,6 +84,16 @@ function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={["admin"]}>
               <PageTransition><AdminProfile /></PageTransition>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* QR Code Upload route */}
+        <Route
+          path="/temp"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <PageTransition><QRCodeUpload /></PageTransition>
             </ProtectedRoute>
           }
         />

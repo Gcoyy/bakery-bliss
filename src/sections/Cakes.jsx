@@ -16,401 +16,292 @@ const getPublicImageUrl = (path) => {
 
 const Cakes = () => {
   const [rows, setRows] = useState([]);
-  const [newRows, setNewRows] = useState([]);
-  const [selectedRowId, setSelectedRowId] = useState(null);
-  const [editingField, setEditingField] = useState({ id: null, field: null });
-  const [editedValues, setEditedValues] = useState({});
-  const [editedName, setEditedName] = useState('');
-  const [editedTheme, setEditedTheme] = useState('');
-  const [editedPrice, setEditedPrice] = useState('');
-  const [editedTier, setEditedTier] = useState('');
-  const [uploadingImage, setUploadingImage] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
-  const [editingDescriptionRowId, setEditingDescriptionRowId] = useState(null);
-  const [tempDescription, setTempDescription] = useState("");
+  const [filteredRows, setFilteredRows] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  // Add filter states
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [cakeToDelete, setCakeToDelete] = useState(null);
+  const [cakeToEdit, setCakeToEdit] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchType, setSearchType] = useState('all'); // 'all', 'name', 'theme'
   const [themeFilter, setThemeFilter] = useState("");
   const [tierFilter, setTierFilter] = useState("");
+  const [pendingImageFiles, setPendingImageFiles] = useState({});
+
+  const [newCake, setNewCake] = useState({
+    name: '',
+    theme: '',
+    description: '',
+    tier: 1,
+    price: '',
+    cake_img: ''
+  });
+
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    theme: '',
+    description: '',
+    tier: 1,
+    price: '',
+    cake_img: ''
+  });
 
 
+  // Fetch existing cakes
   useEffect(() => {
-    const fetchCakes = async () => {
+    fetchCakes();
+  }, []);
+
+  // Filter cakes when search term or filters change
+  useEffect(() => {
+    filterCakes();
+  }, [rows, searchTerm, searchType, themeFilter, tierFilter]);
+
+  const fetchCakes = async () => {
+    try {
+      setLoading(true);
       const { data, error } = await supabase.from('CAKE').select('*').order('name');
       if (error) {
         console.error('Error fetching cakes:', error);
+        toast.error('Failed to fetch cakes');
       } else {
         console.log('Fetched cakes from database:', data);
         setRows(data || []);
       }
-    };
-    fetchCakes();
-  }, []);
-
-
-  const handleSelectRow = (id) => {
-    setSelectedRowId((prevId) => (prevId === id ? null : id));
-  };
-
-  const handleAddRow = () => {
-    const newId = `new-${Date.now()}`;
-    setNewRows([
-      ...newRows,
-      {
-        id: newId,
-        name: 'New Cake',
-        theme: 'Theme',
-        description: 'Description',
-        tier: 1,
-        price: 0,
-        cake_img: '', // Use empty string instead of null
-        isNew: true,
-      },
-    ]);
-  };
-
-  const handleDeleteRow = async () => {
-    if (!selectedRowId) return;
-
-    const isNew = selectedRowId.toString().startsWith("new-");
-    if (isNew) {
-      // For new rows, just remove from local state
-      console.log('🗑️ Deleting new cake from local state:', selectedRowId);
-      setNewRows(newRows.filter((row) => row.id !== selectedRowId));
-      setSelectedRowId(null);
-      toast.success("Cake deleted successfully");
-    } else {
-      // For existing rows, delete from database and storage
-      try {
-        console.log('🗑️ Deleting existing cake from database:', selectedRowId);
-
-        // Find the row to get the image path for storage deletion
-        const rowToDelete = rows.find(row => row.cake_id === selectedRowId);
-
-        // Delete from database first
-        const { error: dbError } = await supabase
-          .from('CAKE')
-          .delete()
-          .eq('cake_id', selectedRowId);
-
-        if (dbError) {
-          console.error("❌ Database deletion error:", dbError);
-          toast.error(`Failed to delete cake: ${dbError.message}`);
-          return;
-        }
-
-        console.log('✅ Cake deleted from database successfully');
-
-        // Delete the cake image from storage if it exists
-        if (rowToDelete?.cake_img) {
-          try {
-            console.log('🗑️ Attempting to delete cake image from storage:', rowToDelete.cake_img);
-
-            // Extract the file path from the image URL
-            let filePath = rowToDelete.cake_img;
-
-            // If it's a full URL, extract just the path part
-            if (rowToDelete.cake_img.includes('/storage/v1/object/public/cake/')) {
-              filePath = rowToDelete.cake_img.split('/storage/v1/object/public/cake/')[1];
-              console.log('📁 Extracted file path from URL:', filePath);
-            } else if (rowToDelete.cake_img.startsWith('http')) {
-              // Handle other URL formats
-              const urlParts = rowToDelete.cake_img.split('/cake/');
-              if (urlParts.length > 1) {
-                filePath = urlParts[1];
-                console.log('📁 Extracted file path from alternative URL:', filePath);
-              }
-            }
-
-            // Only attempt deletion if we have a valid file path
-            if (filePath && filePath !== rowToDelete.cake_img) {
-              console.log('🗑️ Deleting cake image from storage bucket:', filePath);
-
-              const { error: storageError } = await supabase.storage
-                .from('cake')
-                .remove([filePath]);
-
-              if (storageError) {
-                console.warn("⚠️ Storage deletion warning:", storageError);
-                // Don't fail the whole operation if storage deletion fails
-              } else {
-                console.log('✅ Cake image deleted from storage successfully');
-              }
-            } else {
-              console.log('⚠️ Could not extract valid file path for storage deletion');
-            }
-          } catch (storageError) {
-            console.warn("⚠️ Storage deletion error:", storageError);
-            // Don't fail the whole operation if storage deletion fails
-          }
-        }
-
-        // Remove from local state
-        setRows(rows.filter((row) => row.cake_id !== selectedRowId));
-        setSelectedRowId(null);
-        toast.success("Cake deleted successfully");
-
-      } catch (error) {
-        console.error("❌ Unexpected error during deletion:", error);
-        toast.error("Failed to delete cake");
-      }
+    } catch (error) {
+      console.error('Error fetching cakes:', error);
+      toast.error('Failed to fetch cakes');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleFieldChange = (id, field, value) => {
-    console.log(`handleFieldChange called: id=${id}, field=${field}, value=${value}`);
+  const filterCakes = () => {
+    let filtered = rows;
 
-    // Convert numerical fields to proper types
-    let processedValue = value;
-    if (field === 'tier') {
-      processedValue = parseInt(value) || 1;
-    } else if (field === 'price') {
-      processedValue = parseFloat(value) || 0;
-    }
-
-    // Check if this is a new row (starts with "new-")
-    const isNewRow = id && id.toString().startsWith("new-");
-
-    if (isNewRow) {
-      setNewRows((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, [field]: processedValue } : r))
-      );
-    } else {
-      // This is an existing row
-      setEditedValues((prev) => {
-        const newEditedValues = {
-          ...prev,
-          [id]: {
-            ...prev[id],
-            [field]: processedValue,
-          },
-        };
-        console.log(`Updated editedValues for ID ${id}:`, newEditedValues[id]);
-        return newEditedValues;
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(cake => {
+        switch (searchType) {
+          case 'name':
+            return cake.name?.toLowerCase().includes(searchLower);
+          case 'theme':
+            return cake.theme?.toLowerCase().includes(searchLower);
+          case 'all':
+          default:
+            return cake.name?.toLowerCase().includes(searchLower) ||
+              cake.theme?.toLowerCase().includes(searchLower) ||
+              cake.description?.toLowerCase().includes(searchLower);
+        }
       });
     }
+
+    // Apply theme filter
+    if (themeFilter) {
+      filtered = filtered.filter(cake =>
+        cake.theme?.toLowerCase().includes(themeFilter.toLowerCase())
+      );
+    }
+
+    // Apply tier filter
+    if (tierFilter) {
+      filtered = filtered.filter(cake =>
+        cake.tier?.toString() === tierFilter
+      );
+    }
+
+    setFilteredRows(filtered);
   };
 
-  const handleDescriptionEdit = (rowId, currentDescription) => {
-    setEditingDescriptionRowId(rowId);
-    setTempDescription(currentDescription);
-    setShowDescriptionModal(true);
-  };
 
-  const handleDescriptionSave = () => {
-    if (editingDescriptionRowId) {
-      handleFieldChange(editingDescriptionRowId, "description", tempDescription);
-      setShowDescriptionModal(false);
-      setEditingDescriptionRowId(null);
-      setTempDescription("");
+  const handleAddCake = () => {
+    if (!newCake.name || !newCake.theme || !newCake.price) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      addCake(newCake);
+    } catch (error) {
+      console.error('Error adding cake:', error);
+      toast.error('Failed to add cake');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDescriptionCancel = () => {
-    setShowDescriptionModal(false);
-    setEditingDescriptionRowId(null);
-    setTempDescription("");
-  };
+  const addCake = async (cake) => {
+    try {
+      const { error: insertError } = await supabase
+        .from('CAKE')
+        .insert([{
+          name: cake.name,
+          theme: cake.theme,
+          description: cake.description,
+          tier: parseInt(cake.tier) || 1,
+          price: parseFloat(cake.price) || 0,
+          cake_img: cake.cake_img || '',
+        }]);
 
-  const handleImageUpload = async (event, rowId) => {
-    const file = event.target.files[0];
-    if (file) {
-      try {
-        setUploadingImage(rowId);
-
-        // Get the cake name for the filename
-        const row = [...rows, ...newRows].find(r => r.cake_id === rowId || r.id === rowId);
-        const cakeName = row?.name || 'cake';
-
-        // Generate filename using cake name
-        const fileExt = file.name.split('.').pop();
-        const sanitizedName = cakeName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-        const fileName = `${sanitizedName}_${Date.now()}.${fileExt}`;
-
-        // Upload to Supabase storage bucket 'cake'
-        const { error } = await supabase.storage
-          .from('cake')
-          .upload(fileName, file);
-
-        if (error) {
-          console.error('Error uploading image:', error);
-          setUploadingImage(null);
-          return;
-        }
-
-        // Get the public URL for the uploaded image
-        const { data: { publicUrl } } = supabase.storage
-          .from('cake')
-          .getPublicUrl(fileName);
-
-        // Update the field with the image URL
-        handleFieldChange(rowId, "cake_img", publicUrl);
-        setUploadingImage(null);
-
-        console.log('Image uploaded successfully:', publicUrl);
-        console.log('Stored URL in database:', publicUrl);
-        toast.success('Image uploaded successfully!', {
-          duration: 2000,
-          position: 'top-center',
-        });
-      } catch (error) {
-        console.error('Error in image upload:', error);
-        setUploadingImage(null);
-        toast.error('Failed to upload image. Please try again.', {
-          duration: 4000,
-          position: 'top-center',
-        });
+      if (insertError) {
+        console.error("Insert error:", insertError);
+        toast.error('Failed to add cake');
+        return;
       }
+
+      toast.success('Cake added successfully');
+      setShowAddModal(false);
+      setNewCake({ name: '', theme: '', description: '', tier: 1, price: '', cake_img: '' });
+      fetchCakes();
+    } catch (error) {
+      console.error('Error adding cake:', error);
+      toast.error('Failed to add cake');
     }
   };
 
-  const handleSaveChanges = async () => {
-    if (saving) return; // Prevent multiple clicks
-
-    setSaving(true);
-
-    console.log("=== SAVE CAKES CHANGES START ===");
-    console.log("New rows to save:", newRows);
-    console.log("Edited rows to save:", editedValues);
-
-    // Save new rows (INSERT operations)
-    for (const newRow of newRows) {
-      console.log(`Processing new cake:`, newRow);
-
-      if (!newRow.name) {
-        console.warn("Skipping incomplete new cake:", newRow);
-        continue;
-      }
-
-      try {
-        const { error: insertError } = await supabase
-          .from('CAKE')
-          .insert([
-            {
-              name: newRow.name,
-              theme: newRow.theme,
-              description: newRow.description,
-              tier: parseInt(newRow.tier) || 1,
-              price: parseFloat(newRow.price) || 0,
-              cake_img: newRow.cake_img || '', // Provide default empty string if null
-            },
-          ]);
-
-        if (insertError) {
-          console.error("Insert error:", insertError);
-          toast.error(`Failed to save cake "${newRow.name}": ${insertError.message}`, {
-            duration: 4000,
-            position: 'top-center',
-          });
-        } else {
-          console.log(`Successfully inserted new cake: "${newRow.name}"`);
-        }
-      } catch (error) {
-        console.error("Error processing new cake:", error);
-      }
-    }
-
-    // Save updated rows (UPDATE operations)
-    console.log("All editedValues before processing:", editedValues);
-    for (const [id, values] of Object.entries(editedValues)) {
-      console.log(`Processing edited cake ${id}:`, values);
-
-      if (!id || id === 'undefined') {
-        console.warn("Skipping row with invalid ID:", id);
-        continue;
-      }
-
-      // Find the original row to preserve unchanged values
-      const originalRow = rows.find(row => row.cake_id === parseInt(id) || row.cake_id === id);
-      console.log(`Original row for ID ${id}:`, originalRow);
-
-      try {
-        const updateData = {
-          name: values.name !== undefined ? values.name : originalRow?.name,
-          theme: values.theme !== undefined ? values.theme : originalRow?.theme,
-          description: values.description !== undefined ? values.description : originalRow?.description,
-          tier: values.tier !== undefined ? (parseInt(values.tier) || 1) : originalRow?.tier,
-          price: values.price !== undefined ? (parseFloat(values.price) || 0) : originalRow?.price,
-          // Preserve existing cake_img if not explicitly changed
-          cake_img: values.cake_img !== undefined ? values.cake_img : (originalRow?.cake_img || ''),
-        };
-
-        console.log(`Update data for cake ID ${id}:`, updateData);
-
-        const { error: updateError } = await supabase
-          .from('CAKE')
-          .update(updateData)
-          .eq('cake_id', id);
-
-        if (updateError) {
-          console.error(`Update error for cake ID ${id}:`, updateError);
-          toast.error(`Failed to update cake: ${updateError.message}`, {
-            duration: 4000,
-            position: 'top-center',
-          });
-        } else {
-          console.log(`Successfully updated cake with ID ${id}`);
-        }
-      } catch (error) {
-        console.error("Error processing updated cake:", error);
-      }
-    }
-
-    // Clear states
-    setEditedValues({});
-    setNewRows([]);
-    setEditingField({ id: null, field: null });
-    setSelectedRowId(null);
-
-    // Refresh cakes to show updated data
-    console.log("Refreshing cakes...");
-    const { data, error } = await supabase
-      .from('CAKE')
-      .select('*')
-      .order('name');
-
-    if (error) {
-      console.error("Refresh fetch error:", error);
-    } else if (data) {
-      console.log("Cakes refreshed:", data);
-      setRows(data);
-    }
-
-    console.log("=== SAVE CAKES CHANGES END ===");
-
-    // Show success notification
-    toast.success('Cakes saved successfully!', {
-      duration: 3000,
-      position: 'top-center',
-      style: {
-        background: '#10B981',
-        color: '#fff',
-        borderRadius: '8px',
-        padding: '12px 16px',
-      },
+  const handleEditCake = (cake) => {
+    setCakeToEdit(cake);
+    setEditFormData({
+      name: cake.name,
+      theme: cake.theme,
+      description: cake.description || '',
+      tier: cake.tier,
+      price: cake.price.toString(),
+      cake_img: cake.cake_img || ''
     });
-
-    setSaving(false);
+    setShowEditModal(true);
   };
 
+  const handleUpdateCake = async () => {
+    if (!editFormData.name || !editFormData.theme || !editFormData.price) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
 
-  // Filter rows based on search term - new rows first, then existing rows
-  const filteredRows = [...newRows, ...rows].filter((row) => {
-    const name = row.name || "";
-    const theme = row.theme || "";
-    const tier = row.tier || 1;
+    try {
+      setSaving(true);
+      await updateCake(cakeToEdit.cake_id, editFormData);
+    } catch (error) {
+      console.error('Error updating cake:', error);
+      toast.error('Failed to update cake');
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    const matchesName = name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesTheme = themeFilter === "" || theme.toLowerCase().includes(themeFilter.toLowerCase());
-    const matchesTier = tierFilter === "" || tier.toString() === tierFilter;
+  const updateCake = async (cakeId, cake) => {
+    try {
+      const updateData = {
+        name: cake.name,
+        theme: cake.theme,
+        description: cake.description,
+        tier: parseInt(cake.tier) || 1,
+        price: parseFloat(cake.price) || 0,
+        cake_img: cake.cake_img || '',
+      };
 
-    return matchesName && matchesTheme && matchesTier;
-  });
+      const { error: updateError } = await supabase
+        .from('CAKE')
+        .update(updateData)
+        .eq('cake_id', cakeId);
+
+      if (updateError) {
+        console.error("Update error:", updateError);
+        toast.error('Failed to update cake');
+        return;
+      }
+
+      toast.success('Cake updated successfully');
+      setShowEditModal(false);
+      setCakeToEdit(null);
+      fetchCakes();
+    } catch (error) {
+      console.error('Error updating cake:', error);
+      toast.error('Failed to update cake');
+    }
+  };
+
+  const handleDeleteCake = (cake) => {
+    setCakeToDelete(cake);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!cakeToDelete) return;
+
+    try {
+      setSaving(true);
+
+      // Delete from database first
+      const { error: dbError } = await supabase
+        .from('CAKE')
+        .delete()
+        .eq('cake_id', cakeToDelete.cake_id);
+
+      if (dbError) {
+        console.error("Database deletion error:", dbError);
+        toast.error('Failed to delete cake');
+        return;
+      }
+
+      // Delete the cake image from storage if it exists
+      if (cakeToDelete?.cake_img) {
+        try {
+          let filePath = cakeToDelete.cake_img;
+
+          if (cakeToDelete.cake_img.includes('/storage/v1/object/public/cake/')) {
+            filePath = cakeToDelete.cake_img.split('/storage/v1/object/public/cake/')[1];
+          } else if (cakeToDelete.cake_img.startsWith('http')) {
+            const urlParts = cakeToDelete.cake_img.split('/cake/');
+            if (urlParts.length > 1) {
+              filePath = urlParts[1];
+            }
+          }
+
+          if (filePath && filePath !== cakeToDelete.cake_img) {
+            await supabase.storage
+              .from('cake')
+              .remove([filePath]);
+          }
+        } catch (storageError) {
+          console.warn("Storage deletion error:", storageError);
+        }
+      }
+
+      toast.success('Cake deleted successfully');
+      setShowDeleteModal(false);
+      setCakeToDelete(null);
+      fetchCakes();
+    } catch (error) {
+      console.error('Error deleting cake:', error);
+      toast.error('Failed to delete cake');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setCakeToDelete(null);
+  };
+
+  const cancelEdit = () => {
+    setShowEditModal(false);
+    setCakeToEdit(null);
+    setEditFormData({ name: '', theme: '', description: '', tier: 1, price: '', cake_img: '' });
+  };
+
+  const formatPrice = (price) => {
+    return `₱${parseFloat(price).toFixed(2)}`;
+  };
 
   // Get unique themes and tiers for filter options
-  const uniqueThemes = [...new Set([...rows, ...newRows].map(row => row.theme).filter(Boolean))];
-  const uniqueTiers = [...new Set([...rows, ...newRows].map(row => row.tier).filter(Boolean))].sort((a, b) => a - b);
+  const uniqueThemes = [...new Set(rows.map(row => row.theme).filter(Boolean))];
+  const uniqueTiers = [...new Set(rows.map(row => row.tier).filter(Boolean))].sort((a, b) => a - b);
 
   return (
     <div className="bg-white rounded-2xl shadow-lg p-8 w-full border-2 border-[#AF524D] min-h-[80vh] max-h-[80vh] flex flex-col">
@@ -421,13 +312,59 @@ const Cakes = () => {
           <p className="text-gray-600">Manage your cake catalog and designs</p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+        <button
+          className="bg-[#AF524D] hover:bg-[#8B3A3A] text-white px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+          onClick={() => setShowAddModal(true)}
+        >
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add New Cake
+          </div>
+        </button>
+      </div>
+
+      {/* Search and Filter Bar */}
+      <div className="mb-6">
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* Search Input */}
+          <div className="flex-1">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                placeholder="Search cakes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+              />
+            </div>
+          </div>
+
+          {/* Search Type Filter */}
+          <div className="flex gap-2">
+            <select
+              value={searchType}
+              onChange={(e) => setSearchType(e.target.value)}
+              className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+            >
+              <option value="all">All Fields</option>
+              <option value="name">Name Only</option>
+              <option value="theme">Theme Only</option>
+            </select>
+          </div>
+
           {/* Theme Filter */}
-          <div className="relative">
+          <div className="flex gap-2">
             <select
               value={themeFilter}
               onChange={(e) => setThemeFilter(e.target.value)}
-              className="border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-8 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200 text-base appearance-none bg-white"
+              className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
             >
               <option value="">All Themes</option>
               {uniqueThemes.map((theme) => (
@@ -436,40 +373,14 @@ const Cakes = () => {
                 </option>
               ))}
             </select>
-            <svg
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-              />
-            </svg>
-            <svg
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
           </div>
 
           {/* Tier Filter */}
-          <div className="relative">
+          <div className="flex gap-2">
             <select
               value={tierFilter}
               onChange={(e) => setTierFilter(e.target.value)}
-              className="border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-8 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200 text-base appearance-none bg-white"
+              className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
             >
               <option value="">All Tiers</option>
               {uniqueTiers.map((tier) => (
@@ -478,56 +389,6 @@ const Cakes = () => {
                 </option>
               ))}
             </select>
-            <svg
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-              />
-            </svg>
-            <svg
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </div>
-
-          {/* Search Bar */}
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search by cake name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="border-2 border-gray-200 rounded-xl px-5 py-3 pl-12 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200 text-base"
-            />
-            <svg
-              className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
           </div>
         </div>
       </div>
@@ -538,351 +399,424 @@ const Cakes = () => {
           <table className="w-full border-collapse table-fixed">
             <thead className="bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white sticky top-0 z-20">
               <tr>
-                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Cake Name</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/4">Cake Name</th>
                 <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Theme</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Description</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Tiers</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Tier</th>
                 <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Price</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Cake Image</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Image</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold uppercase tracking-wide w-1/6">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredRows.map((row) => {
-                // Handle both new rows (id) and existing rows (cake_id)
-                const rowId = row.cake_id || row.id;
-                const isSelected = selectedRowId === rowId;
-                const edited = editedValues[rowId] || {};
-                const isEditingName =
-                  editingField.id === rowId && editingField.field === "name";
-
-                return (
-                  <tr
-                    key={rowId}
-                    className={`transition-all duration-200 cursor-pointer ${isSelected
-                      ? 'bg-blue-50 border-l-4 border-l-blue-500 shadow-md'
-                      : 'hover:bg-gray-100 border-l-4 border-l-transparent'
-                      }`}
-                    onClick={() => handleSelectRow(rowId)}
-                  >
-                    <td className="py-2 px-4">
-                      <div className="flex items-center gap-2">
-                        {isEditingName ? (
-                          <input
-                            type="text"
-                            className="border rounded px-2 py-1 w-40"
-                            value={editedName}
-                            onChange={(e) => setEditedName(e.target.value)}
-                            onBlur={() => {
-                              handleFieldChange(rowId, "name", editedName);
-                              setEditingField({ id: null, field: null });
-                            }}
-                            autoFocus
-                          />
-                        ) : (
-                          <>
-                            <div className="flex-grow truncate">
-                              {edited.name ?? row.name}
-                            </div>
-                            <span
-                              className="cursor-pointer hover:text-blue-700 flex-shrink-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingField({ id: rowId, field: "name" });
-                                setEditedName(edited.name ?? row.name);
-                              }}
-                            >
-                              <svg key={`edit-name-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            </span>
-                          </>
-                        )}
+              {loading ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#AF524D] mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Loading cakes...</p>
+                  </td>
+                </tr>
+              ) : filteredRows.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-8">
+                    <p className="text-gray-600 text-lg">
+                      {searchTerm || themeFilter || tierFilter ? 'No matching cakes found' : 'No cakes available'}
+                    </p>
+                    <p className="text-sm">
+                      {searchTerm || themeFilter || tierFilter ? 'Try adjusting your search terms' : 'Click "Add New Cake" to get started'}
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                filteredRows.map((cake) => (
+                  <tr key={cake.cake_id} className="hover:bg-gray-100 transition-colors duration-200">
+                    {/* Cake Name Column */}
+                    <td className="py-6 px-6 align-top">
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-gray-900 text-base">
+                          {cake.name}
+                        </h4>
+                        <p className="text-sm text-gray-600 line-clamp-2">
+                          {cake.description}
+                        </p>
                       </div>
                     </td>
 
-                    <td className="py-2 px-4">
-                      <div className="flex items-center gap-2">
-                        {editingField.id === rowId && editingField.field === "theme" ? (
-                          <input
-                            type="text"
-                            className="border rounded px-2 py-1 w-20"
-                            value={editedTheme}
-                            onChange={(e) => setEditedTheme(e.target.value)}
-                            onBlur={() => {
-                              handleFieldChange(rowId, "theme", editedTheme);
-                              setEditingField({ id: null, field: null });
-                            }}
-                            autoFocus
-                          />
-                        ) : (
-                          <>
-                            <div className="flex-grow truncate">
-                              {edited.theme ?? row.theme}
-                            </div>
-                            <span
-                              className="cursor-pointer hover:text-blue-700 flex-shrink-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingField({ id: rowId, field: "theme" });
-                                setEditedTheme(edited.theme ?? row.theme);
-                              }}
-                            >
-                              <svg key={`edit-theme-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            </span>
-                          </>
-                        )}
-                      </div>
+                    {/* Theme Column */}
+                    <td className="py-6 px-6 align-middle">
+                      <span className="px-3 py-1 rounded-full text-sm font-medium bg-[#AF524D]/10 text-[#AF524D]">
+                        {cake.theme}
+                      </span>
                     </td>
 
-                    <td className="py-2 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-grow truncate">
-                          {edited.description ?? row.description}
+                    {/* Tier Column */}
+                    <td className="py-6 px-6 align-middle">
+                      <span className="text-lg font-semibold text-gray-900">
+                        {cake.tier}
+                      </span>
+                    </td>
+
+                    {/* Price Column */}
+                    <td className="py-6 px-6 align-middle">
+                      <span className="text-lg font-semibold text-gray-900">
+                        {formatPrice(cake.price)}
+                      </span>
+                    </td>
+
+                    {/* Image Column */}
+                    <td className="py-6 px-6 align-middle">
+                      {cake.cake_img ? (
+                        <div className="w-16 h-16 rounded-lg overflow-hidden border-2 border-green-300 bg-green-50 flex items-center justify-center">
+                          <img
+                            src={getPublicImageUrl(cake.cake_img)}
+                            alt="Cake"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                          <div className="w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
+                            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
                         </div>
-                        <span
-                          className="cursor-pointer hover:text-blue-700 flex-shrink-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDescriptionEdit(rowId, edited.description ?? row.description);
-                          }}
-                        >
-                          <svg key={`edit-description-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      ) : (
+                        <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-gray-200">
+                          <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
-                        </span>
-                      </div>
+                        </div>
+                      )}
                     </td>
 
-                    <td className="py-2 px-4">
+                    {/* Actions Column */}
+                    <td className="py-6 px-6 align-middle">
                       <div className="flex items-center gap-2">
-                        {editingField.id === rowId && editingField.field === "tier" ? (
-                          <input
-                            type="number"
-                            className="border rounded px-2 py-1 w-16"
-                            value={editedTier}
-                            onChange={(e) => setEditedTier(e.target.value)}
-                            onBlur={() => {
-                              handleFieldChange(rowId, "tier", parseInt(editedTier) || 1);
-                              setEditingField({ id: null, field: null });
-                            }}
-                            autoFocus
-                          />
-                        ) : (
-                          <>
-                            <div className="truncate">
-                              {edited.tier ?? row.tier}
-                            </div>
-                            <span
-                              className="cursor-pointer hover:text-blue-700 flex-shrink-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingField({ id: rowId, field: "tier" });
-                                setEditedTier(edited.tier ?? row.tier);
-                              }}
-                            >
-                              <svg key={`edit-tier-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="py-2 px-4">
-                      <div className="flex items-center gap-2">
-                        {editingField.id === rowId && editingField.field === "price" ? (
-                          <input
-                            type="number"
-                            className="border rounded px-2 py-1 w-16"
-                            value={editedPrice}
-                            onChange={(e) => setEditedPrice(e.target.value)}
-                            onBlur={() => {
-                              handleFieldChange(rowId, "price", parseFloat(editedPrice) || 0);
-                              setEditingField({ id: null, field: null });
-                            }}
-                            autoFocus
-                          />
-                        ) : (
-                          <>
-                            <div className="truncate">
-                              ₱{edited.price ?? row.price}
-                            </div>
-                            <span
-                              className="cursor-pointer hover:text-blue-700 flex-shrink-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingField({ id: rowId, field: "price" });
-                                setEditedPrice(edited.price ?? row.price);
-                              }}
-                            >
-                              <svg key={`edit-price-${rowId}`} width="3vw" height="3vh" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M11.375 11.375H9.75C8.88805 11.375 8.0614 11.7174 7.4519 12.3269C6.84241 12.9364 6.5 13.763 6.5 14.625V29.25C6.5 30.112 6.84241 30.9386 7.4519 31.5481C8.0614 32.1576 8.88805 32.5 9.75 32.5H24.375C25.237 32.5 26.0636 32.1576 26.6731 31.5481C27.2826 30.9386 27.625 30.112 27.625 29.25V27.625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                <path d="M26 8.12517L30.875 13.0002M33.1256 10.7008C33.7656 10.0608 34.1252 9.19277 34.1252 8.28767C34.1252 7.38258 33.7656 6.51455 33.1256 5.87455C32.4856 5.23455 31.6176 4.875 30.7125 4.875C29.8074 4.875 28.9394 5.23455 28.2994 5.87455L14.625 19.5002V24.3752H19.5L33.1256 10.7008Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="py-2 px-4">
-                      <div className="relative">
-                        {uploadingImage === rowId ? (
-                          <div className="w-16 h-16 bg-gray-200 rounded border-2 border-dashed border-gray-300 flex items-center justify-center">
-                            <div className="flex flex-col items-center">
-                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#AF524D]"></div>
-                              <span className="text-xs text-gray-500 mt-1">Uploading...</span>
-                            </div>
-                          </div>
-                        ) : edited.cake_img || row.cake_img ? (
-                          <div className="relative w-16 h-16 rounded overflow-hidden border border-gray-300 group">
-                            <img
-                              src={getPublicImageUrl(edited.cake_img || row.cake_img)}
-                              alt="Cake"
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'flex';
-                              }}
-                            />
-                            <div className="absolute inset-0 bg-gray-200 flex items-center justify-center hidden">
-                              <span className="text-xs text-gray-500">No Image</span>
-                            </div>
-                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
-                              <label className="cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => handleImageUpload(e, rowId)}
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                              </label>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="w-16 h-16 bg-gray-200 rounded border-2 border-dashed border-gray-300 flex items-center justify-center hover:border-[#AF524D] transition-colors duration-200">
-                            <label className="cursor-pointer flex flex-col items-center">
-                              <svg className="w-6 h-6 text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                              </svg>
-                              <span className="text-xs text-gray-500">Upload</span>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => handleImageUpload(e, rowId)}
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                            </label>
-                          </div>
-                        )}
+                        <button
+                          onClick={() => handleEditCake(cake)}
+                          className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                          disabled={saving}
+                          title="Edit cake"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCake(cake)}
+                          className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                          disabled={saving}
+                          title="Delete cake"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
                       </div>
                     </td>
                   </tr>
-                );
-              })}
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="mt-8 flex flex-col sm:flex-row justify-between gap-4">
-        <div className="flex gap-3">
-          <button
-            className="bg-[#AF524D] hover:bg-[#8B3A3A] text-white px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-            onClick={handleAddRow}
-          >
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Add New Cake
+      {/* Add Cake Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md border-2 border-[#AF524D] shadow-2xl">
+            <h3 className="text-2xl font-bold text-[#381914] mb-6">Add New Cake</h3>
+
+            <div className="space-y-4">
+              {/* Cake Name */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Cake Name *
+                </label>
+                <input
+                  type="text"
+                  value={newCake.name}
+                  onChange={(e) => setNewCake(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                  placeholder="Enter cake name..."
+                />
+              </div>
+
+              {/* Theme */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Theme *
+                </label>
+                <input
+                  type="text"
+                  value={newCake.theme}
+                  onChange={(e) => setNewCake(prev => ({ ...prev, theme: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                  placeholder="Enter cake theme..."
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={newCake.description}
+                  onChange={(e) => setNewCake(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200 resize-none"
+                  placeholder="Enter cake description..."
+                  rows={3}
+                />
+              </div>
+
+              {/* Tier */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Tier
+                </label>
+                <select
+                  value={newCake.tier}
+                  onChange={(e) => setNewCake(prev => ({ ...prev, tier: parseInt(e.target.value) }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                >
+                  <option value={1}>1 Tier</option>
+                  <option value={2}>2 Tiers</option>
+                  <option value={3}>3 Tiers</option>
+                  <option value={4}>4 Tiers</option>
+                </select>
+              </div>
+
+              {/* Price */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Price *
+                </label>
+                <input
+                  type="number"
+                  value={newCake.price}
+                  onChange={(e) => setNewCake(prev => ({ ...prev, price: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                  placeholder="Enter price..."
+                  min="0"
+                  step="0.01"
+                />
+              </div>
             </div>
-          </button>
 
-          <button
-            className={`px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${selectedRowId
-              ? 'bg-red-600 hover:bg-red-700 text-white hover:shadow-xl transform hover:-translate-y-0.5'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
-            onClick={handleDeleteRow}
-            disabled={!selectedRowId}
-          >
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Delete Cake
-            </div>
-          </button>
-        </div>
-
-        <button
-          className={`px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${saving
-            ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-            : 'bg-green-600 hover:bg-green-700 text-white hover:shadow-xl transform hover:-translate-y-0.5'
-            }`}
-          onClick={handleSaveChanges}
-          disabled={saving}
-        >
-          <div className="flex items-center gap-2">
-            {saving ? (
-              <>
-                <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Saving Changes...
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Save All Changes
-              </>
-            )}
-          </div>
-        </button>
-      </div>
-
-      {/* Description Edit Modal */}
-      {showDescriptionModal && (
-        <div className="fixed inset-0 bg-gray/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 max-w-md border-4 border-[#AF524D] shadow-2xl">
-            <h3 className="text-lg font-semibold mb-4 text-[#381914]">Edit Description</h3>
-            <textarea
-              value={tempDescription}
-              onChange={(e) => setTempDescription(e.target.value)}
-              className="w-full h-32 p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-transparent"
-              placeholder="Enter cake description..."
-              autoFocus
-            />
-            <div className="flex justify-end gap-3 mt-4">
+            {/* Modal Actions */}
+            <div className="flex justify-end gap-3 mt-8">
               <button
-                onClick={handleDescriptionCancel}
-                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                onClick={() => {
+                  setShowAddModal(false);
+                  setNewCake({ name: '', theme: '', description: '', tier: 1, price: '', cake_img: '' });
+                }}
+                className="px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors font-medium"
+                disabled={saving}
               >
                 Cancel
               </button>
               <button
-                onClick={handleDescriptionSave}
-                className="px-4 py-2 bg-[#AF524D] text-white rounded-lg hover:bg-[#8B3D3A] transition-colors cursor-pointer"
+                onClick={handleAddCake}
+                disabled={saving}
+                className={`px-6 py-3 rounded-xl font-medium transition-all duration-200 ${saving
+                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                  : 'bg-[#AF524D] text-white hover:bg-[#8B3A3A] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                  }`}
               >
-                Save
+                {saving ? (
+                  <div className="flex items-center gap-2">
+                    <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Adding...
+                  </div>
+                ) : (
+                  'Add Cake'
+                )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Cake Modal */}
+      {showEditModal && cakeToEdit && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md border-2 border-blue-200 shadow-2xl">
+            <h3 className="text-2xl font-bold text-[#381914] mb-6">Edit Cake</h3>
+
+            <div className="space-y-4">
+              {/* Cake Name */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Cake Name *
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                  placeholder="Enter cake name..."
+                />
+              </div>
+
+              {/* Theme */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Theme *
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.theme}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, theme: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                  placeholder="Enter cake theme..."
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={editFormData.description}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200 resize-none"
+                  placeholder="Enter cake description..."
+                  rows={3}
+                />
+              </div>
+
+              {/* Tier */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Tier
+                </label>
+                <select
+                  value={editFormData.tier}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, tier: parseInt(e.target.value) }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                >
+                  <option value={1}>1 Tier</option>
+                  <option value={2}>2 Tiers</option>
+                  <option value={3}>3 Tiers</option>
+                  <option value={4}>4 Tiers</option>
+                </select>
+              </div>
+
+              {/* Price */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Price *
+                </label>
+                <input
+                  type="number"
+                  value={editFormData.price}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, price: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                  placeholder="Enter price..."
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex justify-end gap-3 mt-8">
+              <button
+                onClick={cancelEdit}
+                className="px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors font-medium"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateCake}
+                disabled={saving}
+                className={`px-6 py-3 rounded-xl font-medium transition-all duration-200 ${saving
+                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                  }`}
+              >
+                {saving ? (
+                  <div className="flex items-center gap-2">
+                    <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Updating...
+                  </div>
+                ) : (
+                  'Update Cake'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && cakeToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md border-2 border-red-200 shadow-2xl">
+            <div className="text-center">
+              {/* Warning Icon */}
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                <svg className="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Delete Cake</h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete this cake? This action cannot be undone.
+              </p>
+
+              {/* Cake Details */}
+              <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+                <div className="flex items-center gap-3 mb-2">
+                  <h4 className="text-lg font-semibold text-gray-900">
+                    {cakeToDelete.name}
+                  </h4>
+                  <span className="px-2 py-1 bg-[#AF524D]/10 text-[#AF524D] text-xs font-medium rounded-full">
+                    {cakeToDelete.theme}
+                  </span>
+                </div>
+
+                <p className="text-gray-600 mb-2">
+                  <span className="font-medium">Tier:</span> {cakeToDelete.tier}
+                </p>
+
+                <p className="text-gray-600">
+                  <span className="font-medium">Price:</span> {formatPrice(cakeToDelete.price)}
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={cancelDelete}
+                  className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium shadow-lg hover:shadow-xl"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete
+                  </div>
+                </button>
+              </div>
             </div>
           </div>
         </div>
