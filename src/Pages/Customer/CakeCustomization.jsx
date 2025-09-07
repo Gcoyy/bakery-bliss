@@ -7,7 +7,6 @@ import { useNavigate } from 'react-router-dom';
 import { UserAuth } from '../../context/AuthContext';
 
 const CakeCustomization = () => {
-    console.log('=== CakeCustomization Component Initialized ===');
 
     const navigate = useNavigate();
     const { session, userRole } = UserAuth();
@@ -41,7 +40,6 @@ const CakeCustomization = () => {
     const [customCakeImage, setCustomCakeImage] = useState(null);
     const [isScrollLocked, setIsScrollLocked] = useState(false);
 
-    console.log('Initial state:', { loading, canvasReady, selectedColor });
 
     // Scroll lock functionality
     useEffect(() => {
@@ -65,52 +63,42 @@ const CakeCustomization = () => {
     // Check authentication on component mount
     useEffect(() => {
         if (!session || !session.user) {
-            console.log('User not authenticated, waiting 5 seconds to check again...');
 
             // Wait 5 seconds before checking again
             const checkTimer = setTimeout(() => {
                 // Check again after 5 seconds
                 if (!session || !session.user) {
-                    console.log('User still not authenticated after 5 seconds, redirecting to login');
                     toast.error('Please log in to access the cake customization tool');
                     navigate('/login');
                 } else {
-                    console.log('User authenticated after 5 seconds:', session.user);
                 }
             }, 5000);
 
             // Cleanup timer if component unmounts
             return () => clearTimeout(checkTimer);
         } else {
-            console.log('User authenticated:', session.user);
         }
     }, [session, navigate]);
 
     // Track canvasReady changes
     useEffect(() => {
-        console.log('=== CanvasReady state changed ===');
-        console.log('New canvasReady value:', canvasReady);
     }, [canvasReady]);
 
     // Helper function to get public image URL from Supabase storage
     const getPublicImageUrl = (path) => {
         if (!path) {
-            console.log('getPublicImageUrl: No path provided');
             return null;
         }
 
         // If the path is already a full URL, return it as is
         if (path.startsWith('http')) {
-            console.log('getPublicImageUrl: Path is already a URL:', path);
             return path;
         }
 
-        console.log('getPublicImageUrl: Processing path:', path);
 
         try {
             // Use the correct bucket name and handle folder structure
             const bucketName = 'asset';
-            console.log(`getPublicImageUrl: Using bucket "${bucketName}"`);
 
             // Construct the full path with folder structure
             let fullPath = path;
@@ -119,25 +107,20 @@ const CakeCustomization = () => {
             // This is a fallback - ideally your ASSET table should include the folder in the src
             if (!path.includes('/')) {
                 // You might want to add a folder field to your ASSET table to be more explicit
-                console.log(`getPublicImageUrl: Path doesn't include folder, using filename: ${path}`);
             }
 
             const { data, error } = supabase.storage.from(bucketName).getPublicUrl(fullPath);
 
             if (error) {
-                console.log(`getPublicImageUrl: Error with bucket "${bucketName}":`, error);
                 return null;
             }
 
             if (data && data.publicUrl) {
-                console.log(`getPublicImageUrl: Success with bucket "${bucketName}":`, data.publicUrl);
                 return data.publicUrl;
             }
 
-            console.error(`getPublicImageUrl: No public URL generated for bucket "${bucketName}"`);
             return null;
         } catch (error) {
-            console.error('getPublicImageUrl: Unexpected error:', error);
             return null;
         }
     };
@@ -181,7 +164,6 @@ const CakeCustomization = () => {
             const response = await fetch(url, { method: 'HEAD' });
             return response.ok;
         } catch (error) {
-            console.log('testImageUrl: Error testing URL:', url, error);
             return false;
         }
     };
@@ -189,7 +171,6 @@ const CakeCustomization = () => {
     // Helper function to test storage bucket structure
     const testStorageBucket = async () => {
         try {
-            console.log('=== TESTING STORAGE BUCKET STRUCTURE ===');
             const bucketName = 'asset';
 
             // Try to list files in the bucket
@@ -198,11 +179,9 @@ const CakeCustomization = () => {
                 .list('', { limit: 100 });
 
             if (bucketError) {
-                console.error('Error listing bucket contents:', bucketError);
                 return;
             }
 
-            console.log('Bucket contents:', bucketData);
 
             // Try to list files in specific folders
             const folders = ['cake base', 'icing', 'topping'];
@@ -213,16 +192,12 @@ const CakeCustomization = () => {
                         .list(folder, { limit: 100 });
 
                     if (folderError) {
-                        console.log(`Error listing folder "${folder}":`, folderError);
                     } else {
-                        console.log(`Folder "${folder}" contents:`, folderData);
                     }
                 } catch (folderError) {
-                    console.log(`Exception listing folder "${folder}":`, folderError);
                 }
             }
         } catch (error) {
-            console.error('Error testing storage bucket:', error);
         }
     };
 
@@ -230,13 +205,11 @@ const CakeCustomization = () => {
     const drawColorWheel = () => {
         const canvas = colorWheelRef.current;
         if (!canvas) {
-            console.log('Color wheel canvas not ready');
             return;
         }
 
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-            console.log('Color wheel context not ready');
             return;
         }
 
@@ -314,18 +287,13 @@ const CakeCustomization = () => {
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        console.log('Color wheel drawn successfully');
     };
 
     const getColorFromWheel = (event) => {
-        console.log('=== Get Color From Wheel called ===');
-        console.log('Event:', event);
 
         const colorWheelCanvas = colorWheelRef.current;
-        console.log('Color wheel canvas:', colorWheelCanvas);
 
         if (!colorWheelCanvas) {
-            console.log('Color wheel canvas not available');
             return;
         }
 
@@ -335,14 +303,12 @@ const CakeCustomization = () => {
         const centerX = colorWheelCanvas.width / 2;
         const centerY = colorWheelCanvas.height / 2;
 
-        console.log('Click coordinates:', { x, y, centerX, centerY });
 
         const deltaX = x - centerX;
         const deltaY = y - centerY;
         const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
         const radius = Math.min(centerX, centerY) - 10;
 
-        console.log('Distance calculation:', { deltaX, deltaY, distance, radius });
 
         if (distance <= radius) {
             const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
@@ -389,44 +355,31 @@ const CakeCustomization = () => {
 
             const [r, g, b] = hslToRgb(hue, saturation, lightness);
             const color = rgbToHex(r, g, b);
-            console.log('Calculated color:', color);
             setSelectedColor(color);
 
             // Only try to change color on canvas if canvas is ready and has an active object
-            console.log('Checking canvas readiness for color change');
-            console.log('canvasReady:', canvasReady);
-            console.log('canvas.current:', canvas.current);
-            console.log('getActiveObject method:', canvas.current?.getActiveObject);
 
             if (canvasReady && canvas.current && canvas.current.getActiveObject) {
-                console.log('Canvas is ready, getting active object');
                 const activeObject = canvas.current.getActiveObject();
-                console.log('Active object for color change:', activeObject);
 
                 if (activeObject) {
-                    console.log('Setting fill color on active object');
                     activeObject.set('fill', color);
                     canvas.current.renderAll();
-                    console.log('Color changed successfully');
 
                     // Update the selected object state to reflect the color change
                     if (selectedObject && selectedObject === activeObject) {
                         setObjectUpdateTrigger(prev => prev + 1);
                     }
                 } else {
-                    console.log('No active object for color change');
                 }
             } else {
-                console.log('Canvas not ready for color change');
             }
         } else {
-            console.log('Click outside color wheel radius');
         }
     };
 
     // Mouse event handlers for drag functionality
     const handleMouseDown = (event) => {
-        console.log('=== Mouse Down on Color Wheel ===');
         const colorWheelCanvas = colorWheelRef.current;
         if (!colorWheelCanvas) return;
 
@@ -439,7 +392,6 @@ const CakeCustomization = () => {
     };
 
     const handleMouseMove = (event) => {
-        console.log('=== Mouse Move on Color Wheel ===');
         // Create a synthetic event with the current mouse position
         const syntheticEvent = {
             clientX: event.clientX,
@@ -449,7 +401,6 @@ const CakeCustomization = () => {
     };
 
     const handleMouseUp = () => {
-        console.log('=== Mouse Up on Color Wheel ===');
         // Remove event listeners
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
@@ -457,10 +408,8 @@ const CakeCustomization = () => {
 
     // Fetch cake images and decorations from database
     useEffect(() => {
-        console.log('=== Fetch Images useEffect triggered ===');
         const fetchImages = async () => {
             try {
-                console.log('Setting loading to true');
                 setLoading(true);
 
                 // Fetch assets from ASSET table
@@ -474,12 +423,7 @@ const CakeCustomization = () => {
                     return;
                 }
 
-                console.log('=== ASSET DATA DEBUG ===');
-                console.log('Raw asset data:', assetData);
-                console.log('Asset count:', assetData?.length || 0);
                 if (assetData && assetData.length > 0) {
-                    console.log('Sample asset:', assetData[0]);
-                    console.log('Asset structure:', Object.keys(assetData[0]));
                 }
 
                 // Test the storage bucket structure
@@ -490,15 +434,11 @@ const CakeCustomization = () => {
                 const icingAssets = assetData.filter(asset => asset.type === 'icing');
                 const toppingAssets = assetData.filter(asset => asset.type === 'topping');
 
-                console.log('Filtered cake bases:', cakeBases);
-                console.log('Filtered icing assets:', icingAssets);
-                console.log('Filtered topping assets:', toppingAssets);
 
                 // Process cake bases with public URLs
                 const cakesWithImages = cakeBases.map((asset) => {
                     // Use the asset.src directly as it should already contain the full path
                     const publicUrl = getPublicImageUrl(asset.src);
-                    console.log(`Processing cake base ${asset.src}:`, { asset, publicUrl });
                     return {
                         cake_id: asset.asset_id,
                         name: asset.src.replace('.png', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
@@ -511,7 +451,6 @@ const CakeCustomization = () => {
                 const processedIcing = icingAssets.map((asset) => {
                     // Use the asset.src directly as it should already contain the full path
                     const publicUrl = getPublicImageUrl(asset.src);
-                    console.log(`Processing icing ${asset.src}:`, { asset, publicUrl });
                     return {
                         id: asset.asset_id,
                         name: asset.src.replace('.png', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
@@ -525,7 +464,6 @@ const CakeCustomization = () => {
                 const processedToppings = toppingAssets.map((asset) => {
                     // Use the asset.src directly as it should already contain the full path
                     const publicUrl = getPublicImageUrl(asset.src);
-                    console.log(`Processing topping ${asset.src}:`, { asset, publicUrl });
                     return {
                         id: asset.asset_id,
                         name: asset.src.replace('.png', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
@@ -535,42 +473,29 @@ const CakeCustomization = () => {
                     };
                 });
 
-                console.log('=== PROCESSED DATA DEBUG ===');
-                console.log('Final cake images:', cakesWithImages);
-                console.log('Final icing assets:', processedIcing);
-                console.log('Final topping assets:', processedToppings);
 
                 // Test a few URLs to see if they're accessible
                 if (cakesWithImages.length > 0) {
-                    console.log('Testing first cake image URL...');
                     const firstCakeUrl = cakesWithImages[0].publicUrl;
-                    console.log('First cake URL:', firstCakeUrl);
                     if (firstCakeUrl) {
                         const isAccessible = await testImageUrl(firstCakeUrl);
-                        console.log('First cake URL accessible:', isAccessible);
                     }
                 }
 
                 if (processedIcing.length > 0) {
-                    console.log('Testing first icing URL...');
                     const firstIcingUrl = getPublicImageUrl(processedIcing[0].image_path);
-                    console.log('First icing URL:', firstIcingUrl);
                     if (firstIcingUrl) {
                         const isAccessible = await testImageUrl(firstIcingUrl);
-                        console.log('First icing URL accessible:', isAccessible);
                     }
                 }
 
                 if (cakesWithImages.length === 0) {
-                    console.warn('No cake bases found in ASSET table');
                 }
 
                 if (processedIcing.length === 0) {
-                    console.warn('No icing assets found in ASSET table');
                 }
 
                 if (processedToppings.length === 0) {
-                    console.warn('No topping assets found in ASSET table');
                 }
 
                 setCakeImages(cakesWithImages);
@@ -580,7 +505,6 @@ const CakeCustomization = () => {
                 console.error("Error fetching images:", error);
                 toast.error("Failed to load images");
             } finally {
-                console.log('Setting loading to false');
                 setLoading(false);
             }
         };
@@ -590,59 +514,20 @@ const CakeCustomization = () => {
 
     // Initialize Fabric.js canvas
     useEffect(() => {
-        console.log('=== Canvas Initialization useEffect triggered ===');
-        console.log('Loading state:', loading);
-        console.log('Canvas ref:', canvasRef.current);
-
         if (!loading && canvasRef.current && !canvas.current) {
-            console.log('Loading is false, initializing canvas...');
-            console.log('Canvas ref element:', canvasRef.current);
-
             try {
                 // Get the container dimensions
                 const container = canvasRef.current.parentElement;
                 const containerRect = container.getBoundingClientRect();
 
-                console.log('=== Canvas Sizing Debug ===');
-                console.log('Container element:', container);
-                console.log('Container rect:', containerRect);
-                console.log('Container width:', containerRect.width);
-                console.log('Container height:', containerRect.height);
-
                 // Set canvas size to fit container while maintaining aspect ratio
                 const maxWidth = containerRect.width; // Use full container width
                 const maxHeight = containerRect.height; // Use full container height
-
-                console.log('Calculated maxWidth:', maxWidth);
-                console.log('Calculated maxHeight:', maxHeight);
-                console.log('Canvas element before creation:', canvasRef.current);
 
                 canvas.current = new Canvas(canvasRef.current, {
                     width: maxWidth,
                     height: maxHeight,
                     backgroundColor: '#f8f9fa'
-                });
-                console.log('Canvas created successfully:', canvas.current);
-                console.log('Canvas dimensions after creation:', {
-                    width: canvas.current.width,
-                    height: canvas.current.height
-                });
-
-                // Check container styling
-                console.log('Container computed styles:', {
-                    width: window.getComputedStyle(container).width,
-                    height: window.getComputedStyle(container).height,
-                    maxWidth: window.getComputedStyle(container).maxWidth,
-                    maxHeight: window.getComputedStyle(container).maxHeight,
-                    overflow: window.getComputedStyle(container).overflow
-                });
-
-                // Check canvas element styling
-                console.log('Canvas element computed styles:', {
-                    width: window.getComputedStyle(canvasRef.current).width,
-                    height: window.getComputedStyle(canvasRef.current).height,
-                    maxWidth: window.getComputedStyle(canvasRef.current).maxWidth,
-                    maxHeight: window.getComputedStyle(canvasRef.current).maxHeight
                 });
 
                 // Add event listeners
@@ -652,67 +537,77 @@ const CakeCustomization = () => {
                 canvas.current.on('object:moving', handleObjectModified);
                 canvas.current.on('object:scaling', handleObjectModified);
                 canvas.current.on('object:rotating', handleObjectModified);
-                console.log('Event listeners added');
 
                 // Mark canvas as ready with a small delay to ensure full initialization
-                console.log('Setting canvasReady to true');
                 setTimeout(() => {
-                    console.log('Delayed canvas ready set to true');
                     setCanvasReady(true);
                 }, 100);
             } catch (error) {
                 console.error('Error creating Canvas:', error);
             }
-        } else {
-            console.log('Loading is still true, canvas ref not ready, or canvas already exists');
         }
     }, [loading]);
 
+    // Handle canvas visibility restoration
+    const handleCanvasVisibilityChange = () => {
+        if (canvas.current && !document.hidden) {
+            // Force canvas to re-render all objects
+            canvas.current.renderAll();
+            // Trigger a small delay to ensure proper rendering
+            setTimeout(() => {
+                canvas.current.renderAll();
+            }, 100);
+        }
+    };
+
     // Handle canvas resize
     const handleCanvasResize = () => {
-        console.log('=== Canvas Resize Debug ===');
-        console.log('Canvas current:', canvas.current);
-        console.log('Canvas ref:', canvasRef.current);
-
         if (canvas.current && canvasRef.current) {
             const container = canvasRef.current.parentElement;
             const containerRect = container.getBoundingClientRect();
 
-            console.log('Resize - Container rect:', containerRect);
-            console.log('Resize - Container width:', containerRect.width);
-            console.log('Resize - Container height:', containerRect.height);
-
             const maxWidth = containerRect.width; // Use full container width
             const maxHeight = containerRect.height; // Use full container height
-
-            console.log('Resize - Calculated maxWidth:', maxWidth);
-            console.log('Resize - Calculated maxHeight:', maxHeight);
-            console.log('Resize - Current canvas dimensions:', {
-                width: canvas.current.width,
-                height: canvas.current.height
-            });
 
             canvas.current.setDimensions({
                 width: maxWidth,
                 height: maxHeight
             });
             canvas.current.renderAll();
-
-            console.log('Resize - New canvas dimensions:', {
-                width: canvas.current.width,
-                height: canvas.current.height
-            });
-        } else {
-            console.log('Resize - Canvas not ready for resize');
         }
     };
 
-    // Add resize listener
+    // Add resize and visibility listeners
     useEffect(() => {
         if (canvasReady && canvas.current) {
-            window.addEventListener('resize', handleCanvasResize);
+            const handleResize = () => {
+                handleCanvasResize();
+            };
+
+            const handleVisibilityChange = () => {
+                handleCanvasVisibilityChange();
+            };
+
+            const handleWindowFocus = () => {
+                canvas.current.renderAll();
+            };
+
+            // Periodic canvas refresh to ensure objects stay visible
+            const refreshInterval = setInterval(() => {
+                if (canvas.current && canvas.current.getObjects().length > 0) {
+                    canvas.current.renderAll();
+                }
+            }, 2000); // Refresh every 2 seconds
+
+            window.addEventListener('resize', handleResize);
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            window.addEventListener('focus', handleWindowFocus);
+
             return () => {
-                window.removeEventListener('resize', handleCanvasResize);
+                clearInterval(refreshInterval);
+                window.removeEventListener('resize', handleResize);
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
+                window.removeEventListener('focus', handleWindowFocus);
             };
         }
     }, [canvasReady]);
@@ -720,70 +615,49 @@ const CakeCustomization = () => {
     // Cleanup effect - runs only on unmount
     useEffect(() => {
         return () => {
-            console.log('Canvas cleanup - disposing canvas');
             if (canvas.current) {
                 canvas.current.dispose();
                 canvas.current = null;
             }
-            console.log('Setting canvasReady to false');
             setCanvasReady(false);
         };
     }, []);
 
     // Initialize color wheel
     useEffect(() => {
-        console.log('=== Color Wheel useEffect triggered ===');
-        console.log('Selected color:', selectedColor);
-        console.log('Color wheel ref:', colorWheelRef.current);
 
         if (colorWheelRef.current) {
-            console.log('Drawing color wheel...');
             drawColorWheel();
         } else {
-            console.log('Color wheel ref not ready');
         }
     }, [selectedColor, objectUpdateTrigger]);
 
     // Draw color wheel on mount
     useEffect(() => {
-        console.log('=== Color Wheel Mount useEffect triggered ===');
         const timer = setTimeout(() => {
-            console.log('Attempting to draw color wheel on mount');
-            console.log('Color wheel ref on mount:', colorWheelRef.current);
             if (colorWheelRef.current) {
-                console.log('Drawing color wheel on mount...');
                 drawColorWheel();
             } else {
-                console.log('Color wheel ref not ready on mount');
             }
         }, 100); // Small delay to ensure DOM is ready
 
         return () => {
-            console.log('Clearing color wheel mount timer');
             clearTimeout(timer);
         };
     }, []);
 
     const handleSelection = () => {
-        console.log('=== Handle Selection called ===');
-        console.log('Canvas ready:', canvasReady);
-        console.log('Canvas current:', canvas.current);
 
         if (!canvas.current) {
-            console.log('Canvas not available in handleSelection');
             return;
         }
 
         const activeObject = canvas.current.getActiveObject();
-        console.log('Active object:', activeObject);
-
         if (activeObject) {
-            console.log('Active object type:', activeObject.type);
             setSelectedObject(activeObject);
             setObjectUpdateTrigger(prev => prev + 1);
 
             if (activeObject.type === 'text') {
-                console.log('Setting text properties from active object');
                 setTextValue(activeObject.text);
                 setFontSize(activeObject.fontSize);
                 setFontFamily(activeObject.fontFamily);
@@ -795,8 +669,6 @@ const CakeCustomization = () => {
     };
 
     const handleDeselection = () => {
-        console.log('=== Handle Deselection called ===');
-        console.log('Resetting text properties');
         setTextValue('');
         setFontSize(24);
         setFontFamily('Arial');
@@ -806,25 +678,18 @@ const CakeCustomization = () => {
     };
 
     const handleObjectModified = () => {
-        console.log('=== Handle Object Modified called ===');
         // Force a re-render of the properties panel
         setObjectUpdateTrigger(prev => prev + 1);
     };
 
     // Add cake base to canvas
     const addCakeBase = (cake) => {
-        console.log('=== Add Cake Base called ===');
-        console.log('Cake:', cake);
-        console.log('Canvas ready:', canvasReady);
-        console.log('Canvas current:', canvas.current);
 
         if (!canvasReady || !canvas.current) {
-            console.log('Canvas not ready for addCakeBase');
             toast.error('Canvas not ready');
             return;
         }
 
-        console.log('Creating image for cake base');
 
         // Try to load image with CORS support first
         const loadImageWithFallback = async () => {
@@ -839,7 +704,6 @@ const CakeCustomization = () => {
                     img.src = cake.publicUrl;
                 });
 
-                console.log('Image loaded successfully with CORS, creating FabricImage');
                 const fabricImage = new FabricImage(img);
                 fabricImage.scaleToWidth(300);
                 fabricImage.set({
@@ -847,20 +711,17 @@ const CakeCustomization = () => {
                     top: 200,
                     name: 'cake-base'
                 });
-                console.log('Adding fabric image to canvas');
                 canvas.current.add(fabricImage);
                 canvas.current.setActiveObject(fabricImage);
                 canvas.current.renderAll();
-                console.log('Cake base added successfully');
+                forceCanvasRefresh();
 
             } catch (corsError) {
-                console.log('CORS failed, trying data URL conversion...');
                 try {
                     // Fallback: convert to data URL
                     const dataURL = await imageToDataURL(cake.publicUrl);
                     const img = new Image();
                     img.onload = () => {
-                        console.log('Image loaded successfully via data URL, creating FabricImage');
                         const fabricImage = new FabricImage(img);
                         fabricImage.scaleToWidth(300);
                         fabricImage.set({
@@ -868,11 +729,10 @@ const CakeCustomization = () => {
                             top: 200,
                             name: 'cake-base'
                         });
-                        console.log('Adding fabric image to canvas');
                         canvas.current.add(fabricImage);
                         canvas.current.setActiveObject(fabricImage);
                         canvas.current.renderAll();
-                        console.log('Cake base added successfully');
+                        forceCanvasRefresh();
                     };
                     img.src = dataURL;
                 } catch (fallbackError) {
@@ -883,7 +743,6 @@ const CakeCustomization = () => {
         };
 
         loadImageWithFallback();
-        console.log('Image src set to:', cake.publicUrl);
     };
 
     // Add decoration to canvas
@@ -895,7 +754,6 @@ const CakeCustomization = () => {
 
         // The image_path now contains the full path with folder structure
         const imageUrl = getPublicImageUrl(decoration.image_path);
-        console.log('Adding decoration:', { decoration, imageUrl });
 
         // Try to load image with CORS support first
         const loadImageWithFallback = async () => {
@@ -922,7 +780,6 @@ const CakeCustomization = () => {
                 canvas.current.renderAll();
 
             } catch (corsError) {
-                console.log('CORS failed for decoration, trying data URL conversion...');
                 try {
                     // Fallback: convert to data URL
                     const dataURL = await imageToDataURL(imageUrl);
@@ -959,7 +816,6 @@ const CakeCustomization = () => {
 
         // Use the topping.src directly as it should already contain the full path
         const imageUrl = getPublicImageUrl(topping.src);
-        console.log('Adding topping:', { topping, imageUrl });
 
         // Try to load image with CORS support first
         const loadImageWithFallback = async () => {
@@ -986,7 +842,6 @@ const CakeCustomization = () => {
                 canvas.current.renderAll();
 
             } catch (corsError) {
-                console.log('CORS failed for topping, trying data URL conversion...');
                 try {
                     // Fallback: convert to data URL
                     const dataURL = await imageToDataURL(imageUrl);
@@ -1015,6 +870,17 @@ const CakeCustomization = () => {
     };
 
     // Add text to canvas
+    // Force canvas refresh
+    const forceCanvasRefresh = () => {
+        if (canvas.current) {
+            canvas.current.renderAll();
+            // Additional refresh after a short delay
+            setTimeout(() => {
+                canvas.current.renderAll();
+            }, 50);
+        }
+    };
+
     const addText = () => {
         if (!textValue.trim()) {
             toast.error('Please enter some text');
@@ -1038,6 +904,10 @@ const CakeCustomization = () => {
         canvas.current.add(text);
         canvas.current.setActiveObject(text);
         canvas.current.renderAll();
+
+        // Force additional refresh
+        forceCanvasRefresh();
+
         setTextValue('');
     };
 
@@ -1062,44 +932,30 @@ const CakeCustomization = () => {
 
     // Change size of selected object
     const changeSize = (scale) => {
-        console.log('=== Change Size called ===');
-        console.log('Scale:', scale);
-        console.log('Canvas ready:', canvasReady);
-        console.log('Canvas current:', canvas.current);
-        console.log('Canvas getActiveObject method:', canvas.current?.getActiveObject);
 
         // More robust check for canvas readiness
         if (!canvasReady) {
-            console.log('Canvas not ready - canvasReady is false');
             toast.error('Canvas not ready');
             return;
         }
 
         if (!canvas.current) {
-            console.log('Canvas not ready - canvas.current is null');
             toast.error('Canvas not ready');
             return;
         }
 
         if (typeof canvas.current.getActiveObject !== 'function') {
-            console.log('Canvas not ready - getActiveObject is not a function');
-            console.log('getActiveObject type:', typeof canvas.current.getActiveObject);
             toast.error('Canvas not ready');
             return;
         }
 
-        console.log('Getting active object');
         const activeObject = canvas.current.getActiveObject();
-        console.log('Active object:', activeObject);
 
         if (activeObject) {
-            console.log('Scaling active object by:', scale);
             activeObject.scale(scale);
             canvas.current.renderAll();
             setObjectUpdateTrigger(prev => prev + 1);
-            console.log('Size changed successfully');
         } else {
-            console.log('No active object found');
             toast.error('Please select an object first');
         }
     };
@@ -1459,179 +1315,266 @@ const CakeCustomization = () => {
 
     return (
         <div className="h-screen flex flex-col bg-gray-50">
-            {/* Top Toolbar - Figma Style */}
-            <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                    <h1 className="text-lg font-semibold text-gray-900">Cake Designer</h1>
-                    <div className="h-4 w-px bg-gray-300"></div>
-                    {/* Scroll Lock Toggle */}
-                    <button
-                        onClick={() => setIsScrollLocked(!isScrollLocked)}
-                        className={`p-2 rounded hover:bg-gray-100 transition-colors ${isScrollLocked
-                            ? 'bg-red-100 text-red-600'
-                            : 'text-gray-600'
-                            }`}
-                        title={isScrollLocked ? "Unlock Scrolling" : "Lock Scrolling"}
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            {isScrollLocked ? (
-                                // Lock icon (when scroll is disabled)
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                            ) : (
-                                // Unlock icon (when scroll is enabled)
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                            )}
-                        </svg>
-                    </button>
-                    <div className="h-4 w-px bg-gray-300"></div>
-                    <div className="flex items-center space-x-2">
-                        <button
-                            onClick={() => setSelectedTool('select')}
-                            className={`p-2 rounded hover:bg-gray-100 transition-colors ${selectedTool === 'select'
-                                ? 'bg-blue-100 text-blue-600'
-                                : 'text-gray-600'
-                                }`}
-                            title="Select Tool (V)"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.122 2.122" />
-                            </svg>
-                        </button>
-                        <button
-                            onClick={() => setSelectedTool('text')}
-                            className={`p-2 rounded hover:bg-gray-100 transition-colors ${selectedTool === 'text'
-                                ? 'bg-blue-100 text-blue-600'
-                                : 'text-gray-600'
-                                }`}
-                            title="Text Tool (T)"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
-                            </svg>
-                        </button>
-                    </div>
+            <style jsx>{`
+                .slider::-webkit-slider-thumb {
+                    appearance: none;
+                    height: 20px;
+                    width: 20px;
+                    border-radius: 50%;
+                    background: #AF524D;
+                    cursor: pointer;
+                    border: 2px solid #fff;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                }
+                .slider::-moz-range-thumb {
+                    height: 20px;
+                    width: 20px;
+                    border-radius: 50%;
+                    background: #AF524D;
+                    cursor: pointer;
+                    border: 2px solid #fff;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                }
+            `}</style>
+            {/* Top Toolbar - Bakery Theme */}
+            <div className="bg-gradient-to-r from-[#F8E6B4] to-[#E2D2A2] border-b border-[#AF524D]/20 px-6 py-4 relative overflow-hidden">
+                {/* Background Pattern */}
+                <div className="absolute inset-0 opacity-5">
+                    <div className="absolute top-2 left-20 w-12 h-12 bg-[#AF524D] rounded-full blur-xl"></div>
+                    <div className="absolute top-2 right-20 w-16 h-16 bg-[#DFAD56] rounded-full blur-xl"></div>
+                    <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-20 h-20 bg-[#E2D2A2] rounded-full blur-2xl"></div>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                    <button
-                        onClick={() => changeSize(0.8)}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                        title="Decrease Size"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12H3" />
-                        </svg>
-                    </button>
-                    <button
-                        onClick={() => changeSize(1.2)}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                        title="Increase Size"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                    </button>
-                    <div className="h-4 w-px bg-gray-300"></div>
-                    <button
-                        onClick={bringToFront}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                        title="Bring to Front"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                        </svg>
-                    </button>
-                    <button
-                        onClick={sendToBack}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                        title="Send to Back"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8V20m0 0l-4-4m4 4l4-4M7 4v12m0 0l-4-4m4 4l4-4" />
-                        </svg>
-                    </button>
-                    <button
-                        onClick={bringForward}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                        title="Bring Forward"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
-                        </svg>
-                    </button>
-                    <button
-                        onClick={sendBackward}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                        title="Send Backward"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
-                        </svg>
-                    </button>
-                    <div className="h-4 w-px bg-gray-300"></div>
-                    <button
-                        onClick={deleteSelected}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="Delete Selected"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                    </button>
-                    <button
-                        onClick={clearCanvas}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                        title="Clear Canvas"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                    </button>
-                    <button
-                        onClick={exportDesign}
-                        className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
-                        title="Save Design"
-                    >
-                        Save
-                    </button>
+                <div className="relative z-10 flex items-center justify-between">
+                    {/* Left Section - Title and Tools */}
+                    <div className="flex items-center space-x-6">
+                        {/* Logo and Title */}
+                        <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-[#AF524D] to-[#8B3A3A] rounded-xl flex items-center justify-center shadow-lg">
+                                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-abhaya font-bold text-[#492220]">Cake Designer</h1>
+                                <p className="text-xs text-[#492220]/70">Create your perfect cake</p>
+                            </div>
+                        </div>
+
+                        <div className="h-8 w-px bg-[#AF524D]/30"></div>
+
+                        {/* Scroll Lock Toggle */}
+                        <div className="bg-white/70 backdrop-blur-sm rounded-xl p-2 border border-[#AF524D]/20">
+                            <button
+                                onClick={() => setIsScrollLocked(!isScrollLocked)}
+                                className={`p-2 rounded-lg transition-all duration-200 ${isScrollLocked
+                                    ? 'bg-red-100 text-red-600 border border-red-200'
+                                    : 'text-[#492220] hover:bg-[#AF524D]/10'
+                                    }`}
+                                title={isScrollLocked ? "Unlock Scrolling" : "Lock Scrolling"}
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    {isScrollLocked ? (
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    ) : (
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                                    )}
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="h-8 w-px bg-[#AF524D]/30"></div>
+
+                        {/* Tool Selection */}
+                        <div className="bg-white/70 backdrop-blur-sm rounded-xl p-2 border border-[#AF524D]/20 flex items-center space-x-1">
+                            <button
+                                onClick={() => setSelectedTool('select')}
+                                className={`p-2 rounded-lg transition-all duration-200 ${selectedTool === 'select'
+                                    ? 'bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white shadow-lg'
+                                    : 'text-[#492220] hover:bg-[#AF524D]/10'
+                                    }`}
+                                title="Select Tool (V)"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.122 2.122" />
+                                </svg>
+                            </button>
+                            <button
+                                onClick={() => setSelectedTool('text')}
+                                className={`p-2 rounded-lg transition-all duration-200 ${selectedTool === 'text'
+                                    ? 'bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white shadow-lg'
+                                    : 'text-[#492220] hover:bg-[#AF524D]/10'
+                                    }`}
+                                title="Text Tool (T)"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Right Section - Actions */}
+                    <div className="flex items-center space-x-3">
+                        {/* Size Controls */}
+                        <div className="bg-white/70 backdrop-blur-sm rounded-xl p-2 border border-[#AF524D]/20 flex items-center space-x-1">
+                            <button
+                                onClick={() => changeSize(0.8)}
+                                className="p-2 text-[#492220] hover:bg-[#AF524D]/10 rounded-lg transition-all duration-200"
+                                title="Decrease Size"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12H3" />
+                                </svg>
+                            </button>
+                            <button
+                                onClick={() => changeSize(1.2)}
+                                className="p-2 text-[#492220] hover:bg-[#AF524D]/10 rounded-lg transition-all duration-200"
+                                title="Increase Size"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="h-8 w-px bg-[#AF524D]/30"></div>
+
+                        {/* Layer Controls */}
+                        <div className="bg-white/70 backdrop-blur-sm rounded-xl p-2 border border-[#AF524D]/20 flex items-center space-x-1">
+                            <button
+                                onClick={bringToFront}
+                                className="p-2 text-[#492220] hover:bg-[#AF524D]/10 rounded-lg transition-all duration-200"
+                                title="Bring to Front"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                </svg>
+                            </button>
+                            <button
+                                onClick={sendToBack}
+                                className="p-2 text-[#492220] hover:bg-[#AF524D]/10 rounded-lg transition-all duration-200"
+                                title="Send to Back"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8V20m0 0l-4-4m4 4l4-4M7 4v12m0 0l-4-4m4 4l4-4" />
+                                </svg>
+                            </button>
+                            <button
+                                onClick={bringForward}
+                                className="p-2 text-[#492220] hover:bg-[#AF524D]/10 rounded-lg transition-all duration-200"
+                                title="Bring Forward"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                                </svg>
+                            </button>
+                            <button
+                                onClick={sendBackward}
+                                className="p-2 text-[#492220] hover:bg-[#AF524D]/10 rounded-lg transition-all duration-200"
+                                title="Send Backward"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="h-8 w-px bg-[#AF524D]/30"></div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={deleteSelected}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 border border-red-200 hover:border-red-300"
+                                title="Delete Selected"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                            <button
+                                onClick={clearCanvas}
+                                className="p-2 text-[#492220] hover:bg-[#AF524D]/10 rounded-lg transition-all duration-200 border border-[#AF524D]/20 hover:border-[#AF524D]/30"
+                                title="Clear Canvas"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                            </button>
+                            <button
+                                onClick={exportDesign}
+                                className="px-4 py-2 bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white text-sm font-semibold rounded-xl hover:from-[#8B3A3A] hover:to-[#AF524D] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                title="Save Design"
+                            >
+                                Save Design
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             {/* Main Content Area */}
             <div className="flex-1 flex min-h-0 overflow-hidden">
                 {/* Left Sidebar - Tools Panel */}
-                <div className="w-64 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
+                <div className="w-80 bg-gradient-to-br from-[#F8E6B4] to-[#E2D2A2] border-r border-[#AF524D]/20 flex flex-col overflow-hidden relative">
+                    {/* Background Pattern */}
+                    <div className="absolute inset-0 opacity-5">
+                        <div className="absolute top-10 left-10 w-16 h-16 bg-[#AF524D] rounded-full blur-2xl"></div>
+                        <div className="absolute bottom-10 right-10 w-20 h-20 bg-[#DFAD56] rounded-full blur-2xl"></div>
+                    </div>
 
                     {/* Text Controls */}
                     {selectedTool === 'text' && (
-                        <div className="p-4 border-b border-gray-200">
-                            <h3 className="text-sm font-medium text-gray-900 mb-3">Text</h3>
-                            <div className="space-y-3">
-                                <input
-                                    type="text"
-                                    value={textValue}
-                                    onChange={(e) => setTextValue(e.target.value)}
-                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                    placeholder="Enter text..."
-                                />
-                                <div>
-                                    <label className="block text-xs text-gray-600 mb-1">Size</label>
-                                    <input
-                                        type="range"
-                                        min="12"
-                                        max="72"
-                                        value={fontSize}
-                                        onChange={(e) => setFontSize(parseInt(e.target.value))}
-                                        className="w-full"
-                                    />
-                                    <span className="text-xs text-gray-500">{fontSize}px</span>
+                        <div className="p-6 border-b border-[#AF524D]/20 relative z-10">
+                            <div className="bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] rounded-2xl p-4 text-center relative overflow-hidden mb-6">
+                                <div className="absolute inset-0 bg-black/10"></div>
+                                <div className="relative z-10">
+                                    <div className="w-10 h-10 mx-auto mb-2 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                                        </svg>
+                                    </div>
+                                    <h3 className="text-lg font-abhaya font-bold text-white">Text Tool</h3>
+                                    <p className="text-white/80 text-xs">Add text to your design</p>
                                 </div>
-                                <div>
-                                    <label className="block text-xs text-gray-600 mb-1">Font</label>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                    <label className="block text-sm font-semibold text-[#492220] mb-2">Text Content</label>
+                                    <input
+                                        type="text"
+                                        value={textValue}
+                                        onChange={(e) => setTextValue(e.target.value)}
+                                        className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
+                                        placeholder="Enter text..."
+                                    />
+                                </div>
+                                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                    <label className="block text-sm font-semibold text-[#492220] mb-3">Font Size</label>
+                                    <div className="space-y-3">
+                                        <input
+                                            type="range"
+                                            min="12"
+                                            max="72"
+                                            value={fontSize}
+                                            onChange={(e) => setFontSize(parseInt(e.target.value))}
+                                            className="w-full h-2 bg-[#AF524D]/20 rounded-lg appearance-none cursor-pointer slider"
+                                            style={{
+                                                background: `linear-gradient(to right, #AF524D 0%, #AF524D ${((fontSize - 12) / (72 - 12)) * 100}%, #E5E7EB ${((fontSize - 12) / (72 - 12)) * 100}%, #E5E7EB 100%)`
+                                            }}
+                                        />
+                                        <div className="bg-gradient-to-r from-[#AF524D]/10 to-[#8B3A3A]/10 rounded-xl px-4 py-2 border border-[#AF524D]/20">
+                                            <div className="text-sm font-semibold text-[#492220] text-center">{fontSize}px</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                    <label className="block text-sm font-semibold text-[#492220] mb-2">Font Family</label>
                                     <select
                                         value={fontFamily}
                                         onChange={(e) => setFontFamily(e.target.value)}
-                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220]"
                                     >
                                         <option value="Arial">Arial</option>
                                         <option value="Times New Roman">Times New Roman</option>
@@ -1642,9 +1585,9 @@ const CakeCustomization = () => {
                                 </div>
                                 <button
                                     onClick={addText}
-                                    className="w-full px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                                    className="w-full px-4 py-3 bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white text-sm font-semibold rounded-xl hover:from-[#8B3A3A] hover:to-[#AF524D] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                                 >
-                                    Add Text
+                                    Add Text to Canvas
                                 </button>
                             </div>
                         </div>
@@ -1653,50 +1596,64 @@ const CakeCustomization = () => {
                     {/* Assets Panel with Tabs */}
                     <div className="flex-1 overflow-y-auto min-h-0">
                         {/* Asset Type Tabs */}
-                        <div className="flex space-x-1 p-4 pb-2 bg-gray-50 border-b border-gray-200">
-                            <button
-                                onClick={() => setSelectedAssetType('cake base')}
-                                className={`flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors ${selectedAssetType === 'cake base'
-                                    ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
-                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                                    }`}
-                            >
-                                Cake Bases
-                            </button>
-                            <button
-                                onClick={() => setSelectedAssetType('icing')}
-                                className={`flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors ${selectedAssetType === 'icing'
-                                    ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
-                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                                    }`}
-                            >
-                                Icing
-                            </button>
-                            <button
-                                onClick={() => setSelectedAssetType('topping')}
-                                className={`flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors ${selectedAssetType === 'topping'
-                                    ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
-                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                                    }`}
-                            >
-                                Toppings
-                            </button>
+                        <div className="p-6 pb-4 relative z-10">
+                            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                <h3 className="text-lg font-abhaya font-bold text-[#492220] mb-4 text-center">Design Assets</h3>
+                                <div className="grid grid-cols-1 gap-2">
+                                    <button
+                                        onClick={() => setSelectedAssetType('cake base')}
+                                        className={`py-3 px-4 text-sm font-semibold rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 ${selectedAssetType === 'cake base'
+                                            ? 'bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white shadow-lg'
+                                            : 'bg-white/50 text-[#492220] hover:bg-[#AF524D]/10 hover:border-[#AF524D] border border-[#AF524D]/20'
+                                            }`}
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        <span>Cake Bases</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedAssetType('icing')}
+                                        className={`py-3 px-4 text-sm font-semibold rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 ${selectedAssetType === 'icing'
+                                            ? 'bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white shadow-lg'
+                                            : 'bg-white/50 text-[#492220] hover:bg-[#AF524D]/10 hover:border-[#AF524D] border border-[#AF524D]/20'
+                                            }`}
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                        </svg>
+                                        <span>Icing & Decorations</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedAssetType('topping')}
+                                        className={`py-3 px-4 text-sm font-semibold rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 ${selectedAssetType === 'topping'
+                                            ? 'bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white shadow-lg'
+                                            : 'bg-white/50 text-[#492220] hover:bg-[#AF524D]/10 hover:border-[#AF524D] border border-[#AF524D]/20'
+                                            }`}
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                                        </svg>
+                                        <span>Toppings</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Asset Content */}
-                        <div className="p-4">
+                        <div className="px-6 pb-6 relative z-10">
                             {selectedAssetType === 'cake base' && (
-                                <div>
-                                    <h3 className="text-sm font-medium text-gray-900 mb-3">Cake Bases</h3>
+                                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                    <h3 className="text-lg font-abhaya font-bold text-[#492220] mb-4 text-center">Cake Bases</h3>
                                     {cakeImages.length > 0 ? (
-                                        <div className="space-y-2">
+                                        <div className="grid grid-cols-2 gap-3">
                                             {cakeImages.map((cake) => (
                                                 <div key={cake.cake_id} className="group cursor-pointer">
-                                                    <div className="relative">
+                                                    <div className="relative bg-white/50 rounded-xl p-2 border border-[#AF524D]/20 hover:border-[#AF524D] transition-all duration-200">
                                                         <img
                                                             src={cake.publicUrl}
                                                             alt={cake.name}
-                                                            className="w-full object-contain rounded border border-gray-200 group-hover:border-blue-300 transition-colors"
+                                                            className="w-full object-contain rounded-lg group-hover:scale-105 transition-transform duration-200"
                                                             style={{ height: 'auto', maxHeight: '80px' }}
                                                             onError={(e) => {
                                                                 e.target.src = "/saved-cake.png";
@@ -1704,35 +1661,40 @@ const CakeCustomization = () => {
                                                         />
                                                         <button
                                                             onClick={() => addCakeBase(cake)}
-                                                            className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-colors duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100"
+                                                            className="absolute inset-0 bg-gradient-to-t from-[#AF524D]/80 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-end justify-center pb-2"
                                                         >
-                                                            <span className="text-white text-xs font-medium">Add</span>
+                                                            <span className="text-white text-xs font-semibold bg-black/50 px-2 py-1 rounded-lg">Add to Canvas</span>
                                                         </button>
                                                     </div>
-                                                    <p className="text-xs text-gray-600 mt-1 truncate">{cake.name}</p>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="text-sm text-gray-500 text-center py-4">
-                                            No cake bases found
+                                        <div className="text-center py-8">
+                                            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-[#AF524D]/20 to-[#8B3A3A]/20 rounded-2xl flex items-center justify-center">
+                                                <svg className="w-8 h-8 text-[#AF524D]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                            </div>
+                                            <h4 className="text-lg font-abhaya font-semibold text-[#492220] mb-2">No Cake Bases</h4>
+                                            <p className="text-sm text-[#492220]/70">No cake bases available</p>
                                         </div>
                                     )}
                                 </div>
                             )}
 
                             {selectedAssetType === 'icing' && (
-                                <div>
-                                    <h3 className="text-sm font-medium text-gray-900 mb-3">Icing & Decorations</h3>
+                                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                    <h3 className="text-lg font-abhaya font-bold text-[#492220] mb-4 text-center">Icing & Decorations</h3>
                                     {decorations.length > 0 ? (
-                                        <div className="space-y-2">
+                                        <div className="grid grid-cols-2 gap-3">
                                             {decorations.map((decoration) => (
                                                 <div key={decoration.id} className="group cursor-pointer">
-                                                    <div className="relative">
+                                                    <div className="relative bg-white/50 rounded-xl p-2 border border-[#AF524D]/20 hover:border-[#AF524D] transition-all duration-200">
                                                         <img
                                                             src={getPublicImageUrl(decoration.image_path)}
                                                             alt={decoration.name}
-                                                            className="w-full object-contain rounded border border-gray-200 group-hover:border-blue-300 transition-colors"
+                                                            className="w-full object-contain rounded-lg group-hover:scale-105 transition-transform duration-200"
                                                             style={{ height: 'auto', maxHeight: '80px' }}
                                                             onError={(e) => {
                                                                 console.error('Decoration image failed to load in UI:', decoration.image_path);
@@ -1741,35 +1703,40 @@ const CakeCustomization = () => {
                                                         />
                                                         <button
                                                             onClick={() => addDecoration(decoration)}
-                                                            className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-colors duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100"
+                                                            className="absolute inset-0 bg-gradient-to-t from-[#AF524D]/80 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-end justify-center pb-2"
                                                         >
-                                                            <span className="text-white text-xs font-medium">Add</span>
+                                                            <span className="text-white text-xs font-semibold bg-black/50 px-2 py-1 rounded-lg">Add to Canvas</span>
                                                         </button>
                                                     </div>
-                                                    <p className="text-xs text-gray-600 mt-1 truncate">{decoration.name}</p>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="text-sm text-gray-500 text-center py-4">
-                                            No icing decorations found
+                                        <div className="text-center py-8">
+                                            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-[#AF524D]/20 to-[#8B3A3A]/20 rounded-2xl flex items-center justify-center">
+                                                <svg className="w-8 h-8 text-[#AF524D]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                                </svg>
+                                            </div>
+                                            <h4 className="text-lg font-abhaya font-semibold text-[#492220] mb-2">No Decorations</h4>
+                                            <p className="text-sm text-[#492220]/70">No decorations available</p>
                                         </div>
                                     )}
                                 </div>
                             )}
 
                             {selectedAssetType === 'topping' && (
-                                <div>
-                                    <h3 className="text-sm font-medium text-gray-900 mb-3">Toppings</h3>
+                                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                    <h3 className="text-lg font-abhaya font-bold text-[#492220] mb-4 text-center">Toppings</h3>
                                     {toppings.length > 0 ? (
-                                        <div className="space-y-2">
+                                        <div className="grid grid-cols-2 gap-3">
                                             {toppings.map((topping) => (
                                                 <div key={topping.id} className="group cursor-pointer">
-                                                    <div className="relative">
+                                                    <div className="relative bg-white/50 rounded-xl p-2 border border-[#AF524D]/20 hover:border-[#AF524D] transition-all duration-200">
                                                         <img
                                                             src={getPublicImageUrl(topping.src)}
                                                             alt={topping.name}
-                                                            className="w-full object-contain rounded border border-gray-200 group-hover:border-blue-300 transition-colors"
+                                                            className="w-full object-contain rounded-lg group-hover:scale-105 transition-transform duration-200"
                                                             style={{ height: 'auto', maxHeight: '80px' }}
                                                             onError={(e) => {
                                                                 console.error('Topping image failed to load in UI:', topping.src);
@@ -1778,18 +1745,23 @@ const CakeCustomization = () => {
                                                         />
                                                         <button
                                                             onClick={() => addTopping(topping)}
-                                                            className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-colors duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100"
+                                                            className="absolute inset-0 bg-gradient-to-t from-[#AF524D]/80 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-end justify-center pb-2"
                                                         >
-                                                            <span className="text-white text-xs font-medium">Add</span>
+                                                            <span className="text-white text-xs font-semibold bg-black/50 px-2 py-1 rounded-lg">Add to Canvas</span>
                                                         </button>
                                                     </div>
-                                                    <p className="text-xs text-gray-600 mt-1 truncate">{topping.name}</p>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="text-sm text-gray-500 text-center py-4">
-                                            No toppings found
+                                        <div className="text-center py-8">
+                                            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-[#AF524D]/20 to-[#8B3A3A]/20 rounded-2xl flex items-center justify-center">
+                                                <svg className="w-8 h-8 text-[#AF524D]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                                                </svg>
+                                            </div>
+                                            <h4 className="text-lg font-abhaya font-semibold text-[#492220] mb-2">No Toppings</h4>
+                                            <p className="text-sm text-[#492220]/70">No toppings available</p>
                                         </div>
                                     )}
                                 </div>
@@ -1799,187 +1771,319 @@ const CakeCustomization = () => {
                 </div>
 
                 {/* Canvas Area */}
-                <div className="flex-1 bg-gray-100 flex items-center justify-center p-4 min-h-0 overflow-hidden">
-                    <div className="bg-white shadow-lg rounded-lg overflow-hidden w-full h-full min-w-[800px] min-h-[600px]">
-                        <canvas ref={canvasRef} className="w-full h-full" />
+                <div className="flex-1 bg-gradient-to-br from-[#F8E6B4] to-[#E2D2A2] flex items-center justify-center p-6 min-h-0 overflow-hidden relative">
+                    {/* Background Pattern */}
+                    <div className="absolute inset-0 opacity-5">
+                        <div className="absolute top-20 left-20 w-32 h-32 bg-[#AF524D] rounded-full blur-3xl"></div>
+                        <div className="absolute bottom-20 right-20 w-40 h-40 bg-[#DFAD56] rounded-full blur-3xl"></div>
+                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-60 h-60 bg-[#E2D2A2] rounded-full blur-3xl"></div>
+                    </div>
+
+                    {/* Floating Elements */}
+                    <div className="absolute top-10 left-10 animate-bounce">
+                        <div className="w-6 h-6 bg-[#DFAD56] rounded-full opacity-60"></div>
+                    </div>
+                    <div className="absolute top-20 right-20 animate-pulse">
+                        <div className="w-4 h-4 bg-[#AF524D] rounded-full opacity-40"></div>
+                    </div>
+                    <div className="absolute bottom-20 left-20 animate-bounce delay-1000">
+                        <div className="w-8 h-8 bg-[#E2D2A2] rounded-full opacity-50"></div>
+                    </div>
+
+                    {/* Canvas Container */}
+                    <div className="relative z-10 w-full h-full flex items-center justify-center">
+                        <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden w-full h-full min-w-[800px] min-h-[600px] relative">
+                            {/* Canvas Content */}
+                            <div className="bg-white h-full">
+                                <canvas ref={canvasRef} className="w-full h-full" />
+                            </div>
+
+                            {/* Canvas Footer */}
+                            <div className="bg-gradient-to-r from-[#AF524D]/10 to-[#8B3A3A]/10 p-3 border-t border-[#AF524D]/20">
+                                <div className="flex items-center justify-center space-x-4 text-sm text-[#492220]/70">
+                                    <div className="flex items-center space-x-1">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.122 2.122" />
+                                        </svg>
+                                        <span>Drag & Drop</span>
+                                    </div>
+                                    <div className="w-1 h-1 bg-[#AF524D]/30 rounded-full"></div>
+                                    <div className="flex items-center space-x-1">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                                        </svg>
+                                        <span>Add Text</span>
+                                    </div>
+                                    <div className="w-1 h-1 bg-[#AF524D]/30 rounded-full"></div>
+                                    <div className="flex items-center space-x-1">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        <span>Customize</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 {/* Right Sidebar - Properties Panel */}
-                <div className="w-64 bg-white border-l border-gray-200 p-4">
-                    <h3 className="text-sm font-medium text-gray-900 mb-3">Properties</h3>
+                <div className="w-80 bg-gradient-to-br from-[#F8E6B4] to-[#E2D2A2] border-l border-[#AF524D]/20 p-6 relative overflow-y-auto max-h-full">
+                    {/* Background Pattern */}
+                    <div className="absolute inset-0 opacity-5">
+                        <div className="absolute top-10 right-10 w-16 h-16 bg-[#AF524D] rounded-full blur-2xl"></div>
+                        <div className="absolute bottom-10 left-10 w-20 h-20 bg-[#DFAD56] rounded-full blur-2xl"></div>
+                    </div>
+
+                    {/* Header */}
+                    <div className="relative z-10 mb-6">
+                        <div className="bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] rounded-2xl p-4 text-center relative overflow-hidden">
+                            <div className="absolute inset-0 bg-black/10"></div>
+                            <div className="relative z-10">
+                                <div className="w-12 h-12 mx-auto mb-2 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                </div>
+                                <h3 className="text-lg font-abhaya font-bold text-white">Properties</h3>
+                                <p className="text-white/80 text-xs">Customize your design</p>
+                            </div>
+                        </div>
+                    </div>
                     {selectedObject ? (
                         // Use objectUpdateTrigger to force re-render when object properties change
-                        <div key={objectUpdateTrigger} className="space-y-4">
+                        <div key={objectUpdateTrigger} className="space-y-6 relative z-10 pb-4">
                             {/* Color Picker - Only show when text object is selected */}
                             {selectedObject.type === 'text' && (
-                                <div>
-                                    <label className="block text-xs text-gray-600 mb-1">Color</label>
-                                    <div className="flex flex-col items-center space-y-3">
-                                        <canvas
-                                            ref={colorWheelRef}
-                                            width="120"
-                                            height="120"
-                                            className="border border-gray-300 rounded cursor-pointer"
-                                            onMouseDown={handleMouseDown}
-                                            title="Click and drag to select color"
-                                        />
-                                        <div className="flex items-center space-x-2">
-                                            <span className="text-sm text-gray-600 font-mono">{selectedColor}</span>
+                                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                    <label className="block text-sm font-semibold text-[#492220] mb-3">Text Color</label>
+                                    <div className="flex flex-col items-center space-y-4">
+                                        <div className="bg-white/50 rounded-xl p-3 border border-[#AF524D]/20">
+                                            <canvas
+                                                ref={colorWheelRef}
+                                                width="120"
+                                                height="120"
+                                                className="border-2 border-[#AF524D]/30 rounded-xl cursor-pointer shadow-lg"
+                                                onMouseDown={handleMouseDown}
+                                                title="Click and drag to select color"
+                                            />
+                                        </div>
+                                        <div className="flex items-center space-x-3 bg-white/50 rounded-xl px-4 py-2 border border-[#AF524D]/20">
+                                            <div className="w-6 h-6 rounded-full border-2 border-[#AF524D]/30" style={{ backgroundColor: selectedColor }}></div>
+                                            <span className="text-sm font-mono text-[#492220] font-semibold">{selectedColor}</span>
                                         </div>
                                     </div>
                                 </div>
                             )}
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Type</label>
-                                <div className="text-sm font-medium text-gray-900 capitalize">
-                                    {selectedObject.type}
+                            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                <label className="block text-sm font-semibold text-[#492220] mb-2">Object Type</label>
+                                <div className="bg-gradient-to-r from-[#AF524D]/10 to-[#8B3A3A]/10 rounded-xl px-4 py-3 border border-[#AF524D]/20">
+                                    <div className="flex items-center space-x-2">
+                                        <div className="w-2 h-2 bg-[#AF524D] rounded-full"></div>
+                                        <span className="text-sm font-semibold text-[#492220] capitalize">{selectedObject.type}</span>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Layer Order</label>
-                                <div className="text-sm font-medium text-gray-900">
-                                    {canvas.current.getObjects().indexOf(selectedObject) + 1} of {canvas.current.getObjects().length}
+                            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                <label className="block text-sm font-semibold text-[#492220] mb-3">Layer Order</label>
+                                <div className="bg-gradient-to-r from-[#AF524D]/10 to-[#8B3A3A]/10 rounded-xl px-4 py-3 border border-[#AF524D]/20 mb-4">
+                                    <div className="text-sm font-semibold text-[#492220] text-center">
+                                        {canvas.current.getObjects().indexOf(selectedObject) + 1} of {canvas.current.getObjects().length}
+                                    </div>
                                 </div>
-                                <div className="flex gap-1 mt-2">
+                                <div className="grid grid-cols-2 gap-2">
                                     <button
                                         onClick={sendBackward}
-                                        className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                                        className="px-3 py-2 text-xs bg-white/70 hover:bg-[#AF524D]/10 border border-[#AF524D]/20 rounded-xl transition-all duration-200 text-[#492220] font-semibold hover:border-[#AF524D] flex items-center justify-center space-x-1"
                                         title="Send Backward"
                                     >
-                                        ↓
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                        </svg>
+                                        <span>Back</span>
                                     </button>
                                     <button
                                         onClick={bringForward}
-                                        className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                                        className="px-3 py-2 text-xs bg-white/70 hover:bg-[#AF524D]/10 border border-[#AF524D]/20 rounded-xl transition-all duration-200 text-[#492220] font-semibold hover:border-[#AF524D] flex items-center justify-center space-x-1"
                                         title="Bring Forward"
                                     >
-                                        ↑
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                        </svg>
+                                        <span>Front</span>
                                     </button>
                                     <button
                                         onClick={sendToBack}
-                                        className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                                        className="px-3 py-2 text-xs bg-white/70 hover:bg-[#AF524D]/10 border border-[#AF524D]/20 rounded-xl transition-all duration-200 text-[#492220] font-semibold hover:border-[#AF524D] flex items-center justify-center space-x-1"
                                         title="Send to Back"
                                     >
-                                        ⬇
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                        </svg>
+                                        <span>Bottom</span>
                                     </button>
                                     <button
                                         onClick={bringToFront}
-                                        className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                                        className="px-3 py-2 text-xs bg-white/70 hover:bg-[#AF524D]/10 border border-[#AF524D]/20 rounded-xl transition-all duration-200 text-[#492220] font-semibold hover:border-[#AF524D] flex items-center justify-center space-x-1"
                                         title="Bring to Front"
                                     >
-                                        ⬆
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                        </svg>
+                                        <span>Top</span>
                                     </button>
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Position</label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <input
-                                        type="number"
-                                        value={Math.round(selectedObject.left || 0)}
-                                        onChange={(e) => {
-                                            selectedObject.set('left', parseFloat(e.target.value));
-                                            canvas.current.renderAll();
-                                            setObjectUpdateTrigger(prev => prev + 1);
-                                        }}
-                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                    />
-                                    <input
-                                        type="number"
-                                        value={Math.round(selectedObject.top || 0)}
-                                        onChange={(e) => {
-                                            selectedObject.set('top', parseFloat(e.target.value));
-                                            canvas.current.renderAll();
-                                            setObjectUpdateTrigger(prev => prev + 1);
-                                        }}
-                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                    />
+                            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                <label className="block text-sm font-semibold text-[#492220] mb-3">Position</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="block text-xs font-medium text-[#492220]/70">X Position</label>
+                                        <input
+                                            type="number"
+                                            value={Math.round(selectedObject.left || 0)}
+                                            onChange={(e) => {
+                                                selectedObject.set('left', parseFloat(e.target.value));
+                                                canvas.current.renderAll();
+                                                setObjectUpdateTrigger(prev => prev + 1);
+                                            }}
+                                            className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
+                                            placeholder="X"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="block text-xs font-medium text-[#492220]/70">Y Position</label>
+                                        <input
+                                            type="number"
+                                            value={Math.round(selectedObject.top || 0)}
+                                            onChange={(e) => {
+                                                selectedObject.set('top', parseFloat(e.target.value));
+                                                canvas.current.renderAll();
+                                                setObjectUpdateTrigger(prev => prev + 1);
+                                            }}
+                                            className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
+                                            placeholder="Y"
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Size</label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <input
-                                        type="number"
-                                        value={Math.round(selectedObject.width * (selectedObject.scaleX || 1))}
-                                        onChange={(e) => {
-                                            const newWidth = parseFloat(e.target.value);
-                                            const scaleX = newWidth / selectedObject.width;
-                                            selectedObject.set('scaleX', scaleX);
-                                            canvas.current.renderAll();
-                                            setObjectUpdateTrigger(prev => prev + 1);
-                                        }}
-                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                    />
-                                    <input
-                                        type="number"
-                                        value={Math.round(selectedObject.height * (selectedObject.scaleY || 1))}
-                                        onChange={(e) => {
-                                            const newHeight = parseFloat(e.target.value);
-                                            const scaleY = newHeight / selectedObject.height;
-                                            selectedObject.set('scaleY', scaleY);
-                                            canvas.current.renderAll();
-                                            setObjectUpdateTrigger(prev => prev + 1);
-                                        }}
-                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                    />
+                            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                <label className="block text-sm font-semibold text-[#492220] mb-3">Size</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="block text-xs font-medium text-[#492220]/70">Width</label>
+                                        <input
+                                            type="number"
+                                            value={Math.round(selectedObject.width * (selectedObject.scaleX || 1))}
+                                            onChange={(e) => {
+                                                const newWidth = parseFloat(e.target.value);
+                                                const scaleX = newWidth / selectedObject.width;
+                                                selectedObject.set('scaleX', scaleX);
+                                                canvas.current.renderAll();
+                                                setObjectUpdateTrigger(prev => prev + 1);
+                                            }}
+                                            className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
+                                            placeholder="Width"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="block text-xs font-medium text-[#492220]/70">Height</label>
+                                        <input
+                                            type="number"
+                                            value={Math.round(selectedObject.height * (selectedObject.scaleY || 1))}
+                                            onChange={(e) => {
+                                                const newHeight = parseFloat(e.target.value);
+                                                const scaleY = newHeight / selectedObject.height;
+                                                selectedObject.set('scaleY', scaleY);
+                                                canvas.current.renderAll();
+                                                setObjectUpdateTrigger(prev => prev + 1);
+                                            }}
+                                            className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
+                                            placeholder="Height"
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Rotation</label>
-                                <input
-                                    type="number"
-                                    value={Math.round(selectedObject.angle || 0)}
-                                    onChange={(e) => {
-                                        selectedObject.set('angle', parseFloat(e.target.value));
-                                        canvas.current.renderAll();
-                                        setObjectUpdateTrigger(prev => prev + 1);
-                                    }}
-                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                />
+                            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                <label className="block text-sm font-semibold text-[#492220] mb-3">Rotation</label>
+                                <div className="space-y-1">
+                                    <input
+                                        type="number"
+                                        value={Math.round(selectedObject.angle || 0)}
+                                        onChange={(e) => {
+                                            selectedObject.set('angle', parseFloat(e.target.value));
+                                            canvas.current.renderAll();
+                                            setObjectUpdateTrigger(prev => prev + 1);
+                                        }}
+                                        className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
+                                        placeholder="Rotation (degrees)"
+                                    />
+                                    <div className="text-xs text-[#492220]/70 text-center">Degrees (0-360)</div>
+                                </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs text-gray-600 mb-1">Opacity</label>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="100"
-                                    value={Math.round((selectedObject.opacity || 1) * 100)}
-                                    onChange={(e) => {
-                                        selectedObject.set('opacity', parseFloat(e.target.value) / 100);
-                                        canvas.current.renderAll();
-                                        setObjectUpdateTrigger(prev => prev + 1);
-                                    }}
-                                    className="w-full"
-                                />
-                                <span className="text-xs text-gray-500">{Math.round((selectedObject.opacity || 1) * 100)}%</span>
+                            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                <label className="block text-sm font-semibold text-[#492220] mb-3">Opacity</label>
+                                <div className="space-y-3">
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="100"
+                                        value={Math.round((selectedObject.opacity || 1) * 100)}
+                                        onChange={(e) => {
+                                            selectedObject.set('opacity', parseFloat(e.target.value) / 100);
+                                            canvas.current.renderAll();
+                                            setObjectUpdateTrigger(prev => prev + 1);
+                                        }}
+                                        className="w-full h-2 bg-[#AF524D]/20 rounded-lg appearance-none cursor-pointer slider"
+                                        style={{
+                                            background: `linear-gradient(to right, #AF524D 0%, #AF524D ${Math.round((selectedObject.opacity || 1) * 100)}%, #E5E7EB ${Math.round((selectedObject.opacity || 1) * 100)}%, #E5E7EB 100%)`
+                                        }}
+                                    />
+                                    <div className="bg-gradient-to-r from-[#AF524D]/10 to-[#8B3A3A]/10 rounded-xl px-4 py-2 border border-[#AF524D]/20">
+                                        <div className="text-sm font-semibold text-[#492220] text-center">
+                                            {Math.round((selectedObject.opacity || 1) * 100)}%
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             {selectedObject.type === 'text' && (
-                                <div>
-                                    <label className="block text-xs text-gray-600 mb-1">Text</label>
-                                    <input
-                                        type="text"
-                                        value={selectedObject.text || ''}
-                                        onChange={(e) => {
-                                            selectedObject.set('text', e.target.value);
-                                            canvas.current.renderAll();
-                                            setObjectUpdateTrigger(prev => prev + 1);
-                                        }}
-                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                    />
+                                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                    <label className="block text-sm font-semibold text-[#492220] mb-3">Text Content</label>
+                                    <div className="space-y-1">
+                                        <input
+                                            type="text"
+                                            value={selectedObject.text || ''}
+                                            onChange={(e) => {
+                                                selectedObject.set('text', e.target.value);
+                                                canvas.current.renderAll();
+                                                setObjectUpdateTrigger(prev => prev + 1);
+                                            }}
+                                            className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
+                                            placeholder="Enter text..."
+                                        />
+                                        <div className="text-xs text-[#492220]/70 text-center">Edit the text content</div>
+                                    </div>
                                 </div>
                             )}
                         </div>
                     ) : (
-                        <div className="text-sm text-gray-500 text-center py-8">
-                            Select an object to view its properties
+                        <div className="text-center py-12 relative z-10">
+                            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 border border-[#AF524D]/20">
+                                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-[#AF524D]/20 to-[#8B3A3A]/20 rounded-2xl flex items-center justify-center">
+                                    <svg className="w-8 h-8 text-[#AF524D]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.122 2.122" />
+                                    </svg>
+                                </div>
+                                <h4 className="text-lg font-abhaya font-semibold text-[#492220] mb-2">No Object Selected</h4>
+                                <p className="text-sm text-[#492220]/70">Click on an object to customize its properties</p>
+                            </div>
                         </div>
                     )}
                 </div>

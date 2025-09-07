@@ -15,7 +15,7 @@
     "@supabase/supabase-js": "^2.50.5",
     "@tailwindcss/vite": "^4.1.11",
     "fabric": "^6.7.1",
-    "motion": "^12.23.3",
+    "framer-motion": "^12.23.3",
     "qrcode": "^1.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

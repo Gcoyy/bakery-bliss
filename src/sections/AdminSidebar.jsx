@@ -8,14 +8,6 @@ const AdminSidebar = () => {
   const adminIndex = pathSegments.indexOf('adminpage');
   const currentPath = adminIndex !== -1 && pathSegments[adminIndex + 1] ? pathSegments[adminIndex + 1] : 'inventory';
 
-  // Debug logging
-  console.log('🔍 AdminSidebar Debug:', {
-    fullPath: location.pathname,
-    pathSegments,
-    adminIndex,
-    currentPath,
-    decodedPath: decodeURIComponent(currentPath)
-  });
 
   return (
     <aside className="w-52 bg-white border-4 border-[#AF524D] py-4 px-2 rounded-2xl max-h-fit">
@@ -32,12 +24,6 @@ const AdminSidebar = () => {
           const decodedCurrentPath = decodeURIComponent(currentPath);
           const isActive = decodedCurrentPath === opt.path;
 
-          console.log(`🔍 Checking ${opt.name}:`, {
-            optPath: opt.path,
-            currentPath,
-            decodedCurrentPath,
-            isActive
-          });
 
           return (
             <Link
