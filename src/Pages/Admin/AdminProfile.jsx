@@ -39,8 +39,11 @@ const AdminProfile = () => {
   }, [session]);
 
   const handleSignOut = async () => {
+    console.log("=== Admin Profile Sign Out Button Clicked ===");
     try {
+      console.log("Calling signOut...");
       await signOut();
+      console.log("Sign out completed, navigating to login...");
       navigate('/login');
       setTimeout(() => window.scrollTo(0, 0), 100);
     } catch (error) {

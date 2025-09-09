@@ -65,8 +65,11 @@ const Profile = () => {
 
   // Function to handle sign out
   const handleSignOut = async () => {
+    console.log("=== Profile Sign Out Button Clicked ===");
     try {
+      console.log("Calling signOut...");
       await signOut();
+      console.log("Sign out completed, navigating to login...");
       navigate("/login"); // Redirect to login page
       // Scroll to top after navigation
       setTimeout(() => window.scrollTo(0, 0), 100);

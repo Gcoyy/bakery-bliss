@@ -83,11 +83,43 @@ export const AuthContextProvider = ({ children }) => {
 
   // Sign out
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error("Sign-out error:", error);
-    } else {
+    console.log("=== Sign Out Called ===");
+    console.log("Current session before sign out:", session);
+
+    // If no session exists, just clear the local state
+    if (!session) {
+      console.log("No session found, clearing local state only");
       setUserRole(null);
+      setSession(null);
+      return;
+    }
+
+    try {
+      // Use scope: 'local' to sign out locally without requiring an active session
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      if (error) {
+        console.error("Sign-out error:", error);
+        // Even if Supabase signOut fails, clear local state
+        setUserRole(null);
+        setSession(null);
+      } else {
+        console.log("Sign out successful, clearing user role");
+        setUserRole(null);
+        setSession(null);
+      }
+    } catch (error) {
+      console.error("Unexpected error during sign out:", error);
+      // Clear local state even if there's an unexpected error
+      setUserRole(null);
+      setSession(null);
+    }
+
+    // Additional fallback: Clear any remaining session data from localStorage
+    try {
+      localStorage.removeItem('sb-' + supabase.supabaseUrl.split('//')[1].split('.')[0] + '-auth-token');
+      console.log("Cleared auth token from localStorage");
+    } catch (localStorageError) {
+      console.log("Could not clear localStorage:", localStorageError);
     }
   };
 
@@ -190,11 +222,17 @@ export const AuthContextProvider = ({ children }) => {
     init();
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        console.log("=== Auth State Change ===");
+        console.log("Event:", event);
+        console.log("Session:", session);
+
         setSession(session);
         if (session?.user) {
+          console.log("User found, fetching role...");
           fetchUserRole(session.user.id);
         } else {
+          console.log("No user, clearing role");
           setUserRole(null);
         }
       }
