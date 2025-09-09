@@ -40,8 +40,11 @@ function AppRoutes() {
         <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
         <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
 
-        {/* Root path with role-based redirect */}
-        <Route path="/" element={<RoleBasedRedirect />} />
+        {/* Root path - accessible to everyone */}
+        <Route path="/" element={<PageTransition><Home /></PageTransition>} />
+
+        {/* Dashboard route with role-based redirect for logged-in users */}
+        <Route path="/dashboard" element={<RoleBasedRedirect />} />
 
         {/* Public routes */}
         <Route path="/home" element={<PageTransition><Home /></PageTransition>} />
