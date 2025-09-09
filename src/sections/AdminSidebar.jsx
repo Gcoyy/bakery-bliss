@@ -19,6 +19,7 @@ const AdminSidebar = () => {
           { name: "Custom Cake Assets", path: "custom cake assets" },
           { name: "Blocked Dates", path: "blocked dates" },
           { name: "Recipe Management", path: "recipe management" },
+          { name: "Asset Ingredient Management", path: "asset ingredient management" },
         ].map((opt, i) => {
           // Check if this option is active - handle URL encoding
           const decodedCurrentPath = decodeURIComponent(currentPath);

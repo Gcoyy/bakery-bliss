@@ -40,6 +40,12 @@ const CakeCustomization = () => {
     const [customCakeImage, setCustomCakeImage] = useState(null);
     const [isScrollLocked, setIsScrollLocked] = useState(false);
 
+    // Custom calendar states
+    const [showCustomCalendar, setShowCustomCalendar] = useState(false);
+    const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [blockedDates, setBlockedDates] = useState([]);
+    const [dateCapacity, setDateCapacity] = useState({});
+
 
     // Scroll lock functionality
     useEffect(() => {
@@ -199,6 +205,128 @@ const CakeCustomization = () => {
             }
         } catch (error) {
         }
+    };
+
+    // Order count function
+    const getOrdersCountForDate = async (date) => {
+        try {
+            const { data: orders, error } = await supabase
+                .from('CAKE-ORDERS')
+                .select('order_id')
+                .eq('order_schedule', date);
+
+            if (error) {
+                console.error('Error fetching orders count:', error);
+                return 0;
+            }
+
+            return orders ? orders.length : 0;
+        } catch (error) {
+            console.error('Error fetching orders count:', error);
+            return 0;
+        }
+    };
+
+    // Custom calendar helper functions
+    const formatDateForCalendar = (date) => {
+        return date.toISOString().split('T')[0];
+    };
+
+    const isDateInPast = (date) => {
+        const today = new Date();
+        today.setHours(12, 0, 0, 0);
+        const compareDate = new Date(date);
+        compareDate.setHours(12, 0, 0, 0);
+
+        // Calculate minimum date (7 days from today)
+        const minimumDate = new Date(today);
+        minimumDate.setDate(today.getDate() + 7);
+
+        return compareDate < minimumDate;
+    };
+
+    const isDateBlockedInCalendar = (date) => {
+        const dateString = formatDateForCalendar(date);
+        return blockedDates.some(blocked => {
+            const blockedDate = new Date(blocked.start_date);
+            return formatDateForCalendar(blockedDate) === dateString && blocked.whole_day;
+        });
+    };
+
+    const getDaysInMonth = (date) => {
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const daysInMonth = lastDay.getDate();
+        const startingDayOfWeek = firstDay.getDay();
+
+        const days = [];
+
+        // Add empty cells for days before the first day of the month
+        for (let i = 0; i < startingDayOfWeek; i++) {
+            days.push(null);
+        }
+
+        // Add days of the month - create dates at noon to avoid timezone issues
+        for (let day = 1; day <= daysInMonth; day++) {
+            days.push(new Date(year, month, day, 12, 0, 0));
+        }
+
+        return days;
+    };
+
+    const handleDateSelect = (date) => {
+        if (isDateInPast(date) || isDateBlockedInCalendar(date)) {
+            return;
+        }
+
+        const dateString = formatDateForCalendar(date);
+        setOrderDate(dateString);
+        setShowCustomCalendar(false);
+    };
+
+    const navigateMonth = (direction) => {
+        setCurrentMonth(prev => {
+            const newMonth = new Date(prev);
+            newMonth.setMonth(prev.getMonth() + direction);
+            return newMonth;
+        });
+    };
+
+    // Fetch blocked dates
+    const fetchBlockedDates = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('BLOCKED-TIMES')
+                .select('*')
+                .eq('whole_day', true);
+
+            if (error) {
+                console.error('Error fetching blocked dates:', error);
+                return;
+            }
+
+            setBlockedDates(data || []);
+        } catch (error) {
+            console.error('Error fetching blocked dates:', error);
+        }
+    };
+
+    // Check capacity for all dates in current month
+    const checkMonthCapacity = async () => {
+        const days = getDaysInMonth(currentMonth);
+        const capacityData = {};
+
+        for (const day of days) {
+            if (day) {
+                const dateString = formatDateForCalendar(day);
+                const ordersCount = await getOrdersCountForDate(dateString);
+                capacityData[dateString] = ordersCount >= 4;
+            }
+        }
+
+        setDateCapacity(capacityData);
     };
 
     // Color wheel functions
@@ -646,6 +774,38 @@ const CakeCustomization = () => {
         };
     }, []);
 
+    // Fetch blocked dates on component mount
+    useEffect(() => {
+        fetchBlockedDates();
+    }, []);
+
+    // Check capacity when month changes
+    useEffect(() => {
+        checkMonthCapacity();
+    }, [currentMonth]);
+
+    // Close calendar when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (showCustomCalendar) {
+                const calendarElement = event.target.closest('.custom-calendar');
+                const dateFieldElement = event.target.closest('.date-field-container');
+
+                if (!calendarElement && !dateFieldElement) {
+                    setShowCustomCalendar(false);
+                }
+            }
+        };
+
+        if (showCustomCalendar) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showCustomCalendar]);
+
     const handleSelection = () => {
 
         if (!canvas.current) {
@@ -1083,9 +1243,9 @@ const CakeCustomization = () => {
             });
 
             // Set default order values
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            setOrderDate(tomorrow.toISOString().split('T')[0]);
+            const sevenDaysFromNow = new Date();
+            sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+            setOrderDate(sevenDaysFromNow.toISOString().split('T')[0]);
             setOrderTime("14:00");
             setCakeQuantity(1);
             setCurrentStep(1);
@@ -1137,6 +1297,17 @@ const CakeCustomization = () => {
             return;
         }
 
+        // Validate time is not after 8 PM
+        if (orderTime) {
+            const [hours, minutes] = orderTime.split(':');
+            const hour = parseInt(hours);
+            if (hour > 20 || (hour === 20 && parseInt(minutes) > 0)) {
+                toast.error('Pickup/delivery time cannot be after 8:00 PM');
+                setIsPlacingOrder(false);
+                return;
+            }
+        }
+
         setIsPlacingOrder(true);
 
         try {
@@ -1185,7 +1356,7 @@ const CakeCustomization = () => {
             // Create order with proper scheduling
             const scheduledDate = new Date(`${orderDate}T${orderTime}`);
             const orderInsertData = {
-                order_date: new Date().toISOString().split('T')[0],
+                order_date: new Date().toISOString(), // Current date and time
                 delivery_method: orderType,
                 order_schedule: scheduledDate.toISOString(), // Include full datetime with time
                 delivery_address: orderType === "Delivery" ? deliveryAddress : null,
@@ -1246,7 +1417,7 @@ const CakeCustomization = () => {
             console.log('Custom cake record created:', insertData);
 
             // Create payment record
-            const customCakePrice = 5000; // Base price for custom cakes
+            const customCakePrice = 1500; // Base price for custom cakes
             const totalPrice = customCakePrice * cakeQuantity;
 
             const paymentData = {
@@ -2146,7 +2317,7 @@ const CakeCustomization = () => {
                                     />
                                     <div>
                                         <h3 className="font-semibold text-[#381914]">Custom Cake Design</h3>
-                                        <p className="text-sm text-gray-600">₱5,000 (base price)</p>
+                                        <p className="text-sm text-gray-600">₱1,500 (base price)</p>
                                     </div>
                                 </div>
                             </div>
@@ -2186,23 +2357,137 @@ const CakeCustomization = () => {
                                             Pickup/Delivery Date *
                                         </label>
                                         <div className="relative">
-                                            <div className="flex items-center gap-3 p-3 border-2 border-[#AF524D] rounded-lg bg-white">
+                                            <div
+                                                className="date-field-container flex items-center gap-3 p-3 border-2 border-[#AF524D] rounded-lg bg-white cursor-pointer"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setShowCustomCalendar(!showCustomCalendar);
+                                                }}
+                                            >
                                                 <div className="flex-shrink-0">
                                                     <svg className="w-6 h-6 text-[#AF524D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                                     </svg>
                                                 </div>
                                                 <div className="flex-1">
-                                                    <input
-                                                        type="date"
-                                                        value={orderDate}
-                                                        onChange={(e) => setOrderDate(e.target.value)}
-                                                        min={new Date().toISOString().split('T')[0]}
-                                                        className="w-full bg-transparent border-none outline-none text-[#381914] font-medium cursor-pointer"
-                                                        required
-                                                    />
+                                                    <div className="text-[#381914] font-medium">
+                                                        {orderDate ? new Date(orderDate).toLocaleDateString('en-US', {
+                                                            weekday: 'short',
+                                                            year: 'numeric',
+                                                            month: 'short',
+                                                            day: 'numeric'
+                                                        }) : 'Select a date'}
+                                                    </div>
+                                                </div>
+                                                <div className="flex-shrink-0">
+                                                    <svg className="w-4 h-4 text-[#AF524D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                                                    </svg>
                                                 </div>
                                             </div>
+
+                                            {/* Custom Calendar Dropdown */}
+                                            {showCustomCalendar && (
+                                                <div className="custom-calendar absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-[#AF524D]/20 z-50 p-4">
+                                                    {/* 7-day minimum notice */}
+                                                    <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                                                        <p className="text-xs text-blue-700 text-center">
+                                                            📅 Orders require at least 7 days advance notice
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Calendar Header */}
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <button
+                                                            onClick={() => navigateMonth(-1)}
+                                                            className="p-2 hover:bg-[#AF524D]/10 rounded-lg transition-colors duration-200"
+                                                        >
+                                                            <svg className="w-5 h-5 text-[#AF524D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                                            </svg>
+                                                        </button>
+                                                        <h3 className="text-lg font-semibold text-[#492220]">
+                                                            {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                                        </h3>
+                                                        <button
+                                                            onClick={() => navigateMonth(1)}
+                                                            className="p-2 hover:bg-[#AF524D]/10 rounded-lg transition-colors duration-200"
+                                                        >
+                                                            <svg className="w-5 h-5 text-[#AF524D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Weekday Headers */}
+                                                    <div className="grid grid-cols-7 gap-1 mb-2">
+                                                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                                                            <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
+                                                                {day}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    {/* Calendar Days */}
+                                                    <div className="grid grid-cols-7 gap-1">
+                                                        {getDaysInMonth(currentMonth).map((date, index) => {
+                                                            if (!date) {
+                                                                return <div key={index} className="p-2"></div>;
+                                                            }
+
+                                                            const isPast = isDateInPast(date);
+                                                            const isBlocked = isDateBlockedInCalendar(date);
+                                                            const isSelected = orderDate === formatDateForCalendar(date);
+                                                            const isAtCapacity = dateCapacity[formatDateForCalendar(date)] || false;
+                                                            const today = new Date();
+                                                            today.setHours(12, 0, 0, 0);
+                                                            const isToday = formatDateForCalendar(date) === formatDateForCalendar(today);
+
+                                                            return (
+                                                                <button
+                                                                    key={index}
+                                                                    onClick={() => handleDateSelect(date)}
+                                                                    disabled={isPast || isBlocked || isAtCapacity}
+                                                                    className={`p-2 text-sm rounded-lg transition-all duration-200 ${isSelected
+                                                                        ? 'bg-[#AF524D] text-white font-semibold'
+                                                                        : isPast
+                                                                            ? 'text-gray-300 bg-gray-100 border border-gray-200 cursor-not-allowed'
+                                                                            : isBlocked
+                                                                                ? 'text-red-400 bg-red-50 cursor-not-allowed line-through'
+                                                                                : isAtCapacity
+                                                                                    ? 'text-orange-400 bg-orange-50 cursor-not-allowed'
+                                                                                    : 'text-[#492220] hover:bg-[#AF524D]/10 hover:text-[#AF524D]'
+                                                                        }`}
+                                                                >
+                                                                    {date.getDate()}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+
+                                                    {/* Legend */}
+                                                    <div className="mt-4 pt-3 border-t border-gray-200">
+                                                        <div className="flex items-center justify-center gap-3 text-xs text-gray-600 flex-wrap">
+                                                            <div className="flex items-center gap-1">
+                                                                <div className="w-3 h-3 bg-red-50 border border-red-200 rounded"></div>
+                                                                <span>Blocked</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                <div className="w-3 h-3 bg-gray-100 border border-gray-200 rounded"></div>
+                                                                <span>Too Soon</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                <div className="w-3 h-3 bg-orange-50 border border-orange-200 rounded"></div>
+                                                                <span>Full (4 orders)</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                <div className="w-3 h-3 bg-[#AF524D] rounded"></div>
+                                                                <span>Selected</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -2211,6 +2496,9 @@ const CakeCustomization = () => {
                                         <label className="block text-sm font-medium text-[#381914] mb-2">
                                             Pickup/Delivery Time *
                                         </label>
+                                        <div className="text-xs text-gray-600 mb-2">
+                                            Available times: 8:00 AM - 8:00 PM
+                                        </div>
                                         <div className="relative">
                                             <div className="flex items-center gap-3 p-3 border-2 border-[#AF524D] rounded-lg bg-white">
                                                 <div className="flex-shrink-0">
@@ -2223,6 +2511,8 @@ const CakeCustomization = () => {
                                                         type="time"
                                                         value={orderTime}
                                                         onChange={(e) => setOrderTime(e.target.value)}
+                                                        min="08:00"
+                                                        max="20:00"
                                                         className="w-full bg-transparent border-none outline-none text-[#381914] font-medium cursor-pointer"
                                                         required
                                                     />
@@ -2355,12 +2645,12 @@ const CakeCustomization = () => {
                                                 <span>{cakeQuantity}</span>
                                             </div>
                                             <div className="flex justify-between">
-                                                <span className="font-medium">Price per cake:</span>
-                                                <span>₱5,000</span>
+                                                <span className="font-medium">Base price per cake:</span>
+                                                <span>₱1,500</span>
                                             </div>
                                             <div className="flex justify-between border-t border-gray-200 pt-2">
-                                                <span className="font-semibold">Total Price:</span>
-                                                <span className="font-semibold">₱{5000 * cakeQuantity}</span>
+                                                <span className="font-semibold">Total Base Price:</span>
+                                                <span className="font-semibold">₱{1500 * cakeQuantity}</span>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="font-medium">Date:</span>
@@ -2425,6 +2715,20 @@ const CakeCustomization = () => {
                                         <p className="text-green-700 text-sm mb-4">
                                             Your custom cake order has been successfully placed.
                                         </p>
+
+                                        {/* Order Details */}
+                                        <div className="bg-white/70 rounded-xl p-4 border border-green-200/50">
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-green-800 font-medium">Quantity:</span>
+                                                    <span className="text-green-800 font-semibold">{cakeQuantity} {cakeQuantity === 1 ? 'cake' : 'cakes'}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-green-800 font-medium">Total Base Amount:</span>
+                                                    <span className="text-green-800 font-semibold text-lg">₱{(1500 * cakeQuantity).toLocaleString()}</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {/* Action Buttons */}

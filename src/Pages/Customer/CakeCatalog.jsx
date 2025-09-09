@@ -71,8 +71,33 @@ const isDateTimeBlocked = async (date, time = null) => {
   }
 };
 
+const getOrdersCountForDate = async (date) => {
+  try {
+    const { data: orders, error } = await supabase
+      .from('CAKE-ORDERS')
+      .select('order_id')
+      .eq('order_schedule', date);
+
+    if (error) {
+      console.error('Error fetching orders count:', error);
+      return 0;
+    }
+
+    return orders ? orders.length : 0;
+  } catch (error) {
+    console.error('Error fetching orders count:', error);
+    return 0;
+  }
+};
+
 const getAvailableTimeSlots = async (date) => {
   try {
+    // Check if date has reached maximum orders (4 per day)
+    const ordersCount = await getOrdersCountForDate(date);
+    if (ordersCount >= 4) {
+      return [];
+    }
+
     const { data: blockedDates, error } = await supabase
       .from('BLOCKED-TIMES')
       .select('*')
@@ -96,6 +121,11 @@ const getAvailableTimeSlots = async (date) => {
     const timeSlots = [];
     for (let hour = 8; hour <= 20; hour++) {
       for (let minute = 0; minute < 60; minute += 30) {
+        // Skip 8:30 PM - only allow up to 8:00 PM
+        if (hour === 20 && minute === 30) {
+          break;
+        }
+
         const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
 
         // Check if this time slot is blocked
@@ -155,6 +185,121 @@ const CakeCatalog = () => {
   const [isDateBlocked, setIsDateBlocked] = useState(false);
   const [blockedReason, setBlockedReason] = useState('');
   const [isCheckingBlockedDates, setIsCheckingBlockedDates] = useState(false);
+  const [blockedDates, setBlockedDates] = useState([]);
+  const [showCustomCalendar, setShowCustomCalendar] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [dateCapacity, setDateCapacity] = useState({});
+
+  // Fetch all blocked dates on component mount
+  const fetchBlockedDates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('BLOCKED-TIMES')
+        .select('*')
+        .eq('whole_day', true); // Only get full day blocks
+
+      if (error) {
+        console.error('Error fetching blocked dates:', error);
+        return;
+      }
+
+      setBlockedDates(data || []);
+    } catch (error) {
+      console.error('Error fetching blocked dates:', error);
+    }
+  };
+
+  // Check capacity for all dates in current month
+  const checkMonthCapacity = async () => {
+    const days = getDaysInMonth(currentMonth);
+    const capacityData = {};
+
+    for (const day of days) {
+      if (day) {
+        const dateString = formatDateForCalendar(day);
+        const ordersCount = await getOrdersCountForDate(dateString);
+        capacityData[dateString] = ordersCount >= 4;
+      }
+    }
+
+    setDateCapacity(capacityData);
+  };
+
+  // Check if a specific date is blocked (for calendar styling)
+  const isDateBlockedForCalendar = (dateString) => {
+    return blockedDates.some(blocked => blocked.start_date === dateString);
+  };
+
+  // Custom calendar helper functions
+  const formatDateForCalendar = (date) => {
+    return date.toISOString().split('T')[0];
+  };
+
+  const isDateInPast = (date) => {
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    const compareDate = new Date(date);
+    compareDate.setHours(12, 0, 0, 0);
+
+    // Calculate minimum date (7 days from today)
+    const minimumDate = new Date(today);
+    minimumDate.setDate(today.getDate() + 7);
+
+    return compareDate < minimumDate;
+  };
+
+  const isDateBlockedInCalendar = (date) => {
+    const dateString = formatDateForCalendar(date);
+    return isDateBlockedForCalendar(dateString);
+  };
+
+  const isDateAtCapacity = async (date) => {
+    const dateString = formatDateForCalendar(date);
+    const ordersCount = await getOrdersCountForDate(dateString);
+    return ordersCount >= 4;
+  };
+
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    const days = [];
+
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null);
+    }
+
+    // Add days of the month - create dates at noon to avoid timezone issues
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(new Date(year, month, day, 12, 0, 0));
+    }
+
+    return days;
+  };
+
+  const handleDateSelect = (date) => {
+    if (isDateInPast(date) || isDateBlockedInCalendar(date)) {
+      return;
+    }
+
+    const dateString = formatDateForCalendar(date);
+    setOrderDate(dateString);
+    checkBlockedDates(dateString, orderTime);
+    setShowCustomCalendar(false);
+  };
+
+  const navigateMonth = (direction) => {
+    setCurrentMonth(prev => {
+      const newMonth = new Date(prev);
+      newMonth.setMonth(prev.getMonth() + direction);
+      return newMonth;
+    });
+  };
 
   // Check blocked dates when date changes
   const checkBlockedDates = async (date, time = null) => {
@@ -278,10 +423,10 @@ const CakeCatalog = () => {
       return;
     }
 
-    // Set default date to tomorrow
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    setOrderDate(tomorrow.toISOString().split('T')[0]);
+    // Set default date to 7 days from today
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    setOrderDate(sevenDaysFromNow.toISOString().split('T')[0]);
 
     // Set default time to 2 PM
     setOrderTime("14:00");
@@ -308,6 +453,24 @@ const CakeCatalog = () => {
     if (!selectedCake || !orderDate || !orderTime || (orderType === "Delivery" && !deliveryAddress)) {
       console.log('Validation failed - missing required fields');
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    // Validate time is not after 8 PM
+    if (orderTime) {
+      const [hours, minutes] = orderTime.split(':');
+      const hour = parseInt(hours);
+      if (hour > 20 || (hour === 20 && parseInt(minutes) > 0)) {
+        console.log('Validation failed - time is after 8 PM');
+        toast.error('Pickup/delivery time cannot be after 8:00 PM');
+        return;
+      }
+    }
+
+    // Check if the selected date is blocked
+    if (isDateBlockedForCalendar(orderDate)) {
+      console.log('Validation failed - selected date is blocked');
+      toast.error('The selected date is not available for orders');
       return;
     }
 
@@ -340,7 +503,7 @@ const CakeCatalog = () => {
 
       // 1. Create ORDER record
       const orderInsertData = {
-        order_date: new Date().toISOString().split('T')[0], // Current date
+        order_date: new Date().toISOString(), // Current date and time
         delivery_method: orderType,
         order_schedule: scheduledDate.toISOString().split('T')[0],
         delivery_address: orderType === "Delivery" ? deliveryAddress : null,
@@ -514,7 +677,37 @@ const CakeCatalog = () => {
     setCurrentPage(1);
   }, [price, tier, selectedThemes, sortBy]);
 
+  // Fetch blocked dates on component mount
+  useEffect(() => {
+    fetchBlockedDates();
+  }, []);
 
+  // Check capacity when month changes
+  useEffect(() => {
+    checkMonthCapacity();
+  }, [currentMonth]);
+
+  // Close calendar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showCustomCalendar) {
+        const calendarElement = event.target.closest('.custom-calendar');
+        const dateFieldElement = event.target.closest('.date-field-container');
+
+        if (!calendarElement && !dateFieldElement) {
+          setShowCustomCalendar(false);
+        }
+      }
+    };
+
+    if (showCustomCalendar) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCustomCalendar]);
 
   if (loading) {
     return <LoadingSpinner message="Loading cake catalog..." />;
@@ -968,36 +1161,156 @@ const CakeCatalog = () => {
                       Pickup/Delivery Date *
                     </label>
                     <div className="relative">
-                      <div className="flex items-center gap-3 p-4 bg-white/70 border border-[#AF524D]/20 rounded-xl focus-within:ring-2 focus-within:ring-[#AF524D]/30 focus-within:border-[#AF524D] transition-all duration-200">
+                      <div
+                        className="date-field-container flex items-center gap-3 p-4 bg-white/70 border border-[#AF524D]/20 rounded-xl focus-within:ring-2 focus-within:ring-[#AF524D]/30 focus-within:border-[#AF524D] transition-all duration-200 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowCustomCalendar(!showCustomCalendar);
+                        }}
+                      >
                         <div className="flex-shrink-0">
                           <svg className="w-5 h-5 text-[#AF524D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                         </div>
                         <div className="flex-1">
-                          <input
-                            type="date"
-                            value={orderDate}
-                            onChange={(e) => {
-                              setOrderDate(e.target.value);
-                              checkBlockedDates(e.target.value, orderTime);
-                            }}
-                            min={new Date().toISOString().split('T')[0]}
-                            className="w-full bg-transparent border-none outline-none text-[#492220] font-medium cursor-pointer"
-                            required
-                          />
+                          <div className="w-full bg-transparent border-none outline-none text-[#492220] font-medium">
+                            {orderDate ? new Date(orderDate).toLocaleDateString('en-US', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            }) : 'Select a date'}
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <svg className={`w-4 h-4 text-[#AF524D] transition-transform duration-200 ${showCustomCalendar ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
                         </div>
                       </div>
+
+                      {/* Custom Calendar Dropdown */}
+                      {showCustomCalendar && (
+                        <div className="custom-calendar absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-[#AF524D]/20 z-50 p-4">
+                          {/* 7-day minimum notice */}
+                          <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p className="text-xs text-blue-700 text-center">
+                              📅 Orders require at least 7 days advance notice
+                            </p>
+                          </div>
+                          {/* Calendar Header */}
+                          <div className="flex items-center justify-between mb-4">
+                            <button
+                              onClick={() => navigateMonth(-1)}
+                              className="p-2 hover:bg-[#AF524D]/10 rounded-lg transition-colors duration-200"
+                            >
+                              <svg className="w-4 h-4 text-[#AF524D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                              </svg>
+                            </button>
+                            <h3 className="text-lg font-semibold text-[#492220]">
+                              {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                            </h3>
+                            <button
+                              onClick={() => navigateMonth(1)}
+                              className="p-2 hover:bg-[#AF524D]/10 rounded-lg transition-colors duration-200"
+                            >
+                              <svg className="w-4 h-4 text-[#AF524D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          </div>
+
+                          {/* Calendar Grid */}
+                          <div className="grid grid-cols-7 gap-1 mb-2">
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                              <div key={day} className="p-2 text-center text-sm font-medium text-[#AF524D]">
+                                {day}
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="grid grid-cols-7 gap-1">
+                            {getDaysInMonth(currentMonth).map((date, index) => {
+                              if (!date) {
+                                return <div key={index} className="p-2"></div>;
+                              }
+
+                              const isPast = isDateInPast(date);
+                              const isBlocked = isDateBlockedInCalendar(date);
+                              const isSelected = orderDate === formatDateForCalendar(date);
+                              const isAtCapacity = dateCapacity[formatDateForCalendar(date)] || false;
+                              const today = new Date();
+                              today.setHours(12, 0, 0, 0);
+                              const isToday = formatDateForCalendar(date) === formatDateForCalendar(today);
+
+                              return (
+                                <button
+                                  key={index}
+                                  onClick={() => handleDateSelect(date)}
+                                  disabled={isPast || isBlocked || isAtCapacity}
+                                  className={`p-2 text-sm rounded-lg transition-all duration-200 ${isSelected
+                                    ? 'bg-[#AF524D] text-white font-semibold'
+                                    : isPast
+                                      ? 'text-gray-300 bg-gray-100 border border-gray-200 cursor-not-allowed'
+                                      : isBlocked
+                                        ? 'text-red-400 bg-red-50 cursor-not-allowed line-through'
+                                        : isAtCapacity
+                                          ? 'text-orange-400 bg-orange-50 cursor-not-allowed'
+                                          : 'text-[#492220] hover:bg-[#AF524D]/10 hover:text-[#AF524D]'
+                                    }`}
+                                >
+                                  {date.getDate()}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Legend */}
+                          <div className="mt-4 pt-3 border-t border-gray-200">
+                            <div className="flex items-center justify-center gap-3 text-xs text-gray-600 flex-wrap">
+                              <div className="flex items-center gap-1">
+                                <div className="w-3 h-3 bg-red-50 border border-red-200 rounded"></div>
+                                <span>Blocked</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <div className="w-3 h-3 bg-gray-100 border border-gray-200 rounded"></div>
+                                <span>Too Soon</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <div className="w-3 h-3 bg-orange-50 border border-orange-200 rounded"></div>
+                                <span>Full (4 orders)</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <div className="w-3 h-3 bg-[#AF524D] rounded"></div>
+                                <span>Selected</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       {orderDate && (
                         <div className="mt-3 space-y-2">
-                          <div className="p-3 bg-gradient-to-r from-[#AF524D]/10 to-[#8B3A3A]/10 rounded-xl border border-[#AF524D]/20">
-                            <p className="text-sm text-[#492220] font-medium">
+                          <div className={`p-3 rounded-xl border ${isDateBlockedForCalendar(orderDate)
+                            ? 'bg-gradient-to-r from-red-100 to-red-200 border-red-300'
+                            : 'bg-gradient-to-r from-[#AF524D]/10 to-[#8B3A3A]/10 border-[#AF524D]/20'
+                            }`}>
+                            <p className={`text-sm font-medium ${isDateBlockedForCalendar(orderDate)
+                              ? 'text-red-700'
+                              : 'text-[#492220]'
+                              }`}>
                               Selected: {new Date(orderDate).toLocaleDateString('en-US', {
                                 weekday: 'long',
                                 year: 'numeric',
                                 month: 'long',
                                 day: 'numeric'
                               })}
+                              {isDateBlockedForCalendar(orderDate) && (
+                                <span className="block mt-1 text-xs text-red-600 font-semibold">
+                                  ⚠️ This date is not available for orders
+                                </span>
+                              )}
                             </p>
                           </div>
 
@@ -1048,6 +1361,9 @@ const CakeCatalog = () => {
                       </div>
                     ) : availableTimeSlots.length > 0 ? (
                       <div className="space-y-3">
+                        <div className="text-xs text-gray-600 text-center">
+                          Available times: 8:00 AM - 8:00 PM
+                        </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto">
                           {availableTimeSlots.map((timeSlot) => (
                             <button
@@ -1196,8 +1512,8 @@ const CakeCatalog = () => {
                     </button>
                     <button
                       onClick={nextStep}
-                      disabled={!orderDate || !orderTime || (orderType === "Delivery" && !deliveryAddress) || isDateBlocked || isCheckingBlockedDates}
-                      className={`px-6 py-3 rounded-xl transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none ${!orderDate || !orderTime || (orderType === "Delivery" && !deliveryAddress) || isDateBlocked || isCheckingBlockedDates
+                      disabled={!orderDate || !orderTime || (orderType === "Delivery" && !deliveryAddress) || isDateBlocked || isCheckingBlockedDates || isDateBlockedForCalendar(orderDate)}
+                      className={`px-6 py-3 rounded-xl transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none ${!orderDate || !orderTime || (orderType === "Delivery" && !deliveryAddress) || isDateBlocked || isCheckingBlockedDates || isDateBlockedForCalendar(orderDate)
                         ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
                         : 'bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white hover:from-[#8B3A3A] hover:to-[#AF524D]'
                         }`}
@@ -1318,11 +1634,20 @@ const CakeCatalog = () => {
                     <p className="text-green-700 text-lg mb-6">
                       Your order has been successfully placed and will be processed shortly.
                     </p>
-                    {orderId && (
-                      <div className="p-4 bg-white/70 rounded-xl border border-green-200 mb-6">
-                        <p className="text-sm text-green-600 font-medium">Order ID: {orderId}</p>
+
+                    {/* Order Details */}
+                    <div className="bg-white/70 rounded-xl p-4 border border-green-200/50">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-green-800 font-medium">Quantity:</span>
+                          <span className="text-green-800 font-semibold">{cakeQuantity} {cakeQuantity === 1 ? 'cake' : 'cakes'}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-green-800 font-medium">Total Amount:</span>
+                          <span className="text-green-800 font-semibold text-lg">₱{(selectedCake.price * cakeQuantity).toLocaleString()}</span>
+                        </div>
                       </div>
-                    )}
+                    </div>
                   </div>
 
                   {/* Action Buttons */}

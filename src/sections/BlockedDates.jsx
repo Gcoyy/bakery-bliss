@@ -701,16 +701,20 @@ const BlockedDates = () => {
                             <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
                                 <div className="flex items-center gap-3 mb-2">
                                     <h4 className="text-lg font-semibold text-gray-900">
-                                        {formatDate(dateToDelete.date)}
+                                        {formatDate(dateToDelete.start_date)}
                                     </h4>
-                                    {dateToDelete.is_full_day && (
+                                    {dateToDelete.whole_day && (
                                         <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
                                             Full Day
                                         </span>
                                     )}
                                 </div>
 
-                                {!dateToDelete.is_full_day && (
+                                {dateToDelete.whole_day ? (
+                                    <p className="text-gray-600 mb-2">
+                                        <span className="font-medium">Time:</span> 8:00 AM - 8:00 PM
+                                    </p>
+                                ) : (
                                     <p className="text-gray-600 mb-2">
                                         <span className="font-medium">Time:</span> {formatTime(dateToDelete.start_time)} - {formatTime(dateToDelete.end_time)}
                                     </p>

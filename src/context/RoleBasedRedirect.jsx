@@ -51,13 +51,16 @@ function RoleBasedRedirect() {
   }, [session]);
 
   useEffect(() => {
-    if (loading || role === null) return;
+    if (loading) return;
 
-    // If not logged in, redirect to login
+    // If not logged in, redirect to home page (for guests)
     if (!session) {
-      navigate("/login", { replace: true });
+      navigate("/home", { replace: true });
       return;
     }
+
+    // If logged in but role is still loading, wait
+    if (role === null) return;
 
     // If logged in, redirect based on role
     if (role === "admin") {

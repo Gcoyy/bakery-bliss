@@ -2,79 +2,55 @@ import React, { useState, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 import { UserAuth } from '../context/AuthContext';
+// Dynamic import for QR scanner to avoid build issues
 
 const QRCodeUpload = () => {
     const { session } = UserAuth();
-    const [uploading, setUploading] = useState(false);
     const [uploadedFiles, setUploadedFiles] = useState([]);
     const [dragActive, setDragActive] = useState(false);
+    const [scanning, setScanning] = useState(false);
+    const [scannedResult, setScannedResult] = useState(null);
+    const [showScanModal, setShowScanModal] = useState(false);
     const fileInputRef = useRef(null);
 
-    // Handle file upload
-    const handleFileUpload = async (files) => {
+    // Handle file upload (temporary for scanning only)
+    const handleFileUpload = (files) => {
         if (!files || files.length === 0) return;
 
-        setUploading(true);
-        const uploadPromises = Array.from(files).map(async (file) => {
-            try {
-                // Validate file type
-                if (!file.type.startsWith('image/')) {
-                    throw new Error(`${file.name} is not an image file`);
-                }
+        const newFiles = [];
 
-                // Validate file size (max 5MB)
-                if (file.size > 5 * 1024 * 1024) {
-                    throw new Error(`${file.name} is too large. Maximum size is 5MB`);
-                }
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
 
-                // Generate unique filename
-                const fileExt = file.name.split('.').pop();
-                const fileName = `qr-code-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-                const filePath = `qr-codes/${fileName}`;
-
-                // Upload to Supabase Storage
-                const { data, error } = await supabase.storage
-                    .from('qr-codes')
-                    .upload(filePath, file, {
-                        cacheControl: '3600',
-                        upsert: false
-                    });
-
-                if (error) throw error;
-
-                // Get public URL
-                const { data: urlData } = supabase.storage
-                    .from('qr-codes')
-                    .getPublicUrl(filePath);
-
-                return {
-                    name: file.name,
-                    size: file.size,
-                    type: file.type,
-                    url: urlData.publicUrl,
-                    path: filePath,
-                    uploadedAt: new Date().toISOString()
-                };
-            } catch (error) {
-                console.error(`Error uploading ${file.name}:`, error);
-                toast.error(`Failed to upload ${file.name}: ${error.message}`);
-                return null;
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                toast.error(`${file.name} is not an image file`);
+                continue;
             }
-        });
 
-        try {
-            const results = await Promise.all(uploadPromises);
-            const successfulUploads = results.filter(result => result !== null);
-
-            if (successfulUploads.length > 0) {
-                setUploadedFiles(prev => [...prev, ...successfulUploads]);
-                toast.success(`Successfully uploaded ${successfulUploads.length} QR code(s)`);
+            // Validate file size (5MB max)
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error(`${file.name} is too large. Maximum size is 5MB`);
+                continue;
             }
-        } catch (error) {
-            console.error('Error in batch upload:', error);
-            toast.error('Failed to upload files');
-        } finally {
-            setUploading(false);
+
+            // Create object URL for temporary display
+            const objectUrl = URL.createObjectURL(file);
+
+            newFiles.push({
+                id: Date.now() + i,
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                url: objectUrl,
+                file: file, // Keep reference to original file for scanning
+                uploadedAt: new Date().toISOString()
+            });
+        }
+
+        if (newFiles.length > 0) {
+            setUploadedFiles(prev => [...prev, ...newFiles]);
+            toast.success(`${newFiles.length} file(s) ready for scanning`);
         }
     };
 
@@ -112,19 +88,19 @@ const QRCodeUpload = () => {
     };
 
     // Delete uploaded file
-    const handleDeleteFile = async (filePath) => {
+    const handleDeleteFile = (fileToDelete) => {
         try {
-            const { error } = await supabase.storage
-                .from('qr-codes')
-                .remove([filePath]);
+            // Clean up object URL to prevent memory leaks
+            if (fileToDelete.url && fileToDelete.url.startsWith('blob:')) {
+                URL.revokeObjectURL(fileToDelete.url);
+            }
 
-            if (error) throw error;
-
-            setUploadedFiles(prev => prev.filter(file => file.path !== filePath));
-            toast.success('QR code deleted successfully');
+            // Remove from state
+            setUploadedFiles(prev => prev.filter(file => file.id !== fileToDelete.id));
+            toast.success('File removed successfully');
         } catch (error) {
             console.error('Error deleting file:', error);
-            toast.error('Failed to delete QR code');
+            toast.error('Failed to delete file');
         }
     };
 
@@ -137,13 +113,83 @@ const QRCodeUpload = () => {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
 
+    // Scan QR code from uploaded file
+    const scanQRCode = async (file) => {
+        try {
+            setScanning(true);
+
+            // Dynamic import of QR scanner
+            const QrScanner = (await import('qr-scanner')).default;
+            const result = await QrScanner.scanImage(file);
+
+            if (result) {
+                // Parse the QR code data
+                const qrData = JSON.parse(result);
+
+                // Validate QR code data
+                if (qrData.token && qrData.orderId && qrData.timestamp && qrData.expires) {
+                    // Check if QR code is expired
+                    const now = Date.now();
+                    if (now > qrData.expires) {
+                        toast.error('QR code has expired');
+                        return;
+                    }
+
+                    setScannedResult(qrData);
+                    setShowScanModal(true);
+                } else {
+                    toast.error('Invalid QR code format');
+                }
+            } else {
+                toast.error('No QR code found in image');
+            }
+        } catch (error) {
+            console.error('Error scanning QR code:', error);
+            toast.error('Failed to scan QR code');
+        } finally {
+            setScanning(false);
+        }
+    };
+
+    // Process QR code and update order status
+    const processQRCode = async () => {
+        if (!scannedResult) return;
+
+        try {
+            setScanning(true);
+
+            // Update order status to 'Delivered'
+            const { error: orderError } = await supabase
+                .from('ORDER')
+                .update({ order_status: 'Delivered' })
+                .eq('order_id', scannedResult.orderId);
+
+            if (orderError) {
+                console.error('Error updating order status:', orderError);
+                toast.error('Failed to update order status');
+                return;
+            }
+
+            toast.success(`Order #${scannedResult.orderId} marked as delivered!`);
+            setShowScanModal(false);
+            setScannedResult(null);
+
+        } catch (error) {
+            console.error('Error processing QR code:', error);
+            toast.error('Failed to process QR code');
+        } finally {
+            setScanning(false);
+        }
+    };
+
+
     return (
         <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 lg:p-8 w-full border-2 border-[#AF524D] min-h-[80vh] flex flex-col">
             {/* Header Section */}
             <div className="flex flex-col gap-4 sm:gap-6 items-start mb-6 sm:mb-8">
                 <div className="flex-1">
-                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#381914] mb-2">QR Code Upload</h1>
-                    <p className="text-sm sm:text-base text-gray-600">Upload and manage QR codes for your bakery</p>
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#381914] mb-2">QR Code Scanner</h1>
+                    <p className="text-sm sm:text-base text-gray-600">Upload QR code images to scan and mark orders as delivered</p>
                 </div>
             </div>
 
@@ -177,10 +223,10 @@ const QRCodeUpload = () => {
 
                         <div>
                             <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-1">
-                                {dragActive ? 'Drop QR codes here' : 'Upload QR Codes'}
+                                {dragActive ? 'Drop QR codes here' : 'Upload QR Code Images'}
                             </h3>
                             <p className="text-gray-600 mb-3 text-xs sm:text-sm">
-                                Drag and drop your QR code images here, or tap to browse
+                                Drag and drop QR code images here, or tap to browse
                             </p>
                             <button
                                 onClick={handleClick}
@@ -250,6 +296,13 @@ const QRCodeUpload = () => {
 
                                             {/* Actions */}
                                             <div className="flex gap-1">
+                                                <button
+                                                    onClick={() => scanQRCode(file.file)}
+                                                    disabled={scanning}
+                                                    className="flex-1 px-1.5 sm:px-2 py-1 sm:py-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors font-medium text-center text-xs touch-manipulation disabled:opacity-50"
+                                                >
+                                                    Scan
+                                                </button>
                                                 <a
                                                     href={file.url}
                                                     target="_blank"
@@ -259,7 +312,7 @@ const QRCodeUpload = () => {
                                                     View
                                                 </a>
                                                 <button
-                                                    onClick={() => handleDeleteFile(file.path)}
+                                                    onClick={() => handleDeleteFile(file)}
                                                     className="flex-1 px-1.5 sm:px-2 py-1 sm:py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium text-xs touch-manipulation"
                                                 >
                                                     Delete
@@ -273,6 +326,75 @@ const QRCodeUpload = () => {
                     )}
                 </div>
             </div>
+
+            {/* Scan Result Modal */}
+            {showScanModal && scannedResult && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+                        <div className="text-center">
+                            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                                <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-bold text-[#381914] mb-2">QR Code Scanned</h3>
+                            <p className="text-gray-600 mb-6">Order details found</p>
+
+                            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+                                <p className="text-sm text-gray-600 mb-2">
+                                    <span className="font-semibold">Order ID:</span> #{scannedResult.orderId}
+                                </p>
+                                <p className="text-sm text-gray-600 mb-2">
+                                    <span className="font-semibold">Token:</span> {scannedResult.token.substring(0, 20)}...
+                                </p>
+                                <p className="text-sm text-gray-600 mb-2">
+                                    <span className="font-semibold">Generated:</span> {new Date(scannedResult.timestamp).toLocaleString()}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                    <span className="font-semibold">Expires:</span> {new Date(scannedResult.expires).toLocaleString()}
+                                </p>
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        setShowScanModal(false);
+                                        setScannedResult(null);
+                                    }}
+                                    className="flex-1 py-3 px-4 border border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={processQRCode}
+                                    disabled={scanning}
+                                    className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 ${scanning
+                                        ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                        : 'bg-green-600 text-white hover:bg-green-700'
+                                        }`}
+                                >
+                                    {scanning ? (
+                                        <>
+                                            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Processing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            Mark as Delivered
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

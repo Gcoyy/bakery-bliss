@@ -101,7 +101,7 @@ const Header = () => {
             {[
               ...(userRole === "admin" ? [
                 { to: "/adminpage", label: "Dashboard" },
-                { to: "/temp", label: "QR Code Upload" },
+                { to: "/qrcodeupload", label: "QR Code Upload" },
               ] : [
                 { to: "/", label: "Home" },
                 { to: "/cakecustomization", label: "Cake Customization" },
@@ -151,7 +151,7 @@ const Header = () => {
                 {[
                   ...(userRole === "admin" ? [
                     { to: "/adminpage", label: "Dashboard" },
-                    { to: "/temp", label: "QR Code Upload" },
+                    { to: "/qrcodeupload", label: "QR Code Upload" },
                   ] : [
                     { to: "/", label: "Home" },
                     { to: "/cakecustomization", label: "Cake Customization" },

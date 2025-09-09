@@ -24,6 +24,7 @@ import CakeOrders from "./sections/CakeOrders";
 import Assets from "./sections/Assets";
 import BlockedDates from "./sections/BlockedDates";
 import RecipeManagement from "./sections/RecipeManagement";
+import AssetIngredientManagement from "./sections/AssetIngredientManagement";
 import QRCodeUpload from "./sections/QRCodeUpload";
 import ProtectedRoute from "./context/ProtectedRoute";
 import AdminPage from "./Pages/Admin/AdminPage";
@@ -40,8 +41,8 @@ function AppRoutes() {
         <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
         <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
 
-        {/* Root path - accessible to everyone */}
-        <Route path="/" element={<PageTransition><Home /></PageTransition>} />
+        {/* Root path - role-based redirect for logged-in users, Home for guests */}
+        <Route path="/" element={<RoleBasedRedirect />} />
 
         {/* Dashboard route with role-based redirect for logged-in users */}
         <Route path="/dashboard" element={<RoleBasedRedirect />} />
@@ -80,6 +81,7 @@ function AppRoutes() {
           <Route path="custom cake assets" element={<PageTransition><Assets /></PageTransition>} />
           <Route path="blocked dates" element={<PageTransition><BlockedDates /></PageTransition>} />
           <Route path="recipe management" element={<PageTransition><RecipeManagement /></PageTransition>} />
+          <Route path="asset ingredient management" element={<PageTransition><AssetIngredientManagement /></PageTransition>} />
         </Route>
 
         <Route
@@ -93,7 +95,7 @@ function AppRoutes() {
 
         {/* QR Code Upload route */}
         <Route
-          path="/temp"
+          path="/qrcodeupload"
           element={
             <ProtectedRoute allowedRoles={["admin"]}>
               <PageTransition><QRCodeUpload /></PageTransition>
