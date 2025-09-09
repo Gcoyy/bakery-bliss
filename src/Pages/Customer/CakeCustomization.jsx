@@ -70,15 +70,15 @@ const CakeCustomization = () => {
     useEffect(() => {
         if (!session || !session.user) {
 
-            // Wait 5 seconds before checking again
+            // Wait 3 seconds before checking again
             const checkTimer = setTimeout(() => {
-                // Check again after 5 seconds
+                // Check again after 3 seconds
                 if (!session || !session.user) {
                     toast.error('Please log in to access the cake customization tool');
                     navigate('/login');
                 } else {
                 }
-            }, 5000);
+            }, 3000);
 
             // Cleanup timer if component unmounts
             return () => clearTimeout(checkTimer);
