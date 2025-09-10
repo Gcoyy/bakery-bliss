@@ -74,7 +74,7 @@ const isDateTimeBlocked = async (date, time = null) => {
 const getOrdersCountForDate = async (date) => {
   try {
     const { data: orders, error } = await supabase
-      .from('CAKE-ORDERS')
+      .from('ORDER')
       .select('order_id')
       .eq('order_schedule', date);
 

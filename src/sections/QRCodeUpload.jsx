@@ -9,6 +9,7 @@ const QRCodeUpload = () => {
     const [uploadedFiles, setUploadedFiles] = useState([]);
     const [dragActive, setDragActive] = useState(false);
     const [scanning, setScanning] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const [scannedResult, setScannedResult] = useState(null);
     const [showScanModal, setShowScanModal] = useState(false);
     const fileInputRef = useRef(null);
@@ -17,6 +18,7 @@ const QRCodeUpload = () => {
     const handleFileUpload = (files) => {
         if (!files || files.length === 0) return;
 
+        setUploading(true);
         const newFiles = [];
 
         for (let i = 0; i < files.length; i++) {
@@ -52,6 +54,8 @@ const QRCodeUpload = () => {
             setUploadedFiles(prev => [...prev, ...newFiles]);
             toast.success(`${newFiles.length} file(s) ready for scanning`);
         }
+
+        setUploading(false);
     };
 
     // Handle drag and drop

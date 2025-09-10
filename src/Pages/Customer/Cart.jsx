@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { UserAuth } from '../../context/AuthContext';
 import QRCode from 'qrcode';
+import emailjs from '@emailjs/browser';
 
 const Cart = () => {
     const { session } = UserAuth();
@@ -19,6 +20,8 @@ const Cart = () => {
     const [cancellingOrder, setCancellingOrder] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [orderToCancel, setOrderToCancel] = useState(null);
+    const [cancelReason, setCancelReason] = useState('');
+    const [showReasonModal, setShowReasonModal] = useState(false);
     const [showQRModal, setShowQRModal] = useState(false);
     const [selectedOrderForQR, setSelectedOrderForQR] = useState(null);
     const [qrCodeDataURL, setQrCodeDataURL] = useState('');
@@ -27,6 +30,109 @@ const Cart = () => {
     const getPublicImageUrl = (path) => {
         if (!path) return null;
         return supabase.storage.from("cake").getPublicUrl(path).data.publicUrl;
+    };
+
+    // Helper function to check if order can be cancelled (5 days before delivery)
+    const canCancelOrder = (orderSchedule) => {
+        if (!orderSchedule) return false;
+
+        const deliveryDate = new Date(orderSchedule);
+        const currentDate = new Date();
+
+        // Set both dates to start of day for accurate comparison
+        deliveryDate.setHours(0, 0, 0, 0);
+        currentDate.setHours(0, 0, 0, 0);
+
+        // Calculate difference in days
+        const timeDiff = deliveryDate.getTime() - currentDate.getTime();
+        const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+        // Can cancel if 5 or more days before delivery
+        return daysDiff >= 5;
+    };
+
+    // Function to automatically cancel unpaid orders 7 days before delivery
+    const autoCancelUnpaidOrders = async () => {
+        if (!session?.user) return;
+
+        try {
+            // Get all pending orders with payment info
+            const { data: allOrders, error: fetchError } = await supabase
+                .from('ORDER')
+                .select(`
+                    order_id,
+                    order_schedule,
+                    order_status,
+                    PAYMENT!inner(
+                        payment_status
+                    )
+                `)
+                .eq('order_status', 'Pending')
+                .in('PAYMENT.payment_status', ['Unpaid']);
+
+            if (fetchError) {
+                console.error('Error fetching unpaid orders:', fetchError);
+                return;
+            }
+
+            if (!allOrders || allOrders.length === 0) return;
+
+            const currentDate = new Date();
+            const ordersToCancel = [];
+
+            // Check each order to see if it's 7 days or less before delivery
+            for (const order of allOrders) {
+                if (!order.order_schedule) continue;
+
+                const deliveryDate = new Date(order.order_schedule);
+                const timeDiff = deliveryDate.getTime() - currentDate.getTime();
+                const daysUntilDelivery = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+                // If 7 days or less until delivery, mark for cancellation
+                if (daysUntilDelivery <= 7) {
+                    ordersToCancel.push(order);
+                }
+            }
+
+            if (ordersToCancel.length > 0) {
+                console.log(`Found ${ordersToCancel.length} unpaid orders to auto-cancel (7 days or less before delivery)`);
+
+                // Cancel each unpaid order
+                for (const order of ordersToCancel) {
+                    try {
+                        // Update order status to 'Cancelled'
+                        const { error: orderError } = await supabase
+                            .from('ORDER')
+                            .update({ order_status: 'Cancelled' })
+                            .eq('order_id', order.order_id);
+
+                        if (orderError) {
+                            console.error(`Error cancelling order ${order.order_id}:`, orderError);
+                            continue;
+                        }
+
+                        // Update payment status to 'Cancelled'
+                        const { error: paymentError } = await supabase
+                            .from('PAYMENT')
+                            .update({ payment_status: 'Cancelled' })
+                            .eq('order_id', order.order_id);
+
+                        if (paymentError) {
+                            console.error(`Error updating payment for order ${order.order_id}:`, paymentError);
+                        }
+
+                        console.log(`Auto-cancelled order ${order.order_id} (${Math.ceil((new Date(order.order_schedule).getTime() - currentDate.getTime()) / (1000 * 3600 * 24))} days before delivery)`);
+                    } catch (error) {
+                        console.error(`Error processing order ${order.order_id}:`, error);
+                    }
+                }
+
+                // Refresh orders after auto-cancellation
+                fetchOrders();
+            }
+        } catch (error) {
+            console.error('Error in auto-cancel function:', error);
+        }
     };
 
 
@@ -183,7 +289,8 @@ const Cart = () => {
     // Open cancel confirmation modal
     const openCancelModal = (order) => {
         setOrderToCancel(order);
-        setShowCancelModal(true);
+        setShowReasonModal(true);
+        setCancelReason('');
     };
 
     // Generate secure QR code data
@@ -227,9 +334,85 @@ const Cart = () => {
         }
     };
 
+    // Send cancellation email to admin using EmailJS
+    const sendCancellationEmail = async (order, reason) => {
+        try {
+            // Get admin email from ADMIN table
+            const { data: adminData, error: adminError } = await supabase
+                .from('ADMIN')
+                .select('email')
+                .limit(1)
+                .single();
+
+            if (adminError || !adminData) {
+                console.error('Error fetching admin email:', adminError);
+                return;
+            }
+
+            // Create cancellation record in database for admin to see
+            const { error: cancellationError } = await supabase
+                .from('ORDER_CANCELLATIONS')
+                .insert({
+                    order_id: order.order_id,
+                    customer_email: session.user.email,
+                    cake_name: order.CAKE ? order.CAKE.name : 'Custom Cake',
+                    total_price: order.total_price,
+                    order_date: order.order_date,
+                    delivery_date: order.order_schedule,
+                    delivery_method: order.delivery_method,
+                    cancellation_reason: reason,
+                    admin_email: adminData.email,
+                    created_at: new Date().toISOString()
+                });
+
+            if (cancellationError) {
+                console.error('Error creating cancellation record:', cancellationError);
+                // Don't fail the cancellation if record creation fails
+            }
+
+            // Send email using EmailJS (same as Contact Us)
+            const emailParams = {
+                to_email: adminData.email,
+                from_name: 'Bakery Bliss Customer',
+                from_email: session.user.email,
+                subject: `Order Cancellation - #${order.order_id} - ${order.CAKE ? order.CAKE.name : 'Custom Cake'}`,
+                order_id: order.order_id,
+                customer_email: session.user.email,
+                cake_name: order.CAKE ? order.CAKE.name : 'Custom Cake',
+                total_price: `₱${order.total_price.toLocaleString()}`,
+                order_date: new Date(order.order_date).toLocaleDateString(),
+                delivery_date: new Date(order.order_schedule).toLocaleDateString(),
+                delivery_method: order.delivery_method,
+                cancellation_reason: reason,
+                message: `Order #${order.order_id} has been cancelled by the customer.\n\nOrder Details:\n- Cake: ${order.CAKE ? order.CAKE.name : 'Custom Cake'}\n- Total Price: ₱${order.total_price.toLocaleString()}\n- Order Date: ${new Date(order.order_date).toLocaleDateString()}\n- Delivery Date: ${new Date(order.order_schedule).toLocaleDateString()}\n- Delivery Method: ${order.delivery_method}\n\nCancellation Reason:\n"${reason}"\n\nCustomer Email: ${session.user.email}`
+            };
+
+            const result = await emailjs.send(
+                'YOUR_SERVICE_ID', // Replace with your EmailJS service ID
+                'YOUR_TEMPLATE_ID', // Replace with your EmailJS template ID for cancellations
+                emailParams,
+                'YOUR_PUBLIC_KEY' // Replace with your EmailJS public key
+            );
+
+            if (result.status === 200) {
+                console.log('Cancellation email sent successfully');
+            } else {
+                console.error('Failed to send cancellation email');
+            }
+        } catch (error) {
+            console.error('Error in sendCancellationEmail:', error);
+            // Don't fail the cancellation if email fails
+        }
+    };
+
     // Cancel order function
     const cancelOrder = async () => {
-        if (cancellingOrder || !orderToCancel) return;
+        if (cancellingOrder || !orderToCancel || !cancelReason.trim()) {
+            if (!cancelReason.trim()) {
+                toast.error('Please provide a reason for cancellation');
+            }
+            return;
+        }
 
         setCancellingOrder(true);
         try {
@@ -256,9 +439,14 @@ const Cart = () => {
                 // Don't show error to user as order was already cancelled
             }
 
-            toast.success('Order cancelled successfully!');
+            // Send cancellation email to admin
+            await sendCancellationEmail(orderToCancel, cancelReason);
+
+            toast.success('Order cancelled successfully! Admin has been notified.');
+            setShowReasonModal(false);
             setShowCancelModal(false);
             setOrderToCancel(null);
+            setCancelReason('');
 
             // Refresh orders
             fetchOrders();
@@ -350,6 +538,7 @@ const Cart = () => {
 
     useEffect(() => {
         fetchOrders();
+        autoCancelUnpaidOrders();
     }, [session?.user]);
 
     // Check if user is logged in
@@ -446,7 +635,7 @@ const Cart = () => {
                                 <p className="text-gray-500">Your pending orders will appear here</p>
                             </div>
                         ) : (
-                            <div className="grid gap-6">
+                            <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-6 scrollbar-thin scrollbar-thumb-[#AF524D]/30 scrollbar-track-gray-100 hover:scrollbar-thumb-[#AF524D]/50">
                                 {orders.filter(order => order.order_status === 'Pending').map((order) => (
                                     <div key={order.order_id} className="bg-gradient-to-br from-white to-[#F7F3F0] rounded-2xl shadow-lg border-2 border-[#AF524D]/10 overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-[#AF524D]/30 group">
                                         <div className="p-6">
@@ -528,19 +717,21 @@ const Cart = () => {
                                                         </div>
                                                     </div>
                                                     <div className="flex justify-end gap-3 mt-6">
-                                                        <button
-                                                            onClick={() => openCancelModal(order)}
-                                                            disabled={cancellingOrder}
-                                                            className={`py-3 px-6 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center gap-2 ${cancellingOrder
-                                                                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                                                                : 'bg-red-500 text-white hover:bg-red-600 shadow-lg hover:shadow-xl transform hover:scale-105'
-                                                                }`}
-                                                        >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                            </svg>
-                                                            {cancellingOrder ? 'Cancelling...' : 'Cancel Order'}
-                                                        </button>
+                                                        {canCancelOrder(order.order_schedule) && (
+                                                            <button
+                                                                onClick={() => openCancelModal(order)}
+                                                                disabled={cancellingOrder}
+                                                                className={`py-3 px-6 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center gap-2 ${cancellingOrder
+                                                                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                                                    : 'bg-red-500 text-white hover:bg-red-600 shadow-lg hover:shadow-xl transform hover:scale-105'
+                                                                    }`}
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                                {cancellingOrder ? 'Cancelling...' : 'Cancel Order'}
+                                                            </button>
+                                                        )}
                                                         <button
                                                             onClick={() => openPaymentModal(order)}
                                                             disabled={orderLoading}
@@ -579,7 +770,7 @@ const Cart = () => {
                                 <p className="text-gray-500">Your approved orders will appear here</p>
                             </div>
                         ) : (
-                            <div className="grid gap-6">
+                            <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-6 scrollbar-thin scrollbar-thumb-[#AF524D]/30 scrollbar-track-gray-100 hover:scrollbar-thumb-[#AF524D]/50">
                                 {orders.filter(order => order.order_status === 'Approved').map((order) => (
                                     <div
                                         key={order.order_id}
@@ -667,11 +858,31 @@ const Cart = () => {
                                                             </span>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center justify-center gap-2 mt-4 text-[#AF524D] font-semibold">
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                                        </svg>
-                                                        <span>Click to show QR code for pickup</span>
+                                                    <div className="flex items-center justify-between mt-4">
+                                                        <div className="flex items-center gap-2 text-[#AF524D] font-semibold">
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                                            </svg>
+                                                            <span>Click to show QR code for pickup</span>
+                                                        </div>
+                                                        {canCancelOrder(order.order_schedule) && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    openCancelModal(order);
+                                                                }}
+                                                                disabled={cancellingOrder}
+                                                                className={`py-2 px-4 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center gap-2 ${cancellingOrder
+                                                                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                                                    : 'bg-red-500 text-white hover:bg-red-600 shadow-lg hover:shadow-xl transform hover:scale-105'
+                                                                    }`}
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                                {cancellingOrder ? 'Cancelling...' : 'Cancel Order'}
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -697,7 +908,7 @@ const Cart = () => {
                                 <p className="text-gray-500">Your delivered orders will appear here</p>
                             </div>
                         ) : (
-                            <div className="space-y-4">
+                            <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-[#AF524D]/30 scrollbar-track-gray-100 hover:scrollbar-thumb-[#AF524D]/50">
                                 {orders.filter(order => order.order_status === 'Delivered').map((order) => (
                                     <div key={order.order_id} className="border border-gray-200 rounded-lg p-4">
                                         <div className="flex items-start gap-4">
@@ -775,7 +986,7 @@ const Cart = () => {
                                 <p className="text-gray-500">Your cancelled orders will appear here</p>
                             </div>
                         ) : (
-                            <div className="space-y-4">
+                            <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-[#AF524D]/30 scrollbar-track-gray-100 hover:scrollbar-thumb-[#AF524D]/50">
                                 {orders.filter(order => order.order_status === 'Cancelled').map((order) => (
                                     <div key={order.order_id} className="border border-gray-200 rounded-lg p-4">
                                         <div className="flex items-start gap-4">
@@ -954,8 +1165,8 @@ const Cart = () => {
                 )
             }
 
-            {/* Cancel Order Confirmation Modal */}
-            {showCancelModal && orderToCancel && (
+            {/* Cancel Order Reason Modal */}
+            {showReasonModal && orderToCancel && (
                 <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
                         <div className="text-center">
@@ -964,7 +1175,7 @@ const Cart = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                                 </svg>
                             </div>
-                            <h3 className="text-xl font-bold text-[#381914] mb-2">Cancel Order?</h3>
+                            <h3 className="text-xl font-bold text-[#381914] mb-2">Cancel Order</h3>
                             <div className="text-left bg-gray-50 rounded-xl p-4 mb-6">
                                 <p className="text-sm text-gray-600 mb-2">
                                     <span className="font-semibold">Order ID:</span> #{orderToCancel.order_id}
@@ -979,14 +1190,44 @@ const Cart = () => {
                                     <span className="font-semibold">Order Date:</span> {new Date(orderToCancel.order_date).toLocaleDateString()}
                                 </p>
                             </div>
-                            <p className="text-gray-600 mb-6">
-                                Are you sure you want to cancel this order? This action cannot be undone and any payments made will be refunded.
-                            </p>
+
+                            <div className="mb-6">
+                                <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                                    Please provide a reason for cancellation *
+                                </label>
+                                <textarea
+                                    value={cancelReason}
+                                    onChange={(e) => setCancelReason(e.target.value)}
+                                    placeholder="Please explain why you need to cancel this order..."
+                                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                                    rows={4}
+                                    maxLength={500}
+                                />
+                                <p className="text-xs text-gray-500 mt-1 text-right">
+                                    {cancelReason.length}/500 characters
+                                </p>
+                            </div>
+
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                                <div className="flex items-start">
+                                    <svg className="w-5 h-5 text-amber-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                    </svg>
+                                    <div>
+                                        <p className="text-sm font-medium text-amber-800 mb-1">Important Notice</p>
+                                        <p className="text-xs text-amber-700">
+                                            This cancellation reason will be sent to the bakery admin. Any payments made will be refunded.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => {
-                                        setShowCancelModal(false);
+                                        setShowReasonModal(false);
                                         setOrderToCancel(null);
+                                        setCancelReason('');
                                     }}
                                     className="flex-1 py-3 px-4 border border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
                                 >
@@ -994,8 +1235,8 @@ const Cart = () => {
                                 </button>
                                 <button
                                     onClick={cancelOrder}
-                                    disabled={cancellingOrder}
-                                    className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 ${cancellingOrder
+                                    disabled={cancellingOrder || !cancelReason.trim()}
+                                    className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 ${cancellingOrder || !cancelReason.trim()
                                         ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
                                         : 'bg-red-500 text-white hover:bg-red-600'
                                         }`}
@@ -1013,7 +1254,7 @@ const Cart = () => {
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                             </svg>
-                                            Yes, Cancel Order
+                                            Cancel Order
                                         </>
                                     )}
                                 </button>

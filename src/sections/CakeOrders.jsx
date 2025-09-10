@@ -31,6 +31,11 @@ const CakeOrders = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [pendingReceiptFiles, setPendingReceiptFiles] = useState({});
 
+  // Helper function to check if an order is new (not edited yet - still in Pending status)
+  const isNewOrder = (orderStatus) => {
+    return orderStatus === 'Pending';
+  };
+
   const [editFormData, setEditFormData] = useState({
     cake_name: '',
     theme: '',
@@ -49,6 +54,40 @@ const CakeOrders = () => {
   // Fetch existing orders
   useEffect(() => {
     fetchOrders();
+  }, []);
+
+  // Set up real-time subscription for live updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('cake-orders-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'ORDER'
+        },
+        (payload) => {
+          console.log('Real-time update received:', payload);
+
+          if (payload.eventType === 'INSERT') {
+            // New order added
+            handleNewOrder(payload.new);
+          } else if (payload.eventType === 'UPDATE') {
+            // Order updated
+            handleOrderUpdate(payload.new);
+          } else if (payload.eventType === 'DELETE') {
+            // Order deleted
+            handleOrderDelete(payload.old);
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on component unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Filter orders when search term or filters change
@@ -102,54 +141,12 @@ const CakeOrders = () => {
       } else {
         // Transform the data to match our component structure
         const transformedData = data?.map(order => {
-          const customer = order.CUSTOMER;
-          const cakeOrder = order['CAKE-ORDERS']?.[0]; // Get first cake order
-          const cake = cakeOrder?.CAKE;
-          const payment = order.PAYMENT?.[0]; // Get first payment (assuming one payment per order)
-
+          const transformed = transformOrderData(order);
+          // Add additional fields that were in the original transformation
           return {
-            order_id: order.order_id,
-            order_date: order.order_date,
-            delivery_method: order.delivery_method,
-            order_schedule: order.order_schedule,
-            delivery_address: order.delivery_address,
-            order_status: order.order_status,
-            cus_id: order.cus_id,
-            // Customer information
-            customer_fname: customer?.cus_fname || '',
-            customer_lname: customer?.cus_lname || '',
-            customer_phone: customer?.cus_celno || '',
-            customer_email: customer?.email || '',
-            // Cake information
-            cake_id: cake?.cake_id || null,
-            cake_name: cake?.name || 'Unknown Cake',
-            theme: cake?.theme || 'Unknown',
-            tier: cake?.tier || 1,
-            description: cake?.description || '',
-            price: cake?.price || 'P0',
-            cake_img: cake?.cake_img || null,
-            // Order details
-            quantity: cakeOrder?.quantity || 1,
-            // Map to expected field names for compatibility
-            customer: `${customer?.cus_fname || ''} ${customer?.cus_lname || ''}`.trim() || `Customer ${order.cus_id}`,
-            phone: customer?.cus_celno || '',
-            email: customer?.email || '',
-            scheduled_date: order.order_schedule,
-            order_type: order.delivery_method,
-            // Payment information
-            amount_paid: payment?.amount_paid || cake?.price || 'P0',
-            payment_method: payment?.payment_method || 'Cash',
-            payment_status: payment?.payment_status || 'Unpaid',
-            payment_date: payment?.payment_date ? (() => {
-              // Format date for date input field (YYYY-MM-DD)
-              const date = new Date(payment.payment_date);
-              return date.toISOString().split('T')[0];
-            })() : (order.order_date ? (() => {
-              const date = new Date(order.order_date);
-              return date.toISOString().split('T')[0];
-            })() : ''),
-            receipt_url: payment?.receipt || null,
-            payment_id: payment?.payment_id || null
+            ...transformed,
+            receipt_url: transformed.receipt,
+            payment_id: order.PAYMENT?.[0]?.payment_id || null
           };
         }) || [];
 
@@ -207,6 +204,197 @@ const CakeOrders = () => {
     }
 
     setFilteredRows(filtered);
+  };
+
+  // Real-time update handlers
+  const handleNewOrder = async (newOrderData) => {
+    try {
+      // Fetch the complete order data with all related information
+      const { data: completeOrder, error } = await supabase
+        .from('ORDER')
+        .select(`
+          *,
+          CUSTOMER!inner(
+            cus_id,
+            cus_fname,
+            cus_lname,
+            cus_celno,
+            email
+          ),
+          CAKE-ORDERS!inner(
+            co_id,
+            quantity,
+            cake_id,
+            CAKE!inner(
+              cake_id,
+              theme,
+              tier,
+              name,
+              description,
+              price,
+              cake_img
+            )
+          ),
+          PAYMENT(
+            payment_id,
+            amount_paid,
+            payment_date,
+            payment_status,
+            receipt
+          )
+        `)
+        .eq('order_id', newOrderData.order_id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching complete order data:', error);
+        return;
+      }
+
+      // Transform the data to match our component structure
+      const transformedOrder = transformOrderData(completeOrder);
+
+      // Add the new order to the beginning of the list
+      setRows(prevRows => [transformedOrder, ...prevRows]);
+
+      // Show notification
+      toast.success(`New order received from ${transformedOrder.customer}!`, {
+        duration: 4000,
+        icon: '🎂',
+      });
+    } catch (error) {
+      console.error('Error handling new order:', error);
+    }
+  };
+
+  const handleOrderUpdate = async (updatedOrderData) => {
+    try {
+      // Fetch the complete updated order data
+      const { data: completeOrder, error } = await supabase
+        .from('ORDER')
+        .select(`
+          *,
+          CUSTOMER!inner(
+            cus_id,
+            cus_fname,
+            cus_lname,
+            cus_celno,
+            email
+          ),
+          CAKE-ORDERS!inner(
+            co_id,
+            quantity,
+            cake_id,
+            CAKE!inner(
+              cake_id,
+              theme,
+              tier,
+              name,
+              description,
+              price,
+              cake_img
+            )
+          ),
+          PAYMENT(
+            payment_id,
+            amount_paid,
+            payment_date,
+            payment_status,
+            receipt
+          )
+        `)
+        .eq('order_id', updatedOrderData.order_id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching updated order data:', error);
+        return;
+      }
+
+      // Transform the data
+      const transformedOrder = transformOrderData(completeOrder);
+
+      // Update the order in the list
+      setRows(prevRows =>
+        prevRows.map(order =>
+          order.order_id === updatedOrderData.order_id ? transformedOrder : order
+        )
+      );
+
+      // Show notification
+      toast.success(`Order #${updatedOrderData.order_id} has been updated!`, {
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Error handling order update:', error);
+    }
+  };
+
+  const handleOrderDelete = (deletedOrderData) => {
+    // Remove the order from the list
+    setRows(prevRows =>
+      prevRows.filter(order => order.order_id !== deletedOrderData.order_id)
+    );
+
+    // Show notification
+    toast.success(`Order #${deletedOrderData.order_id} has been deleted!`, {
+      duration: 3000,
+    });
+  };
+
+  // Helper function to transform order data (extracted from fetchOrders)
+  const transformOrderData = (order) => {
+    const customer = order.CUSTOMER;
+    const cakeOrder = order['CAKE-ORDERS']?.[0]; // Get first cake order
+    const cake = cakeOrder?.CAKE;
+    const payment = order.PAYMENT?.[0]; // Get first payment (assuming one payment per order)
+
+    return {
+      order_id: order.order_id,
+      order_date: order.order_date,
+      delivery_method: order.delivery_method,
+      order_schedule: order.order_schedule,
+      delivery_address: order.delivery_address,
+      order_status: order.order_status,
+      cus_id: order.cus_id,
+      // Customer information
+      customer_fname: customer?.cus_fname || '',
+      customer_lname: customer?.cus_lname || '',
+      customer_phone: customer?.cus_celno || '',
+      customer_email: customer?.email || '',
+      // Cake information
+      cake_id: cake?.cake_id || null,
+      cake_name: cake?.name || 'Unknown Cake',
+      theme: cake?.theme || 'Unknown',
+      tier: cake?.tier || 1,
+      description: cake?.description || '',
+      price: cake?.price || 'P0',
+      cake_img: cake?.cake_img || null,
+      // Order details
+      quantity: cakeOrder?.quantity || 1,
+      // Map to expected field names for compatibility
+      customer: `${customer?.cus_fname || ''} ${customer?.cus_lname || ''}`.trim() || `Customer ${order.cus_id}`,
+      phone: customer?.cus_celno || '',
+      email: customer?.email || '',
+      scheduled_date: order.order_schedule,
+      order_type: order.delivery_method,
+      // Payment information
+      amount_paid: payment?.amount_paid || cake?.price || 'P0',
+      payment_method: payment?.payment_method || 'Cash',
+      payment_status: payment?.payment_status || 'Unpaid',
+      payment_date: payment?.payment_date ? (() => {
+        // Format date for date input field (YYYY-MM-DD)
+        const date = new Date(payment.payment_date);
+        return date.toISOString().split('T')[0];
+      })() : (order.order_date ? (() => {
+        const date = new Date(order.order_date);
+        return date.toISOString().split('T')[0];
+      })() : ''),
+      // Receipt information
+      receipt: payment?.receipt || null,
+      receipt_url: payment?.receipt || null,
+      payment_id: payment?.payment_id || null
+    };
   };
 
   const handleEditOrder = (order) => {
@@ -460,6 +648,19 @@ const CakeOrders = () => {
     });
   };
 
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
   const uploadReceiptToDatabase = async (orderId, file) => {
     try {
       // Generate unique filename
@@ -635,13 +836,20 @@ const CakeOrders = () => {
                 </tr>
               ) : (
                 filteredRows.map((order) => (
-                  <tr key={order.order_id} className="hover:bg-gray-100 transition-colors duration-200">
+                  <tr key={order.order_id} className={`hover:bg-gray-100 transition-colors duration-200 ${isNewOrder(order.order_status) ? 'bg-green-50 border-l-4 border-l-green-500' : ''}`}>
                     {/* Customer Column */}
                     <td className="py-6 px-6 align-top">
                       <div className="space-y-2">
-                        <h4 className="font-semibold text-gray-900 text-base">
-                          {order.customer}
-                        </h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-gray-900 text-base">
+                            {order.customer}
+                          </h4>
+                          {isNewOrder(order.order_status) && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-green-500 text-white animate-pulse">
+                              NEW
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-gray-600">{order.phone}</p>
                         <p className="text-sm text-gray-600">{order.email}</p>
                         <p className="text-sm text-gray-600">Order Date: {formatDate(order.order_date)}</p>
@@ -673,7 +881,7 @@ const CakeOrders = () => {
                           </span>
                         </div>
                         <p className="text-sm text-gray-600">
-                          <span className="font-medium">Scheduled:</span> {formatDate(order.order_schedule)}
+                          <span className="font-medium">Scheduled:</span> {formatDateTime(order.order_schedule)}
                         </p>
                         {order.delivery_address && (
                           <p className="text-sm text-gray-600">
