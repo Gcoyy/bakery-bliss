@@ -29,15 +29,17 @@ const Login = () => {
       if (result.success) {
         toast.success("Redirecting to Google...");
         // The redirect will happen automatically via Supabase
+        // Don't set loading to false here as the page will redirect
       } else {
-        setError(result.error);
-        toast.error(result.error);
+        const errorMessage = result?.error?.message || result?.error || 'Google sign-in failed. Please try again.';
+        setError(errorMessage);
+        toast.error(errorMessage);
+        setLoading(false);
       }
     } catch (err) {
-      setError("An unexpected error occurred");
-      toast.error("An unexpected error occurred");
-      console.error(err);
-    } finally {
+      const errorMessage = "An unexpected error occurred during Google sign-in. Please try again.";
+      setError(errorMessage);
+      toast.error(errorMessage);
       setLoading(false);
     }
   };
@@ -73,7 +75,6 @@ const Login = () => {
     } catch (err) {
       setError("An unexpected error occurred");
       toast.error("An unexpected error occurred");
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -102,7 +103,6 @@ const Login = () => {
     } catch (err) {
       setError("An unexpected error occurred");
       toast.error("An unexpected error occurred");
-      console.error(err);
     } finally {
       setResetLoading(false);
     }

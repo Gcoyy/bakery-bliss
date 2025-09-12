@@ -5,7 +5,7 @@ import { supabase } from "../supabaseClient";
 
 const Header = () => {
   const location = useLocation();
-  const { session, userRole } = UserAuth();
+  const { session, userRole, loading } = UserAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
 
@@ -65,6 +65,17 @@ const Header = () => {
       window.removeEventListener('orderUpdated', handleOrderUpdate);
     };
   }, [session?.user, userRole]);
+
+  // Show loading state while context is initializing
+  if (loading) {
+    return (
+      <header className="relative w-full h-[14vh] overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] flex items-center justify-center">
+          <div className="text-white text-sm">Loading...</div>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="relative w-full h-[14vh] overflow-hidden">

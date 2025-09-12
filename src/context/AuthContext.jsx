@@ -3,10 +3,14 @@ import { supabase } from "../supabaseClient";
 
 export const AuthContext = createContext();
 
+// Global flag to prevent race conditions when creating Google users
+let isCreatingGoogleUser = false;
+
 export const AuthContextProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [userRole, setUserRole] = useState(null); // 'admin' or 'customer'
   const [loading, setLoading] = useState(true);   // To prevent route flicker
+  const [creatingUser, setCreatingUser] = useState(false); // To prevent race conditions
 
   // Sign up
   const signUpNewUser = async (email, password, firstName, lastName, username, phoneNumber) => {
@@ -16,12 +20,10 @@ export const AuthContextProvider = ({ children }) => {
     });
 
     if (signUpError) {
-      console.error("Sign-up error:", signUpError);
       return { success: false, error: signUpError };
     }
 
     const authUser = signUpData.user;
-    console.log("Supabase signUp result:", signUpData);
 
     // If no auth user (e.g., email confirmation required)
     if (!authUser) {
@@ -47,7 +49,6 @@ export const AuthContextProvider = ({ children }) => {
     ]);
 
     if (insertError) {
-      console.error("Error inserting into CUSTOMER:", insertError);
       return { success: false, error: insertError };
     }
 
@@ -66,7 +67,6 @@ export const AuthContextProvider = ({ children }) => {
       });
 
       if (error) {
-        console.error("Sign-in error:", error);
         return { success: false, error: error.message };
       }
 
@@ -75,7 +75,6 @@ export const AuthContextProvider = ({ children }) => {
 
       return { success: true, data, role };
     } catch (error) {
-      console.error("Unexpected sign-in error:", error);
       return { success: false, error: "Unexpected error" };
     }
   };
@@ -83,12 +82,8 @@ export const AuthContextProvider = ({ children }) => {
 
   // Sign out
   const signOut = async () => {
-    console.log("=== Sign Out Called ===");
-    console.log("Current session before sign out:", session);
-
     // If no session exists, just clear the local state
     if (!session) {
-      console.log("No session found, clearing local state only");
       setUserRole(null);
       setSession(null);
       return;
@@ -98,17 +93,14 @@ export const AuthContextProvider = ({ children }) => {
       // Use scope: 'local' to sign out locally without requiring an active session
       const { error } = await supabase.auth.signOut({ scope: 'local' });
       if (error) {
-        console.error("Sign-out error:", error);
         // Even if Supabase signOut fails, clear local state
         setUserRole(null);
         setSession(null);
       } else {
-        console.log("Sign out successful, clearing user role");
         setUserRole(null);
         setSession(null);
       }
     } catch (error) {
-      console.error("Unexpected error during sign out:", error);
       // Clear local state even if there's an unexpected error
       setUserRole(null);
       setSession(null);
@@ -117,9 +109,8 @@ export const AuthContextProvider = ({ children }) => {
     // Additional fallback: Clear any remaining session data from localStorage
     try {
       localStorage.removeItem('sb-' + supabase.supabaseUrl.split('//')[1].split('.')[0] + '-auth-token');
-      console.log("Cleared auth token from localStorage");
     } catch (localStorageError) {
-      console.log("Could not clear localStorage:", localStorageError);
+      // Silently handle localStorage errors
     }
   };
 
@@ -130,17 +121,19 @@ export const AuthContextProvider = ({ children }) => {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/redirect`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
       if (error) {
-        console.error("Google auth error:", error);
         return { success: false, error: error.message };
       }
 
       return { success: true, data };
     } catch (error) {
-      console.error("Unexpected Google auth error:", error);
       return { success: false, error: "An unexpected error occurred" };
     }
   };
@@ -154,13 +147,11 @@ export const AuthContextProvider = ({ children }) => {
       });
 
       if (error) {
-        console.error("Password reset error:", error);
         return { success: false, error: error.message };
       }
 
       return { success: true, message: "Password reset email sent successfully!" };
     } catch (error) {
-      console.error("Unexpected password reset error:", error);
       return { success: false, error: "An unexpected error occurred" };
     }
   };
@@ -196,8 +187,123 @@ export const AuthContextProvider = ({ children }) => {
       return;
     }
 
+    // If user exists in neither table, they might be a new Google user
+    // Let's check if they have a valid session and create a customer record
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.id === userId && !creatingUser) {
+      setCreatingUser(true);
+      try {
+        await createCustomerForGoogleUser(session.user);
+        setUserRole("customer");
+        setCreatingUser(false);
+        return;
+      } catch (error) {
+        setCreatingUser(false);
+        // If it's a duplicate key error, the user might already exist
+        if (error.code === '23505') {
+          // Try to fetch the role again in case the user was created elsewhere
+          const { data: existingCustomer } = await supabase
+            .from("CUSTOMER")
+            .select("cus_id")
+            .eq("auth_user_id", userId)
+            .maybeSingle();
+
+          if (existingCustomer) {
+            setUserRole("customer");
+            return;
+          }
+        }
+        // If we can't create or find the user, set role to null
+        setUserRole(null);
+        return;
+      }
+    }
+
     // Unknown role
     setUserRole(null);
+  };
+
+  // Create customer record for new Google users
+  const createCustomerForGoogleUser = async (user, retryCount = 0) => {
+    // Check global flag to prevent race conditions
+    if (isCreatingGoogleUser) {
+      // Wait a bit and check if user was created by another process
+      await new Promise(resolve => setTimeout(resolve, 1000 + (retryCount * 500)));
+      const { data: existingCustomer } = await supabase
+        .from("CUSTOMER")
+        .select("cus_id")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+
+      if (existingCustomer) {
+        return; // User was created by another process
+      }
+    }
+
+    isCreatingGoogleUser = true;
+
+    try {
+      // First check if user already exists to prevent duplicate creation
+      const { data: existingCustomer, error: checkError } = await supabase
+        .from("CUSTOMER")
+        .select("cus_id")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+
+      if (checkError) {
+        throw checkError;
+      }
+
+      if (existingCustomer) {
+        return; // User already exists, no need to create
+      }
+
+      const userMetadata = user.user_metadata || {};
+      const email = user.email || '';
+      const fullName = userMetadata.full_name || userMetadata.name || '';
+      const firstName = fullName.split(' ')[0] || 'Google';
+      const lastName = fullName.split(' ').slice(1).join(' ') || 'User';
+      const username = userMetadata.preferred_username || userMetadata.name || email.split('@')[0] || 'googleuser';
+
+      const { error: insertError } = await supabase.from("CUSTOMER").insert([
+        {
+          cus_fname: firstName,
+          cus_lname: lastName,
+          cus_username: username,
+          email: email,
+          cus_celno: 0, // Google users don't provide phone by default
+          auth_user_id: user.id,
+        },
+      ]);
+
+      if (insertError) {
+        // If it's a duplicate key error, the user might have been created by another process
+        if (insertError.code === '23505') {
+          // Check again if the user now exists
+          const { data: existingAfterError } = await supabase
+            .from("CUSTOMER")
+            .select("cus_id")
+            .eq("auth_user_id", user.id)
+            .maybeSingle();
+
+          if (existingAfterError) {
+            return; // User was created by another process, that's fine
+          }
+
+          // If user still doesn't exist and we haven't retried too many times, try again
+          if (retryCount < 3) {
+            isCreatingGoogleUser = false;
+            await new Promise(resolve => setTimeout(resolve, 1000 + (retryCount * 500)));
+            return createCustomerForGoogleUser(user, retryCount + 1);
+          }
+        }
+        throw insertError;
+      }
+    } catch (error) {
+      throw error;
+    } finally {
+      isCreatingGoogleUser = false;
+    }
   };
 
   // On auth state change
@@ -214,7 +320,6 @@ export const AuthContextProvider = ({ children }) => {
           setUserRole(null);
         }
       } catch (error) {
-        console.error("Error fetching session:", error);
         setLoading(false); // only once, at the very end
       }
     };
@@ -223,16 +328,10 @@ export const AuthContextProvider = ({ children }) => {
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log("=== Auth State Change ===");
-        console.log("Event:", event);
-        console.log("Session:", session);
-
         setSession(session);
         if (session?.user) {
-          console.log("User found, fetching role...");
           fetchUserRole(session.user.id);
         } else {
-          console.log("No user, clearing role");
           setUserRole(null);
         }
       }
@@ -259,5 +358,21 @@ export const AuthContextProvider = ({ children }) => {
 };
 
 export const UserAuth = () => {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+
+  if (context === undefined) {
+    // Return default values instead of throwing an error
+    return {
+      session: null,
+      userRole: null,
+      loading: true,
+      signInUser: () => Promise.resolve({ success: false, error: 'Context not available' }),
+      signUpNewUser: () => Promise.resolve({ success: false, error: 'Context not available' }),
+      signInOrUpWithGoogle: () => Promise.resolve({ success: false, error: 'Context not available' }),
+      signOut: () => Promise.resolve(),
+      resetPassword: () => Promise.resolve({ success: false, error: 'Context not available' })
+    };
+  }
+
+  return context;
 };

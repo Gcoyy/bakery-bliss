@@ -211,18 +211,16 @@ const CakeCustomization = () => {
     const getOrdersCountForDate = async (date) => {
         try {
             const { data: orders, error } = await supabase
-                .from('CAKE-ORDERS')
+                .from('ORDER')
                 .select('order_id')
                 .eq('order_schedule', date);
 
             if (error) {
-                console.error('Error fetching orders count:', error);
                 return 0;
             }
 
             return orders ? orders.length : 0;
         } catch (error) {
-            console.error('Error fetching orders count:', error);
             return 0;
         }
     };
@@ -303,13 +301,11 @@ const CakeCustomization = () => {
                 .eq('whole_day', true);
 
             if (error) {
-                console.error('Error fetching blocked dates:', error);
                 return;
             }
 
             setBlockedDates(data || []);
         } catch (error) {
-            console.error('Error fetching blocked dates:', error);
         }
     };
 
@@ -546,7 +542,6 @@ const CakeCustomization = () => {
                     .select("*");
 
                 if (assetError) {
-                    console.error("Error fetching assets:", assetError);
                     toast.error("Failed to load assets");
                     return;
                 }
@@ -630,7 +625,6 @@ const CakeCustomization = () => {
                 setDecorations(processedIcing);
                 setToppings(processedToppings);
             } catch (error) {
-                console.error("Error fetching images:", error);
                 toast.error("Failed to load images");
             } finally {
                 setLoading(false);
@@ -671,7 +665,6 @@ const CakeCustomization = () => {
                     setCanvasReady(true);
                 }, 100);
             } catch (error) {
-                console.error('Error creating Canvas:', error);
             }
         }
     }, [loading]);
@@ -896,7 +889,6 @@ const CakeCustomization = () => {
                     };
                     img.src = dataURL;
                 } catch (fallbackError) {
-                    console.error('Both CORS and data URL conversion failed:', fallbackError);
                     toast.error('Failed to load cake image');
                 }
             }
@@ -958,7 +950,6 @@ const CakeCustomization = () => {
                     };
                     img.src = dataURL;
                 } catch (fallbackError) {
-                    console.error('Both CORS and data URL conversion failed for decoration:', fallbackError);
                     toast.error('Failed to load decoration image');
                 }
             }
@@ -1020,7 +1011,6 @@ const CakeCustomization = () => {
                     };
                     img.src = dataURL;
                 } catch (fallbackError) {
-                    console.error('Both CORS and data URL conversion failed for topping:', fallbackError);
                     toast.error('Failed to load topping image');
                 }
             }
@@ -1255,7 +1245,6 @@ const CakeCustomization = () => {
             setIsOrderModalOpen(true);
 
         } catch (error) {
-            console.error('Error preparing design:', error);
             toast.error('Failed to prepare design');
         }
     };
@@ -1311,8 +1300,6 @@ const CakeCustomization = () => {
         setIsPlacingOrder(true);
 
         try {
-            console.log('Starting custom cake order placement...');
-
             // Get customer ID from authentication
             const { data: customerData, error: customerError } = await supabase
                 .from('CUSTOMER')
@@ -1321,7 +1308,6 @@ const CakeCustomization = () => {
                 .single();
 
             if (customerError || !customerData) {
-                console.error('Error fetching customer ID:', customerError);
                 toast.error('Customer information not found. Please try again.');
                 return;
             }
@@ -1337,12 +1323,9 @@ const CakeCustomization = () => {
                 });
 
             if (uploadError) {
-                console.error('Upload error:', uploadError);
                 toast.error('Failed to save design to storage');
                 return;
             }
-
-            console.log('Image uploaded successfully:', uploadData);
 
             // Get the next CC ID
             const { data: maxIdData } = await supabase
@@ -1364,7 +1347,6 @@ const CakeCustomization = () => {
                 order_status: 'Pending'
             };
 
-            console.log('Attempting to create order with data:', orderInsertData);
 
             const { data: orderData, error: orderError } = await supabase
                 .from('ORDER')
@@ -1373,19 +1355,10 @@ const CakeCustomization = () => {
                 .single();
 
             if (orderError) {
-                console.error('Error creating order:', orderError);
-                console.error('Order error details:', {
-                    message: orderError.message,
-                    details: orderError.details,
-                    hint: orderError.hint,
-                    code: orderError.code
-                });
                 toast.error(`Failed to create order: ${orderError.message}`);
                 return;
             }
 
-            console.log('Order created successfully:', orderData);
-            console.log('Order ID from database:', orderData.order_id);
 
             // Insert into CUSTOM-CAKE table
             const customCakeData = {
@@ -1396,25 +1369,16 @@ const CakeCustomization = () => {
                 auth_user_id: session.user.id
             };
 
-            console.log('Attempting to create custom cake record with data:', customCakeData);
 
             const { data: insertData, error: insertError } = await supabase
                 .from('CUSTOM-CAKE')
                 .insert(customCakeData);
 
             if (insertError) {
-                console.error('Database insert error:', insertError);
-                console.error('Custom cake error details:', {
-                    message: insertError.message,
-                    details: insertError.details,
-                    hint: insertError.hint,
-                    code: insertError.code
-                });
                 toast.error(`Failed to save cake design to database: ${insertError.message}`);
                 return;
             }
 
-            console.log('Custom cake record created:', insertData);
 
             // Create payment record
             const customCakePrice = 1500; // Base price for custom cakes
@@ -1429,25 +1393,16 @@ const CakeCustomization = () => {
                 order_id: orderData.order_id
             };
 
-            console.log('Attempting to create payment record with data:', paymentData);
 
             const { error: paymentError } = await supabase
                 .from('PAYMENT')
                 .insert([paymentData]);
 
             if (paymentError) {
-                console.error('Error creating payment:', paymentError);
-                console.error('Payment error details:', {
-                    message: paymentError.message,
-                    details: paymentError.details,
-                    hint: paymentError.hint,
-                    code: paymentError.code
-                });
                 toast.error(`Failed to create payment record: ${paymentError.message}`);
                 return;
             }
 
-            console.log('Payment record created successfully');
 
             // Show success notification
             toast.success('Custom cake order placed successfully!', {
@@ -1465,7 +1420,6 @@ const CakeCustomization = () => {
             setCurrentStep(3);
 
         } catch (error) {
-            console.error('Error placing order:', error);
             toast.error('Failed to place order. Please try again.', {
                 duration: 4000,
                 position: 'top-center',
@@ -1475,18 +1429,15 @@ const CakeCustomization = () => {
         }
     };
 
-    console.log('=== Render called ===');
-    console.log('Current state:', { loading, canvasReady, selectedColor, cakeImages: cakeImages.length, session: !!session });
 
     // Show loading spinner while checking authentication or loading data
     if (!session || !session.user || loading) {
-        console.log('Showing loading spinner - session:', !!session, 'loading:', loading);
         return <LoadingSpinner message={!session ? "Checking authentication, please wait..." : "Loading cake designer..."} />;
     }
 
     return (
         <div className="h-screen flex flex-col bg-gray-50">
-            <style jsx>{`
+            <style>{`
                 .slider::-webkit-slider-thumb {
                     appearance: none;
                     height: 20px;
@@ -1868,7 +1819,6 @@ const CakeCustomization = () => {
                                                             className="w-full object-contain rounded-lg group-hover:scale-105 transition-transform duration-200"
                                                             style={{ height: 'auto', maxHeight: '80px' }}
                                                             onError={(e) => {
-                                                                console.error('Decoration image failed to load in UI:', decoration.image_path);
                                                                 e.target.src = "/saved-cake.png";
                                                             }}
                                                         />
@@ -1910,7 +1860,6 @@ const CakeCustomization = () => {
                                                             className="w-full object-contain rounded-lg group-hover:scale-105 transition-transform duration-200"
                                                             style={{ height: 'auto', maxHeight: '80px' }}
                                                             onError={(e) => {
-                                                                console.error('Topping image failed to load in UI:', topping.src);
                                                                 e.target.src = "/saved-cake.png";
                                                             }}
                                                         />

@@ -39,14 +39,9 @@ const ResetPassword = () => {
         const hash = window.location.hash;
         const searchParams = new URLSearchParams(window.location.search);
 
-        console.log('ResetPassword: Checking session and URL params');
-        console.log('Hash:', hash);
-        console.log('Search params:', searchParams.toString());
-        console.log('Full URL:', window.location.href);
 
         // Check if we have a session
         const { data: { session } } = await supabase.auth.getSession();
-        console.log('Session found:', !!session);
 
         // Check if this is a password recovery session
         const isPasswordRecovery = session?.user?.recovery ||
@@ -56,13 +51,11 @@ const ResetPassword = () => {
           searchParams.has('access_token');
 
         if (session && isPasswordRecovery) {
-          console.log('Valid password recovery session found, user can reset password');
           setIsValidToken(true);
           setIsValidating(false);
         } else if (session && !isPasswordRecovery) {
           // If there's a session but it's not a password recovery session,
           // redirect to appropriate page based on role
-          console.log('Regular session found, redirecting away from reset page');
           const { data: customer } = await supabase
             .from("CUSTOMER")
             .select("cus_id")
@@ -85,19 +78,14 @@ const ResetPassword = () => {
           return;
         } else if (hash && (hash.includes('access_token') || hash.includes('refresh_token'))) {
           // Handle the case where Supabase sends tokens in URL hash
-          console.log('Tokens found in URL hash, attempting to get session');
 
           // Try to recover the session from the URL
           try {
             const { data, error } = await supabase.auth.getSession();
             if (data.session) {
-              console.log('Session created from URL tokens');
               setIsValidToken(true);
             } else {
-              console.error('Failed to create session from tokens:', error);
-
               // Try manual recovery by parsing the hash
-              console.log('Attempting manual session recovery...');
               try {
                 // Parse the hash to extract tokens
                 const hashParams = new URLSearchParams(hash.substring(1));
@@ -105,7 +93,6 @@ const ResetPassword = () => {
                 const refreshToken = hashParams.get('refresh_token');
 
                 if (accessToken) {
-                  console.log('Found access token, attempting to set session');
                   // Try to set the session manually
                   const { data: manualData, error: manualError } = await supabase.auth.setSession({
                     access_token: accessToken,
@@ -113,11 +100,9 @@ const ResetPassword = () => {
                   });
 
                   if (manualData.session) {
-                    console.log('Manual session recovery successful');
                     setIsValidToken(true);
                     setIsValidating(false);
                   } else {
-                    console.error('Manual session recovery failed:', manualError);
                     setError('Failed to validate reset link. Please try again.');
                     toast.error('Invalid reset link. Please try again.');
                   }
@@ -126,46 +111,36 @@ const ResetPassword = () => {
                   toast.error('Invalid reset link. Please try again.');
                 }
               } catch (manualRecoveryError) {
-                console.error('Manual recovery error:', manualRecoveryError);
                 setError('Failed to validate reset link. Please try again.');
                 toast.error('Invalid reset link. Please try again.');
               }
             }
           } catch (recoveryError) {
-            console.error('Error recovering session:', recoveryError);
             setError('Failed to validate reset link. Please try again.');
             toast.error('Invalid reset link. Please try again.');
           }
         } else if (searchParams.has('access_token') || searchParams.has('refresh_token')) {
           // Handle case where tokens are in search params instead of hash
-          console.log('Tokens found in search params, attempting to get session');
           const { data, error } = await supabase.auth.getSession();
           if (data.session) {
-            console.log('Session created from search params');
             setIsValidToken(true);
             setIsValidating(false);
           } else {
-            console.error('Failed to create session from search params:', error);
-
             // Try manual recovery from search params
-            console.log('Attempting manual session recovery from search params...');
             try {
               const accessToken = searchParams.get('access_token');
               const refreshToken = searchParams.get('refresh_token');
 
               if (accessToken) {
-                console.log('Found access token in search params, attempting to set session');
                 const { data: manualData, error: manualError } = await supabase.auth.setSession({
                   access_token: accessToken,
                   refresh_token: refreshToken
                 });
 
                 if (manualData.session) {
-                  console.log('Manual session recovery from search params successful');
                   setIsValidToken(true);
                   setIsValidating(false);
                 } else {
-                  console.error('Manual session recovery from search params failed:', manualError);
                   setError('Failed to validate reset link. Please try again.');
                   toast.error('Invalid reset link. Please try again.');
                 }
@@ -174,19 +149,16 @@ const ResetPassword = () => {
                 toast.error('Invalid reset link. Please try again.');
               }
             } catch (manualRecoveryError) {
-              console.error('Manual recovery from search params error:', manualRecoveryError);
               setError('Failed to validate reset link. Please try again.');
               toast.error('Invalid reset link. Please try again.');
             }
           }
         } else {
-          console.log('No valid session or tokens found');
           setError('This reset link is invalid or has expired. Please request a new password reset from the login page.');
           toast.error('Invalid reset link. Please try again.');
           setIsValidating(false);
         }
       } catch (error) {
-        console.error('Error checking session:', error);
         setError('An error occurred while validating the reset link. Please try again.');
         toast.error('Error validating reset link. Please try again.');
         setIsValidating(false);
@@ -197,17 +169,14 @@ const ResetPassword = () => {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state change:', event, !!session);
       if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session?.user?.recovery)) {
         if (session) {
-          console.log('Password recovery session established from auth state change');
           setIsValidToken(true);
           setIsValidating(false);
           setError('');
         }
       } else if (event === 'SIGNED_IN' && session && !session?.user?.recovery) {
         // Regular sign in, not password recovery - redirect away
-        console.log('Regular sign in detected, redirecting away from reset page');
         const redirectUser = async () => {
           const { data: customer } = await supabase
             .from("CUSTOMER")
@@ -310,7 +279,6 @@ const ResetPassword = () => {
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
-      console.error(err);
     } finally {
       setLoading(false);
     }

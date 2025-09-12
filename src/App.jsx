@@ -103,6 +103,9 @@ function AppRoutes() {
           }
         />
 
+        {/* OAuth Redirect Handler */}
+        <Route path="/redirect" element={<RoleBasedRedirect />} />
+
       </Routes>
     </AnimatePresence>
   );

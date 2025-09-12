@@ -64,14 +64,11 @@ const Cakes = () => {
       setLoading(true);
       const { data, error } = await supabase.from('CAKE').select('*').order('name');
       if (error) {
-        console.error('Error fetching cakes:', error);
         toast.error('Failed to fetch cakes');
       } else {
-        console.log('Fetched cakes from database:', data);
         setRows(data || []);
       }
     } catch (error) {
-      console.error('Error fetching cakes:', error);
       toast.error('Failed to fetch cakes');
     } finally {
       setLoading(false);
@@ -127,7 +124,6 @@ const Cakes = () => {
       setSaving(true);
       addCake(newCake);
     } catch (error) {
-      console.error('Error adding cake:', error);
       toast.error('Failed to add cake');
     } finally {
       setSaving(false);
@@ -148,7 +144,6 @@ const Cakes = () => {
         }]);
 
       if (insertError) {
-        console.error("Insert error:", insertError);
         toast.error('Failed to add cake');
         return;
       }
@@ -158,7 +153,6 @@ const Cakes = () => {
       setNewCake({ name: '', theme: '', description: '', tier: 1, price: '', cake_img: '' });
       fetchCakes();
     } catch (error) {
-      console.error('Error adding cake:', error);
       toast.error('Failed to add cake');
     }
   };
@@ -186,7 +180,6 @@ const Cakes = () => {
       setSaving(true);
       await updateCake(cakeToEdit.cake_id, editFormData);
     } catch (error) {
-      console.error('Error updating cake:', error);
       toast.error('Failed to update cake');
     } finally {
       setSaving(false);
@@ -210,7 +203,6 @@ const Cakes = () => {
         .eq('cake_id', cakeId);
 
       if (updateError) {
-        console.error("Update error:", updateError);
         toast.error('Failed to update cake');
         return;
       }
@@ -220,7 +212,6 @@ const Cakes = () => {
       setCakeToEdit(null);
       fetchCakes();
     } catch (error) {
-      console.error('Error updating cake:', error);
       toast.error('Failed to update cake');
     }
   };
@@ -243,7 +234,6 @@ const Cakes = () => {
         .eq('cake_id', cakeToDelete.cake_id);
 
       if (dbError) {
-        console.error("Database deletion error:", dbError);
         toast.error('Failed to delete cake');
         return;
       }
@@ -268,7 +258,6 @@ const Cakes = () => {
               .remove([filePath]);
           }
         } catch (storageError) {
-          console.warn("Storage deletion error:", storageError);
         }
       }
 
@@ -277,7 +266,6 @@ const Cakes = () => {
       setCakeToDelete(null);
       fetchCakes();
     } catch (error) {
-      console.error('Error deleting cake:', error);
       toast.error('Failed to delete cake');
     } finally {
       setSaving(false);

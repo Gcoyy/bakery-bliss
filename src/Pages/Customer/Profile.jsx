@@ -65,16 +65,12 @@ const Profile = () => {
 
   // Function to handle sign out
   const handleSignOut = async () => {
-    console.log("=== Profile Sign Out Button Clicked ===");
     try {
-      console.log("Calling signOut...");
       await signOut();
-      console.log("Sign out completed, navigating to login...");
       navigate("/login"); // Redirect to login page
       // Scroll to top after navigation
       setTimeout(() => window.scrollTo(0, 0), 100);
     } catch (error) {
-      console.error("Error signing out:", error);
     }
   };
 
@@ -84,7 +80,6 @@ const Profile = () => {
     const fetchProfile = async () => {
       try {
         if (!session || !session.user) {
-          console.log("No session or user found.");
           return;
         }
 
@@ -95,9 +90,7 @@ const Profile = () => {
           .single();
 
         if (error || !data) {
-          console.log("No profile data found for this user.");
         } else {
-          //console.log("Fetched profile:", data);
           const profileData = {
             username: data.cus_username || "",
             firstName: data.cus_fname || "",
@@ -113,7 +106,6 @@ const Profile = () => {
           setOriginalValues(profileData);
         }
       } catch (error) {
-        console.error("Error fetching profile:", error.message);
       } finally {
         setLoading(false);
       }
@@ -142,7 +134,6 @@ const Profile = () => {
 
         setCustomCakes(customCakesWithUrls);
       } catch (error) {
-        console.error("Error fetching custom cakes:", error.message);
       }
     };
 
@@ -287,13 +278,11 @@ const Profile = () => {
         .eq("auth_user_id", session.user.id);
 
       if (error) {
-        console.error("Error updating profile:", error.message);
         toast.error(`Failed to update profile: ${error.message}`, {
           duration: 4000,
           position: 'top-center',
         });
       } else {
-        console.log("Profile updated successfully.");
         setProfile(prev => ({ ...prev, ...updates }));
         setPhoneNumber(phoneToSave || ""); // Update local state
         setIsEditingPhone(false); // exit phone edit mode
@@ -322,7 +311,6 @@ const Profile = () => {
         });
       }
     } catch (err) {
-      console.error("Unexpected error:", err);
       toast.error('An unexpected error occurred. Please try again.', {
         duration: 4000,
         position: 'top-center',

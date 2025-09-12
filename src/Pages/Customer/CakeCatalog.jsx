@@ -26,7 +26,6 @@ const isDateTimeBlocked = async (date, time = null) => {
       .eq('start_date', date);
 
     if (error) {
-      console.error('Error fetching blocked dates:', error);
       return { isBlocked: false, reason: null };
     }
 
@@ -66,7 +65,6 @@ const isDateTimeBlocked = async (date, time = null) => {
 
     return { isBlocked: false, reason: null };
   } catch (error) {
-    console.error('Error checking blocked dates:', error);
     return { isBlocked: false, reason: null };
   }
 };
@@ -79,13 +77,11 @@ const getOrdersCountForDate = async (date) => {
       .eq('order_schedule', date);
 
     if (error) {
-      console.error('Error fetching orders count:', error);
       return 0;
     }
 
     return orders ? orders.length : 0;
   } catch (error) {
-    console.error('Error fetching orders count:', error);
     return 0;
   }
 };
@@ -104,7 +100,6 @@ const getAvailableTimeSlots = async (date) => {
       .eq('start_date', date);
 
     if (error) {
-      console.error('Error fetching blocked dates:', error);
       return [];
     }
 
@@ -142,7 +137,6 @@ const getAvailableTimeSlots = async (date) => {
 
     return timeSlots;
   } catch (error) {
-    console.error('Error getting available time slots:', error);
     return [];
   }
 };
@@ -199,13 +193,11 @@ const CakeCatalog = () => {
         .eq('whole_day', true); // Only get full day blocks
 
       if (error) {
-        console.error('Error fetching blocked dates:', error);
         return;
       }
 
       setBlockedDates(data || []);
     } catch (error) {
-      console.error('Error fetching blocked dates:', error);
     }
   };
 
@@ -319,7 +311,6 @@ const CakeCatalog = () => {
         setAvailableTimeSlots([]);
       }
     } catch (error) {
-      console.error('Error checking blocked dates:', error);
       setIsDateBlocked(false);
       setBlockedReason('');
       setAvailableTimeSlots([]);
@@ -357,7 +348,6 @@ const CakeCatalog = () => {
       // Save updated cart to localStorage
       localStorage.setItem('bakeryCart', JSON.stringify(cart));
     } catch (error) {
-      console.error('Error adding to cart:', error);
       toast.error('Failed to add to cart');
     }
   };
@@ -369,7 +359,6 @@ const CakeCatalog = () => {
         setLoading(true);
         const { data, error } = await supabase.from("CAKE").select("*");
         if (error) {
-          console.error("Error fetching cakes:", error.message);
           toast.error("Failed to load cakes. Please try again.");
           return;
         }
@@ -377,13 +366,11 @@ const CakeCatalog = () => {
         // Generate public URLs for each cake
         const cakesWithImages = data.map((cake) => {
           const publicUrl = getPublicImageUrl(cake.cake_img);
-          console.log(`Cake: ${cake.name}, cake_img: ${cake.cake_img}, publicUrl: ${publicUrl}`);
           return { ...cake, publicUrl };
         });
 
         setCakes(cakesWithImages);
       } catch (error) {
-        console.error("Error fetching cakes:", error);
         toast.error("Failed to load cakes. Please try again.");
       } finally {
         setLoading(false);
@@ -443,15 +430,8 @@ const CakeCatalog = () => {
       return;
     }
 
-    console.log('handlePlaceOrder called');
-    console.log('selectedCake:', selectedCake);
-    console.log('orderDate:', orderDate);
-    console.log('orderTime:', orderTime);
-    console.log('orderType:', orderType);
-    console.log('deliveryAddress:', deliveryAddress);
 
     if (!selectedCake || !orderDate || !orderTime || (orderType === "Delivery" && !deliveryAddress)) {
-      console.log('Validation failed - missing required fields');
       toast.error('Please fill in all required fields');
       return;
     }
@@ -461,7 +441,6 @@ const CakeCatalog = () => {
       const [hours, minutes] = orderTime.split(':');
       const hour = parseInt(hours);
       if (hour > 20 || (hour === 20 && parseInt(minutes) > 0)) {
-        console.log('Validation failed - time is after 8 PM');
         toast.error('Pickup/delivery time cannot be after 8:00 PM');
         return;
       }
@@ -469,7 +448,6 @@ const CakeCatalog = () => {
 
     // Check if the selected date is blocked
     if (isDateBlockedForCalendar(orderDate)) {
-      console.log('Validation failed - selected date is blocked');
       toast.error('The selected date is not available for orders');
       return;
     }
@@ -477,11 +455,9 @@ const CakeCatalog = () => {
     setIsPlacingOrder(true);
 
     try {
-      console.log('Starting order placement...');
       // Get current user session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        console.log('No user session found');
         toast.error('Please log in to place an order');
         return;
       }
@@ -511,7 +487,6 @@ const CakeCatalog = () => {
         order_status: 'Pending' // New orders start as pending
       };
 
-      console.log('Attempting to create order with data:', orderInsertData);
 
       const { data: orderData, error: orderError } = await supabase
         .from("ORDER")
@@ -520,21 +495,10 @@ const CakeCatalog = () => {
         .single();
 
       if (orderError) {
-        console.error('Error creating order:', orderError);
-        console.error('Order error details:', {
-          message: orderError.message,
-          details: orderError.details,
-          hint: orderError.hint,
-          code: orderError.code
-        });
         toast.error('Failed to create order. Please try again.');
         return;
       }
 
-      console.log('Order created successfully:', orderData);
-      console.log('Order ID from database:', orderData.order_id);
-      console.log('Selected cake ID:', selectedCake.cake_id);
-      console.log('Cake quantity:', cakeQuantity);
 
       // 2. Create CAKE_ORDERS record
       const cakeOrderData = {
@@ -543,9 +507,6 @@ const CakeCatalog = () => {
         cake_id: selectedCake.cake_id
       };
 
-      console.log('Attempting to create cake order with data:', cakeOrderData);
-
-      console.log('Attempting to insert into CAKE-ORDERS table...');
 
       const { data: cakeOrderResult, error: cakeOrderError } = await supabase
         .from("CAKE-ORDERS")
@@ -553,19 +514,10 @@ const CakeCatalog = () => {
         .select();
 
       if (cakeOrderError) {
-        console.error('Error creating cake order:', cakeOrderError);
-        console.error('Full error object:', JSON.stringify(cakeOrderError, null, 2));
-        console.error('Error details:', {
-          message: cakeOrderError.message,
-          details: cakeOrderError.details,
-          hint: cakeOrderError.hint,
-          code: cakeOrderError.code
-        });
         toast.error('Failed to create cake order. Please try again.');
         return;
       }
 
-      console.log('Cake order created successfully:', cakeOrderResult);
 
       // 3. Create PAYMENT record
       const { error: paymentError } = await supabase
@@ -582,7 +534,6 @@ const CakeCatalog = () => {
         ]);
 
       if (paymentError) {
-        console.error('Error creating payment:', paymentError);
         toast.error('Failed to create payment record. Please try again.');
         return;
       }
@@ -603,12 +554,10 @@ const CakeCatalog = () => {
         },
       });
 
-      console.log('Advancing to step 3...');
       // Advance to success step (step 3)
       setCurrentStep(3);
 
     } catch (error) {
-      console.error('Error placing order:', error);
       toast.error('Failed to place order. Please try again.', {
         duration: 4000,
         position: 'top-center',
@@ -632,9 +581,7 @@ const CakeCatalog = () => {
   };
 
   const nextStep = () => {
-    console.log('nextStep called, current step:', currentStep);
     if (currentStep < 3) {
-      console.log('Advancing to step:', currentStep + 1);
       setCurrentStep(currentStep + 1);
     }
   };
@@ -879,7 +826,6 @@ const CakeCatalog = () => {
                       alt={cake.name}
                       className="w-full h-48 object-contain group-hover:scale-110 transition-transform duration-300"
                       onError={(e) => {
-                        console.error(`Failed to load image for cake: ${cake.name}, URL: ${cake.publicUrl}`);
                         e.target.src = "/saved-cake.png";
                       }}
                     />
