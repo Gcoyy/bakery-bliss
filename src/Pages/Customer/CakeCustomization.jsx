@@ -6,6 +6,59 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import { UserAuth } from '../../context/AuthContext';
 
+// Font loading utility
+const loadFont = (fontFamily) => {
+    return new Promise((resolve) => {
+        if (document.fonts && document.fonts.load) {
+            // Load multiple weights to ensure the font is available
+            const weights = ['400', '500', '600', '700'];
+            const loadPromises = weights.map(weight =>
+                document.fonts.load(`${weight} 16px "${fontFamily}"`)
+            );
+
+            Promise.all(loadPromises).then(() => {
+                // Verify the font is actually loaded
+                const isLoaded = document.fonts.check(`16px "${fontFamily}"`);
+                console.log(`Font ${fontFamily} loaded successfully:`, isLoaded);
+                if (!isLoaded) {
+                    console.warn(`Font ${fontFamily} verification failed, but continuing...`);
+                }
+                resolve();
+            }).catch((error) => {
+                console.warn(`Font ${fontFamily} failed to load:`, error);
+                resolve(); // Continue even if font fails to load
+            });
+        } else {
+            // Fallback: wait a bit for fonts to load from CSS
+            setTimeout(() => {
+                const isLoaded = document.fonts.check(`16px "${fontFamily}"`);
+                console.log(`Font ${fontFamily} loaded via fallback:`, isLoaded);
+                resolve();
+            }, 1000);
+        }
+    });
+};
+
+const loadGoogleFonts = async () => {
+    const fonts = ['Poppins', 'Abhaya Libre', 'Jost'];
+    console.log('Loading Google Fonts:', fonts);
+
+    // Load fonts with a delay between each to ensure proper loading
+    for (const font of fonts) {
+        await loadFont(font);
+        // Add a small delay between font loads
+        await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    console.log('All Google Fonts loaded');
+
+    // Final verification
+    fonts.forEach(font => {
+        const isLoaded = document.fonts.check(`16px "${font}"`);
+        console.log(`Final verification - ${font}:`, isLoaded);
+    });
+};
+
 const CakeCustomization = () => {
 
     const navigate = useNavigate();
@@ -21,7 +74,9 @@ const CakeCustomization = () => {
     const [selectedColor, setSelectedColor] = useState('#FF0000');
     const [textValue, setTextValue] = useState('');
     const [fontSize, setFontSize] = useState(24);
-    const [fontFamily, setFontFamily] = useState('Arial');
+    const [fontFamily, setFontFamily] = useState('Poppins');
+    const [opacity, setOpacity] = useState(1);
+    const [currentFontSize, setCurrentFontSize] = useState(24);
     const [canvasReady, setCanvasReady] = useState(false);
     const [selectedObject, setSelectedObject] = useState(null);
     const [objectUpdateTrigger, setObjectUpdateTrigger] = useState(0);
@@ -507,6 +562,9 @@ const CakeCustomization = () => {
         const colorWheelCanvas = colorWheelRef.current;
         if (!colorWheelCanvas) return;
 
+        // Prevent event from interfering with other elements
+        event.stopPropagation();
+
         // Add event listeners for drag
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
@@ -516,6 +574,9 @@ const CakeCustomization = () => {
     };
 
     const handleMouseMove = (event) => {
+        // Only handle if we're still dragging the color wheel
+        if (!colorWheelRef.current) return;
+
         // Create a synthetic event with the current mouse position
         const syntheticEvent = {
             clientX: event.clientX,
@@ -524,10 +585,13 @@ const CakeCustomization = () => {
         getColorFromWheel(syntheticEvent);
     };
 
-    const handleMouseUp = () => {
-        // Remove event listeners
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
+    const handleMouseUp = (event) => {
+        // Only remove listeners if this is the color wheel mouse up
+        if (event.target === colorWheelRef.current || event.target.closest('.color-picker-container')) {
+            // Remove event listeners
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        }
     };
 
     // Fetch cake images and decorations from database
@@ -634,6 +698,28 @@ const CakeCustomization = () => {
         fetchImages();
     }, []);
 
+    // Load Google Fonts
+    useEffect(() => {
+        // Add a small delay to ensure fonts are loaded from HTML
+        setTimeout(() => {
+            loadGoogleFonts();
+        }, 500);
+    }, []);
+
+    // Sync opacity state with selected object
+    useEffect(() => {
+        if (selectedObject) {
+            setOpacity(selectedObject.opacity || 1);
+        }
+    }, [selectedObject, objectUpdateTrigger]);
+
+    // Sync font size state with selected text object
+    useEffect(() => {
+        if (selectedObject?.type === 'text') {
+            setCurrentFontSize(selectedObject.fontSize || 24);
+        }
+    }, [selectedObject, objectUpdateTrigger]);
+
     // Initialize Fabric.js canvas
     useEffect(() => {
         if (!loading && canvasRef.current && !canvas.current) {
@@ -654,11 +740,13 @@ const CakeCustomization = () => {
 
                 // Add event listeners
                 canvas.current.on('selection:created', handleSelection);
+                canvas.current.on('selection:updated', handleSelection);
                 canvas.current.on('selection:cleared', handleDeselection);
                 canvas.current.on('object:modified', handleObjectModified);
                 canvas.current.on('object:moving', handleObjectModified);
                 canvas.current.on('object:scaling', handleObjectModified);
                 canvas.current.on('object:rotating', handleObjectModified);
+                canvas.current.on('mouse:down', handleObjectClick);
 
                 // Mark canvas as ready with a small delay to ensure full initialization
                 setTimeout(() => {
@@ -810,10 +898,13 @@ const CakeCustomization = () => {
             setSelectedObject(activeObject);
             setObjectUpdateTrigger(prev => prev + 1);
 
+            // Update local state variables for sliders
+            setOpacity(activeObject.opacity || 1);
             if (activeObject.type === 'text') {
-                setTextValue(activeObject.text);
-                setFontSize(activeObject.fontSize);
-                setFontFamily(activeObject.fontFamily);
+                setCurrentFontSize(activeObject.fontSize || 24);
+            }
+
+            if (activeObject.type === 'text') {
                 setSelectedColor(activeObject.fill);
             } else {
                 setSelectedColor(activeObject.fill || '#FF0000');
@@ -824,15 +915,28 @@ const CakeCustomization = () => {
     const handleDeselection = () => {
         setTextValue('');
         setFontSize(24);
-        setFontFamily('Arial');
+        setFontFamily('Poppins');
         setSelectedColor('#FF0000');
         setSelectedObject(null);
         setObjectUpdateTrigger(0);
+        // Clear local state variables for sliders
+        setOpacity(1);
+        setCurrentFontSize(24);
     };
 
     const handleObjectModified = () => {
         // Force a re-render of the properties panel
         setObjectUpdateTrigger(prev => prev + 1);
+    };
+
+    const handleObjectClick = (e) => {
+        if (e.target) {
+            // Object was clicked, make it active
+            canvas.current.setActiveObject(e.target);
+            canvas.current.renderAll();
+            // Trigger selection handler to update properties panel
+            handleSelection();
+        }
     };
 
     // Add cake base to canvas
@@ -1031,7 +1135,7 @@ const CakeCustomization = () => {
         }
     };
 
-    const addText = () => {
+    const addText = async () => {
         if (!textValue.trim()) {
             toast.error('Please enter some text');
             return;
@@ -1042,11 +1146,18 @@ const CakeCustomization = () => {
             return;
         }
 
+        // Ensure font is loaded before creating text
+        await loadFont(fontFamily);
+
+        // Double-check font availability
+        const fontAvailable = document.fonts.check(`16px "${fontFamily}"`);
+        console.log(`Font ${fontFamily} available:`, fontAvailable);
+
         const text = new FabricText(textValue, {
             left: 350,
             top: 100,
             fontSize: fontSize,
-            fontFamily: fontFamily,
+            fontFamily: fontAvailable ? fontFamily : 'Arial', // Fallback to Arial if font not available
             fill: selectedColor,
             name: 'text'
         });
@@ -1054,6 +1165,9 @@ const CakeCustomization = () => {
         canvas.current.add(text);
         canvas.current.setActiveObject(text);
         canvas.current.renderAll();
+
+        // Trigger selection handler to update properties panel
+        handleSelection();
 
         // Force additional refresh
         forceCanvasRefresh();
@@ -1437,27 +1551,6 @@ const CakeCustomization = () => {
 
     return (
         <div className="h-screen flex flex-col bg-gray-50">
-            <style>{`
-                .slider::-webkit-slider-thumb {
-                    appearance: none;
-                    height: 20px;
-                    width: 20px;
-                    border-radius: 50%;
-                    background: #AF524D;
-                    cursor: pointer;
-                    border: 2px solid #fff;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                }
-                .slider::-moz-range-thumb {
-                    height: 20px;
-                    width: 20px;
-                    border-radius: 50%;
-                    background: #AF524D;
-                    cursor: pointer;
-                    border: 2px solid #fff;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                }
-            `}</style>
             {/* Top Toolbar - Bakery Theme */}
             <div className="bg-gradient-to-r from-[#F8E6B4] to-[#E2D2A2] border-b border-[#AF524D]/20 px-6 py-4 relative overflow-hidden">
                 {/* Background Pattern */}
@@ -1681,7 +1774,7 @@ const CakeCustomization = () => {
                                             max="72"
                                             value={fontSize}
                                             onChange={(e) => setFontSize(parseInt(e.target.value))}
-                                            className="w-full h-2 bg-[#AF524D]/20 rounded-lg appearance-none cursor-pointer slider"
+                                            className="w-full h-2 bg-[#AF524D]/20 rounded-lg appearance-none cursor-pointer slider-design"
                                             style={{
                                                 background: `linear-gradient(to right, #AF524D 0%, #AF524D ${((fontSize - 12) / (72 - 12)) * 100}%, #E5E7EB ${((fontSize - 12) / (72 - 12)) * 100}%, #E5E7EB 100%)`
                                             }}
@@ -1697,12 +1790,16 @@ const CakeCustomization = () => {
                                         value={fontFamily}
                                         onChange={(e) => setFontFamily(e.target.value)}
                                         className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220]"
+                                        style={{ fontFamily: fontFamily }}
                                     >
-                                        <option value="Arial">Arial</option>
-                                        <option value="Times New Roman">Times New Roman</option>
-                                        <option value="Courier New">Courier New</option>
-                                        <option value="Georgia">Georgia</option>
-                                        <option value="Verdana">Verdana</option>
+                                        <option value="Poppins" style={{ fontFamily: 'Poppins, sans-serif' }}>Poppins</option>
+                                        <option value="Abhaya Libre" style={{ fontFamily: 'Abhaya Libre, serif' }}>Abhaya Libre</option>
+                                        <option value="Jost" style={{ fontFamily: 'Jost, sans-serif' }}>Jost</option>
+                                        <option value="Arial" style={{ fontFamily: 'Arial, sans-serif' }}>Arial</option>
+                                        <option value="Times New Roman" style={{ fontFamily: 'Times New Roman, serif' }}>Times New Roman</option>
+                                        <option value="Courier New" style={{ fontFamily: 'Courier New, monospace' }}>Courier New</option>
+                                        <option value="Georgia" style={{ fontFamily: 'Georgia, serif' }}>Georgia</option>
+                                        <option value="Verdana" style={{ fontFamily: 'Verdana, sans-serif' }}>Verdana</option>
                                     </select>
                                 </div>
                                 <button
@@ -1979,7 +2076,7 @@ const CakeCustomization = () => {
                                 <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
                                     <label className="block text-sm font-semibold text-[#492220] mb-3">Text Color</label>
                                     <div className="flex flex-col items-center space-y-4">
-                                        <div className="bg-white/50 rounded-xl p-3 border border-[#AF524D]/20">
+                                        <div className="bg-white/50 rounded-xl p-3 border border-[#AF524D]/20 color-picker-container">
                                             <canvas
                                                 ref={colorWheelRef}
                                                 width="120"
@@ -2095,35 +2192,39 @@ const CakeCustomization = () => {
                                 <label className="block text-sm font-semibold text-[#492220] mb-3">Size</label>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-[#492220]/70">Width</label>
+                                        <label className="block text-xs font-medium text-[#492220]/70">Width (inches)</label>
                                         <input
                                             type="number"
-                                            value={Math.round(selectedObject.width * (selectedObject.scaleX || 1))}
+                                            step="0.1"
+                                            value={Math.round(((selectedObject.width * (selectedObject.scaleX || 1)) / 96) * 10) / 10}
                                             onChange={(e) => {
-                                                const newWidth = parseFloat(e.target.value);
-                                                const scaleX = newWidth / selectedObject.width;
+                                                const newWidthInches = parseFloat(e.target.value);
+                                                const newWidthPixels = newWidthInches * 96;
+                                                const scaleX = newWidthPixels / selectedObject.width;
                                                 selectedObject.set('scaleX', scaleX);
                                                 canvas.current.renderAll();
                                                 setObjectUpdateTrigger(prev => prev + 1);
                                             }}
                                             className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
-                                            placeholder="Width"
+                                            placeholder="Width (in)"
                                         />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-[#492220]/70">Height</label>
+                                        <label className="block text-xs font-medium text-[#492220]/70">Height (inches)</label>
                                         <input
                                             type="number"
-                                            value={Math.round(selectedObject.height * (selectedObject.scaleY || 1))}
+                                            step="0.1"
+                                            value={Math.round(((selectedObject.height * (selectedObject.scaleY || 1)) / 96) * 10) / 10}
                                             onChange={(e) => {
-                                                const newHeight = parseFloat(e.target.value);
-                                                const scaleY = newHeight / selectedObject.height;
+                                                const newHeightInches = parseFloat(e.target.value);
+                                                const newHeightPixels = newHeightInches * 96;
+                                                const scaleY = newHeightPixels / selectedObject.height;
                                                 selectedObject.set('scaleY', scaleY);
                                                 canvas.current.renderAll();
                                                 setObjectUpdateTrigger(prev => prev + 1);
                                             }}
                                             className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
-                                            placeholder="Height"
+                                            placeholder="Height (in)"
                                         />
                                     </div>
                                 </div>
@@ -2153,44 +2254,145 @@ const CakeCustomization = () => {
                                     <input
                                         type="range"
                                         min="0"
-                                        max="100"
-                                        value={Math.round((selectedObject.opacity || 1) * 100)}
+                                        max="1"
+                                        step="0.01"
+                                        value={(() => {
+                                            const activeObject = canvas.current?.getActiveObject();
+                                            return activeObject ? activeObject.opacity || 1 : 1;
+                                        })()}
                                         onChange={(e) => {
-                                            selectedObject.set('opacity', parseFloat(e.target.value) / 100);
-                                            canvas.current.renderAll();
-                                            setObjectUpdateTrigger(prev => prev + 1);
+                                            const value = parseFloat(e.target.value);
+                                            setOpacity(value); // update slider UI immediately
+                                            if (canvas.current) {
+                                                const activeObject = canvas.current.getActiveObject();
+                                                if (activeObject) {
+                                                    activeObject.set('opacity', value);
+                                                    canvas.current.renderAll();
+                                                }
+                                            }
                                         }}
-                                        className="w-full h-2 bg-[#AF524D]/20 rounded-lg appearance-none cursor-pointer slider"
+                                        className="w-full h-2 bg-[#AF524D]/20 rounded-lg appearance-none cursor-pointer slider-design"
                                         style={{
-                                            background: `linear-gradient(to right, #AF524D 0%, #AF524D ${Math.round((selectedObject.opacity || 1) * 100)}%, #E5E7EB ${Math.round((selectedObject.opacity || 1) * 100)}%, #E5E7EB 100%)`
+                                            background: (() => {
+                                                const activeObject = canvas.current?.getActiveObject();
+                                                const opacity = activeObject ? activeObject.opacity || 1 : 1;
+                                                return `linear-gradient(to right, #AF524D 0%, #AF524D ${opacity * 100}%, #E5E7EB ${opacity * 100}%, #E5E7EB 100%)`;
+                                            })()
                                         }}
                                     />
                                     <div className="bg-gradient-to-r from-[#AF524D]/10 to-[#8B3A3A]/10 rounded-xl px-4 py-2 border border-[#AF524D]/20">
                                         <div className="text-sm font-semibold text-[#492220] text-center">
-                                            {Math.round((selectedObject.opacity || 1) * 100)}%
+                                            {(() => {
+                                                const activeObject = canvas.current?.getActiveObject();
+                                                return Math.round((activeObject ? activeObject.opacity || 1 : 1) * 100);
+                                            })()}%
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
                             {selectedObject.type === 'text' && (
-                                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
-                                    <label className="block text-sm font-semibold text-[#492220] mb-3">Text Content</label>
-                                    <div className="space-y-1">
-                                        <input
-                                            type="text"
-                                            value={selectedObject.text || ''}
-                                            onChange={(e) => {
-                                                selectedObject.set('text', e.target.value);
-                                                canvas.current.renderAll();
-                                                setObjectUpdateTrigger(prev => prev + 1);
-                                            }}
-                                            className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
-                                            placeholder="Enter text..."
-                                        />
-                                        <div className="text-xs text-[#492220]/70 text-center">Edit the text content</div>
+                                <>
+                                    <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                        <label className="block text-sm font-semibold text-[#492220] mb-3">Text Content</label>
+                                        <div className="space-y-1">
+                                            <input
+                                                type="text"
+                                                value={selectedObject.text || ''}
+                                                onChange={(e) => {
+                                                    selectedObject.set('text', e.target.value);
+                                                    canvas.current.renderAll();
+                                                    setObjectUpdateTrigger(prev => prev + 1);
+                                                }}
+                                                className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
+                                                placeholder="Enter text..."
+                                            />
+                                            <div className="text-xs text-[#492220]/70 text-center">Edit the text content</div>
+                                        </div>
                                     </div>
-                                </div>
+
+                                    <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                        <label className="block text-sm font-semibold text-[#492220] mb-3">Font Family</label>
+                                        <select
+                                            value={(() => {
+                                                const activeObject = canvas.current?.getActiveObject();
+                                                return activeObject?.type === 'text' ? activeObject.fontFamily || 'Poppins' : 'Poppins';
+                                            })()}
+                                            onChange={async (e) => {
+                                                const newFontFamily = e.target.value;
+                                                await loadFont(newFontFamily);
+                                                if (canvas.current) {
+                                                    const activeObject = canvas.current.getActiveObject();
+                                                    if (activeObject && activeObject.type === 'text') {
+                                                        activeObject.set('fontFamily', newFontFamily);
+                                                        canvas.current.renderAll();
+                                                        setObjectUpdateTrigger(prev => prev + 1);
+                                                    }
+                                                }
+                                            }}
+                                            className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220]"
+                                            style={{
+                                                fontFamily: (() => {
+                                                    const activeObject = canvas.current?.getActiveObject();
+                                                    return activeObject?.type === 'text' ? activeObject.fontFamily || 'Poppins' : 'Poppins';
+                                                })()
+                                            }}
+                                        >
+                                            <option value="Poppins" style={{ fontFamily: 'Poppins, sans-serif' }}>Poppins</option>
+                                            <option value="Abhaya Libre" style={{ fontFamily: 'Abhaya Libre, serif' }}>Abhaya Libre</option>
+                                            <option value="Jost" style={{ fontFamily: 'Jost, sans-serif' }}>Jost</option>
+                                            <option value="Arial" style={{ fontFamily: 'Arial, sans-serif' }}>Arial</option>
+                                            <option value="Times New Roman" style={{ fontFamily: 'Times New Roman, serif' }}>Times New Roman</option>
+                                            <option value="Courier New" style={{ fontFamily: 'Courier New, monospace' }}>Courier New</option>
+                                            <option value="Georgia" style={{ fontFamily: 'Georgia, serif' }}>Georgia</option>
+                                            <option value="Verdana" style={{ fontFamily: 'Verdana, sans-serif' }}>Verdana</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
+                                        <label className="block text-sm font-semibold text-[#492220] mb-3">Font Size</label>
+                                        <div className="space-y-3">
+                                            <input
+                                                type="range"
+                                                min="12"
+                                                max="72"
+                                                value={(() => {
+                                                    const activeObject = canvas.current?.getActiveObject();
+                                                    return activeObject?.type === 'text' ? activeObject.fontSize || 24 : 24;
+                                                })()}
+                                                onChange={(e) => {
+                                                    const newSize = parseInt(e.target.value);
+                                                    setCurrentFontSize(newSize); // slider moves immediately
+                                                    if (canvas.current) {
+                                                        const activeObject = canvas.current.getActiveObject();
+                                                        if (activeObject && activeObject.type === 'text') {
+                                                            activeObject.set('fontSize', newSize);
+                                                            canvas.current.renderAll();
+                                                        }
+                                                    }
+                                                }}
+                                                className="w-full h-2 bg-[#AF524D]/20 rounded-lg appearance-none cursor-pointer slider-design"
+                                                style={{
+                                                    background: (() => {
+                                                        const activeObject = canvas.current?.getActiveObject();
+                                                        const fontSize = activeObject?.type === 'text' ? activeObject.fontSize || 24 : 24;
+                                                        const percentage = ((fontSize - 12) / (72 - 12)) * 100;
+                                                        return `linear-gradient(to right, #AF524D 0%, #AF524D ${percentage}%, #E5E7EB ${percentage}%, #E5E7EB 100%)`;
+                                                    })()
+                                                }}
+                                            />
+                                            <div className="bg-gradient-to-r from-[#AF524D]/10 to-[#8B3A3A]/10 rounded-xl px-4 py-2 border border-[#AF524D]/20">
+                                                <div className="text-sm font-semibold text-[#492220] text-center">
+                                                    {(() => {
+                                                        const activeObject = canvas.current?.getActiveObject();
+                                                        return activeObject?.type === 'text' ? activeObject.fontSize || 24 : 24;
+                                                    })()}px
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </>
                             )}
                         </div>
                     ) : (

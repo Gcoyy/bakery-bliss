@@ -3,6 +3,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Abhaya+Libre:wght@400;500;600;700;800&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Abhaya+Libre:wght@400;500;600;700;800&family=Jost:ital,wght@0,100..900;1,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
 
+/* Ensure Jost font is properly loaded */
+@font-face {
+  font-family: 'Jost';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('https://fonts.gstatic.com/s/jost/v15/92zPtBhPNqw79g1KdTJxLQ.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 body {
   font-family: 'Poppins', sans-serif;
 }
@@ -15,14 +25,44 @@ body {
   font-family: 'Jost', sans-serif;
 }
 
-.slider-design::-webkit-slider-thumb {
+.slider-design {
+  -webkit-appearance: none;
   appearance: none;
-  height: 1rem; /* h-4 */
-  width: 1rem;  /* w-4 */
-  border-radius: 9999px; /* rounded-full */
+  background: transparent;
+  cursor: pointer;
+}
+
+.slider-design::-webkit-slider-track {
+  background: transparent;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.slider-design::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 1rem;
+  /* h-4 */
+  width: 1rem;
+  /* w-4 */
+  border-radius: 9999px;
+  /* rounded-full */
   background-color: #3a1a1a;
   box-shadow: none;
   transition: all 0.2s;
+  margin-top: -4px;
+}
+
+.slider-design::-webkit-slider-thumb:hover {
+  background-color: #1a0a0a;
+  transform: scale(1.1);
+}
+
+.slider-design::-moz-range-track {
+  background: transparent;
+  height: 8px;
+  border-radius: 4px;
+  border: none;
 }
 
 .slider-design::-moz-range-thumb {
@@ -30,4 +70,102 @@ body {
   width: 1rem;
   border-radius: 9999px;
   background-color: #3a1a1a;
+  border: none;
+  cursor: pointer;
+}
+
+.slider-design::-moz-range-thumb:hover {
+  background-color: #1a0a0a;
+  transform: scale(1.1);
+}
+
+/* Ensure sliders are interactive */
+.slider-design {
+  pointer-events: auto !important;
+  touch-action: pan-x !important;
+}
+
+.slider-design::-webkit-slider-thumb {
+  pointer-events: auto !important;
+}
+
+.slider-design::-moz-range-thumb {
+  pointer-events: auto !important;
+}
+
+/* Force range inputs to be interactive */
+input[type="range"] {
+  pointer-events: auto !important;
+  touch-action: pan-x !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  user-select: none !important;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  pointer-events: auto !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+input[type="range"]::-moz-range-thumb {
+  pointer-events: auto !important;
+  -moz-user-select: none !important;
+  user-select: none !important;
+}
+
+/* Override any potential conflicts */
+.debug-slider {
+  pointer-events: auto !important;
+  touch-action: pan-x !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  user-select: none !important;
+  position: relative !important;
+  z-index: 9999 !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+}
+
+.debug-slider::-webkit-slider-track {
+  background: #e5e7eb !important;
+  height: 8px !important;
+  border-radius: 4px !important;
+  pointer-events: auto !important;
+}
+
+.debug-slider::-webkit-slider-thumb {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  height: 20px !important;
+  width: 20px !important;
+  border-radius: 50% !important;
+  background: #3a1a1a !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  margin-top: -6px !important;
+}
+
+.debug-slider::-moz-range-track {
+  background: #e5e7eb !important;
+  height: 8px !important;
+  border-radius: 4px !important;
+  border: none !important;
+  pointer-events: auto !important;
+}
+
+.debug-slider::-moz-range-thumb {
+  height: 20px !important;
+  width: 20px !important;
+  border-radius: 50% !important;
+  background: #3a1a1a !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  -moz-user-select: none !important;
+  user-select: none !important;
+  border: none !important;
 }
