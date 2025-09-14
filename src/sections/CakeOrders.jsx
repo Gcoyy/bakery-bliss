@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 import { inventoryManagement } from './Inventory';
 
-const getPublicImageUrl = (path) => {
+const getPublicImageUrl = (path, type = 'cake') => {
   if (!path) return null;
 
   // If the path is already a full URL, return it as is
@@ -11,8 +11,8 @@ const getPublicImageUrl = (path) => {
     return path;
   }
 
-  // If it's a file path, generate the public URL
-  return supabase.storage.from("cake").getPublicUrl(path).data.publicUrl;
+  // If it's a file path, generate the public URL from the appropriate bucket
+  return supabase.storage.from(type).getPublicUrl(path).data.publicUrl;
 };
 
 const CakeOrders = () => {
@@ -21,11 +21,11 @@ const CakeOrders = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState(null);
+  const [showReceiptViewModal, setShowReceiptViewModal] = useState(false);
   const [orderToEdit, setOrderToEdit] = useState(null);
   const [selectedReceiptRow, setSelectedReceiptRow] = useState(null);
+  const [selectedReceiptForView, setSelectedReceiptForView] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchType, setSearchType] = useState('all'); // 'all', 'customer', 'cake', 'status'
   const [statusFilter, setStatusFilter] = useState("");
@@ -110,11 +110,11 @@ const CakeOrders = () => {
             cus_celno,
             email
           ),
-          CAKE-ORDERS!inner(
+          CAKE-ORDERS(
             co_id,
             quantity,
             cake_id,
-            CAKE!inner(
+            CAKE(
               cake_id,
               theme,
               tier,
@@ -124,10 +124,17 @@ const CakeOrders = () => {
               cake_img
             )
           ),
+          CUSTOM-CAKE(
+            cc_id,
+            cc_img,
+            order_id,
+            cus_id
+          ),
           PAYMENT(
             payment_id,
             payment_method,
             amount_paid,
+            total,
             payment_date,
             payment_status,
             receipt
@@ -221,11 +228,11 @@ const CakeOrders = () => {
             cus_celno,
             email
           ),
-          CAKE-ORDERS!inner(
+          CAKE-ORDERS(
             co_id,
             quantity,
             cake_id,
-            CAKE!inner(
+            CAKE(
               cake_id,
               theme,
               tier,
@@ -235,9 +242,16 @@ const CakeOrders = () => {
               cake_img
             )
           ),
+          CUSTOM-CAKE(
+            cc_id,
+            cc_img,
+            order_id,
+            cus_id
+          ),
           PAYMENT(
             payment_id,
             amount_paid,
+            total,
             payment_date,
             payment_status,
             receipt
@@ -281,11 +295,11 @@ const CakeOrders = () => {
             cus_celno,
             email
           ),
-          CAKE-ORDERS!inner(
+          CAKE-ORDERS(
             co_id,
             quantity,
             cake_id,
-            CAKE!inner(
+            CAKE(
               cake_id,
               theme,
               tier,
@@ -295,9 +309,16 @@ const CakeOrders = () => {
               cake_img
             )
           ),
+          CUSTOM-CAKE(
+            cc_id,
+            cc_img,
+            order_id,
+            cus_id
+          ),
           PAYMENT(
             payment_id,
             amount_paid,
+            total,
             payment_date,
             payment_status,
             receipt
@@ -330,24 +351,17 @@ const CakeOrders = () => {
     }
   };
 
-  const handleOrderDelete = (deletedOrderData) => {
-    // Remove the order from the list
-    setRows(prevRows =>
-      prevRows.filter(order => order.order_id !== deletedOrderData.order_id)
-    );
-
-    // Show notification
-    toast.success(`Order #${deletedOrderData.order_id} has been deleted!`, {
-      duration: 3000,
-    });
-  };
 
   // Helper function to transform order data (extracted from fetchOrders)
   const transformOrderData = (order) => {
     const customer = order.CUSTOMER;
     const cakeOrder = order['CAKE-ORDERS']?.[0]; // Get first cake order
+    const customCake = order['CUSTOM-CAKE']?.[0]; // Get custom cake order
     const cake = cakeOrder?.CAKE;
     const payment = order.PAYMENT?.[0]; // Get first payment (assuming one payment per order)
+
+    // Determine if this is a custom cake order
+    const isCustomCake = customCake && !cakeOrder;
 
     return {
       order_id: order.order_id,
@@ -364,12 +378,12 @@ const CakeOrders = () => {
       customer_email: customer?.email || '',
       // Cake information
       cake_id: cake?.cake_id || null,
-      cake_name: cake?.name || 'Unknown Cake',
-      theme: cake?.theme || 'Unknown',
-      tier: cake?.tier || 1,
-      description: cake?.description || '',
-      price: cake?.price || 'P0',
-      cake_img: cake?.cake_img || null,
+      cake_name: isCustomCake ? 'Custom Cake' : (cake?.name || 'Custom Cake'),
+      theme: isCustomCake ? 'Custom' : (cake?.theme || 'Custom'),
+      tier: isCustomCake ? 'Custom' : (cake?.tier || 1),
+      description: isCustomCake ? 'Custom designed cake' : (cake?.description || 'Custom designed cake'),
+      price: isCustomCake ? 'P1,500' : (cake?.price || 'P1,500'),
+      cake_img: isCustomCake ? customCake?.cc_img : (cake?.cake_img || null),
       // Order details
       quantity: cakeOrder?.quantity || 1,
       // Map to expected field names for compatibility
@@ -379,7 +393,8 @@ const CakeOrders = () => {
       scheduled_date: order.order_schedule,
       order_type: order.delivery_method,
       // Payment information
-      amount_paid: payment?.amount_paid || cake?.price || 'P0',
+      amount_paid: payment?.amount_paid ?? 0,
+      total: payment?.total ?? cake?.price ?? 0,
       payment_method: payment?.payment_method || 'Cash',
       payment_status: payment?.payment_status || 'Unpaid',
       payment_date: payment?.payment_date ? (() => {
@@ -419,6 +434,12 @@ const CakeOrders = () => {
   const handleUpdateOrder = async () => {
     if (!editFormData.cake_name || !editFormData.order_schedule) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    // Validate delivery address if delivery method is "Delivery"
+    if (editFormData.delivery_method === 'Delivery' && !editFormData.delivery_address?.trim()) {
+      toast.error('Please enter a delivery address for delivery orders');
       return;
     }
 
@@ -540,7 +561,34 @@ const CakeOrders = () => {
 
         // Handle inventory deduction based on payment status change
         if (order.payment_status && order.payment_status !== previousPaymentStatus) {
-          await inventoryManagement.deductInventoryForOrder(orderId, previousPaymentStatus, newPaymentStatus);
+          // Check if this is a custom cake order
+          const { data: customCakeData, error: customCakeError } = await supabase
+            .from('CUSTOM-CAKE')
+            .select('cc_id')
+            .eq('order_id', orderId);
+
+          if (customCakeData && customCakeData.length > 0) {
+            // This is a custom cake order - use custom cake inventory deduction
+            await inventoryManagement.deductInventoryForCustomCakeOrder(orderId, previousPaymentStatus, newPaymentStatus);
+          } else {
+            // This is a regular cake order - use regular inventory deduction
+            await inventoryManagement.deductInventoryForOrder(orderId, previousPaymentStatus, newPaymentStatus);
+          }
+
+          // Auto-approve order if payment status is Partial Payment or Fully Paid
+          if (newPaymentStatus === 'Partial Payment' || newPaymentStatus === 'Fully Paid') {
+            const { error: orderStatusError } = await supabase
+              .from('ORDER')
+              .update({ order_status: 'Approved' })
+              .eq('order_id', orderId);
+
+            if (orderStatusError) {
+              console.error('Error updating order status to Approved:', orderStatusError);
+              toast.error('Failed to update order status');
+            } else {
+              console.log(`Order ${orderId} automatically approved due to payment status: ${newPaymentStatus}`);
+            }
+          }
         }
       }
 
@@ -554,71 +602,6 @@ const CakeOrders = () => {
     }
   };
 
-  const handleDeleteOrder = (order) => {
-    setOrderToDelete(order);
-    setShowDeleteModal(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!orderToDelete) return;
-
-    try {
-      setSaving(true);
-
-      // Check if order was paid (to determine if we need to restock inventory)
-      const { data: paymentData } = await supabase
-        .from('PAYMENT')
-        .select('payment_status')
-        .eq('order_id', orderToDelete.order_id)
-        .single();
-
-      const wasPaid = paymentData?.payment_status === 'Partial Payment' || paymentData?.payment_status === 'Fully Paid';
-
-      // First delete from CAKE-ORDERS table
-      const { error: cakeOrderError } = await supabase
-        .from('CAKE-ORDERS')
-        .delete()
-        .eq('order_id', orderToDelete.order_id);
-
-      if (cakeOrderError) {
-        console.error("CAKE-ORDERS deletion error:", cakeOrderError);
-        toast.error('Failed to delete cake order details');
-        return;
-      }
-
-      // Then delete from ORDER table
-      const { error: orderError } = await supabase
-        .from('ORDER')
-        .delete()
-        .eq('order_id', orderToDelete.order_id);
-
-      if (orderError) {
-        console.error("ORDER deletion error:", orderError);
-        toast.error('Failed to delete order');
-        return;
-      }
-
-      // Restock inventory if the order was paid (inventory was previously deducted)
-      if (wasPaid) {
-        await inventoryManagement.restockInventoryForCancelledOrder(orderToDelete.order_id);
-      }
-
-      toast.success('Order deleted successfully');
-      setShowDeleteModal(false);
-      setOrderToDelete(null);
-      fetchOrders();
-    } catch (error) {
-      console.error('Error deleting order:', error);
-      toast.error('Failed to delete order');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const cancelDelete = () => {
-    setShowDeleteModal(false);
-    setOrderToDelete(null);
-  };
 
   const cancelEdit = () => {
     setShowEditModal(false);
@@ -899,7 +882,12 @@ const CakeOrders = () => {
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <span className="text-lg font-semibold text-gray-900">
-                            {formatPrice(order.amount_paid)}
+                            {formatPrice(order.total || order.amount_paid)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600">
+                            Paid: {formatPrice(order.amount_paid)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -924,9 +912,16 @@ const CakeOrders = () => {
                     {/* Receipt Column */}
                     <td className="py-6 px-6 align-middle">
                       {order.receipt_url ? (
-                        <div className="w-16 h-16 rounded-lg overflow-hidden border-2 border-green-300 bg-green-50 flex items-center justify-center">
+                        <div
+                          className="w-16 h-16 rounded-lg overflow-hidden border-2 border-green-300 bg-green-50 flex items-center justify-center cursor-pointer hover:border-green-400 transition-colors"
+                          onClick={() => {
+                            setSelectedReceiptForView(order);
+                            setShowReceiptViewModal(true);
+                          }}
+                          title="Click to view receipt"
+                        >
                           <img
-                            src={getPublicImageUrl(order.receipt_url)}
+                            src={getPublicImageUrl(order.receipt_url, 'receipts')}
                             alt="Receipt"
                             className="w-full h-full object-cover"
                             onError={(e) => {
@@ -976,16 +971,6 @@ const CakeOrders = () => {
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteOrder(order)}
-                          className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-                          disabled={saving}
-                          title="Delete order"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
                       </div>
@@ -1088,27 +1073,38 @@ const CakeOrders = () => {
                   </label>
                   <select
                     value={editFormData.delivery_method}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, delivery_method: e.target.value }))}
+                    onChange={(e) => {
+                      const newDeliveryMethod = e.target.value;
+                      setEditFormData(prev => ({
+                        ...prev,
+                        delivery_method: newDeliveryMethod,
+                        // Clear delivery address when switching to pickup
+                        delivery_address: newDeliveryMethod === 'Pickup' ? '' : prev.delivery_address
+                      }));
+                    }}
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
                   >
                     <option value="">Select delivery method</option>
-                    <option value="pickup">Pickup</option>
-                    <option value="delivery">Delivery</option>
+                    <option value="Pickup">Pickup</option>
+                    <option value="Delivery">Delivery</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Delivery Address
-                  </label>
-                  <textarea
-                    value={editFormData.delivery_address}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, delivery_address: e.target.value }))}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200 resize-none"
-                    placeholder="Enter delivery address..."
-                    rows={3}
-                  />
-                </div>
+                {editFormData.delivery_method === 'Delivery' && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Delivery Address *
+                    </label>
+                    <textarea
+                      value={editFormData.delivery_address}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, delivery_address: e.target.value }))}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200 resize-none"
+                      placeholder="Enter delivery address..."
+                      rows={3}
+                      required
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1228,67 +1224,6 @@ const CakeOrders = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && orderToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md border-2 border-red-200 shadow-2xl">
-            <div className="text-center">
-              {/* Warning Icon */}
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-                <svg className="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-              </div>
-
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Delete Order</h3>
-              <p className="text-gray-600 mb-6">
-                Are you sure you want to delete this order? This action cannot be undone.
-              </p>
-
-              {/* Order Details */}
-              <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
-                <div className="flex items-center gap-3 mb-2">
-                  <h4 className="text-lg font-semibold text-gray-900">
-                    {orderToDelete.customer}
-                  </h4>
-                  <span className="px-2 py-1 bg-[#AF524D]/10 text-[#AF524D] text-xs font-medium rounded-full">
-                    {orderToDelete.cake_name}
-                  </span>
-                </div>
-
-                <p className="text-gray-600 mb-2">
-                  <span className="font-medium">Amount:</span> {formatPrice(orderToDelete.amount_paid)}
-                </p>
-
-                <p className="text-gray-600">
-                  <span className="font-medium">Status:</span> {orderToDelete.payment_status}
-                </p>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3">
-                <button
-                  onClick={cancelDelete}
-                  className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium shadow-lg hover:shadow-xl"
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Delete
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Receipt Upload Modal */}
       {showReceiptModal && selectedReceiptRow && (
@@ -1343,9 +1278,8 @@ const CakeOrders = () => {
                       <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                     <div className="text-sm text-gray-600">
-                      <span className="font-medium text-[#AF524D]">Click to upload</span> or drag and drop
+                      <span className="font-medium text-[#AF524D]">Click to upload</span>
                     </div>
-                    <p className="text-xs text-gray-500">PNG, JPG, PDF up to 10MB</p>
                   </div>
                 </div>
               </div>
@@ -1359,6 +1293,61 @@ const CakeOrders = () => {
                   className="px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors font-medium"
                 >
                   Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt View Modal */}
+      {showReceiptViewModal && selectedReceiptForView && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-4xl border-2 border-[#AF524D] shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-2xl font-bold text-[#381914]">Payment Receipt</h3>
+                <p className="text-gray-600 mt-1">Order #{selectedReceiptForView.order_id}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowReceiptViewModal(false);
+                  setSelectedReceiptForView(null);
+                }}
+                className="text-gray-500 hover:text-gray-700 text-3xl font-bold cursor-pointer hover:bg-gray-100 rounded-full w-10 h-10 flex items-center justify-center transition-colors"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="text-center">
+                <img
+                  src={getPublicImageUrl(selectedReceiptForView.receipt_url, 'receipts')}
+                  alt="Payment Receipt"
+                  className="max-w-full max-h-[70vh] mx-auto rounded-lg shadow-lg"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'block';
+                  }}
+                />
+                <div className="hidden mt-8 p-8 bg-gray-100 rounded-lg">
+                  <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <p className="text-gray-600">Failed to load receipt image</p>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowReceiptViewModal(false);
+                    setSelectedReceiptForView(null);
+                  }}
+                  className="px-6 py-3 bg-[#AF524D] text-white rounded-xl hover:bg-[#8B3A3A] transition-colors font-medium"
+                >
+                  Close
                 </button>
               </div>
             </div>

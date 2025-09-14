@@ -40,7 +40,7 @@ const loadFont = (fontFamily) => {
 };
 
 const loadGoogleFonts = async () => {
-    const fonts = ['Poppins', 'Abhaya Libre', 'Jost'];
+    const fonts = ['Poppins', 'Abhaya Libre'];
     console.log('Loading Google Fonts:', fonts);
 
     // Load fonts with a delay between each to ensure proper loading
@@ -81,6 +81,7 @@ const CakeCustomization = () => {
     const [selectedObject, setSelectedObject] = useState(null);
     const [objectUpdateTrigger, setObjectUpdateTrigger] = useState(0);
     const [selectedAssetType, setSelectedAssetType] = useState('cake base');
+    const [usedAssets, setUsedAssets] = useState([]); // Track assets used in the canvas
 
     // Order modal states
     const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
@@ -966,12 +967,30 @@ const CakeCustomization = () => {
                 fabricImage.set({
                     left: 250,
                     top: 200,
-                    name: 'cake-base'
+                    name: 'cake-base',
+                    assetId: cake.cake_id, // Store the asset ID
+                    assetType: 'cake base'
                 });
                 canvas.current.add(fabricImage);
                 canvas.current.setActiveObject(fabricImage);
                 canvas.current.renderAll();
                 forceCanvasRefresh();
+
+                // Track the used asset
+                console.log('Adding cake base asset:', {
+                    asset_id: cake.cake_id,
+                    asset_type: 'cake base',
+                    quantity: 1
+                });
+                setUsedAssets(prev => {
+                    const newAssets = [...prev, {
+                        asset_id: cake.cake_id,
+                        asset_type: 'cake base',
+                        quantity: 1
+                    }];
+                    console.log('Updated usedAssets (cake base):', newAssets);
+                    return newAssets;
+                });
 
             } catch (corsError) {
                 try {
@@ -984,12 +1003,30 @@ const CakeCustomization = () => {
                         fabricImage.set({
                             left: 250,
                             top: 200,
-                            name: 'cake-base'
+                            name: 'cake-base',
+                            assetId: cake.cake_id, // Store the asset ID
+                            assetType: 'cake base'
                         });
                         canvas.current.add(fabricImage);
                         canvas.current.setActiveObject(fabricImage);
                         canvas.current.renderAll();
                         forceCanvasRefresh();
+
+                        // Track the used asset
+                        console.log('Adding cake base asset (fallback):', {
+                            asset_id: cake.cake_id,
+                            asset_type: 'cake base',
+                            quantity: 1
+                        });
+                        setUsedAssets(prev => {
+                            const newAssets = [...prev, {
+                                asset_id: cake.cake_id,
+                                asset_type: 'cake base',
+                                quantity: 1
+                            }];
+                            console.log('Updated usedAssets (cake base fallback):', newAssets);
+                            return newAssets;
+                        });
                     };
                     img.src = dataURL;
                 } catch (fallbackError) {
@@ -1029,11 +1066,29 @@ const CakeCustomization = () => {
                 fabricImage.set({
                     left: 300,
                     top: 250,
-                    name: 'decoration'
+                    name: 'decoration',
+                    assetId: decoration.id, // Store the asset ID
+                    assetType: 'icing'
                 });
                 canvas.current.add(fabricImage);
                 canvas.current.setActiveObject(fabricImage);
                 canvas.current.renderAll();
+
+                // Track the used asset
+                console.log('Adding decoration asset:', {
+                    asset_id: decoration.id,
+                    asset_type: 'icing',
+                    quantity: 1
+                });
+                setUsedAssets(prev => {
+                    const newAssets = [...prev, {
+                        asset_id: decoration.id,
+                        asset_type: 'icing',
+                        quantity: 1
+                    }];
+                    console.log('Updated usedAssets (decoration):', newAssets);
+                    return newAssets;
+                });
 
             } catch (corsError) {
                 try {
@@ -1046,11 +1101,29 @@ const CakeCustomization = () => {
                         fabricImage.set({
                             left: 300,
                             top: 250,
-                            name: 'decoration'
+                            name: 'decoration',
+                            assetId: decoration.id, // Store the asset ID
+                            assetType: 'icing'
                         });
                         canvas.current.add(fabricImage);
                         canvas.current.setActiveObject(fabricImage);
                         canvas.current.renderAll();
+
+                        // Track the used asset
+                        console.log('Adding decoration asset (fallback):', {
+                            asset_id: decoration.id,
+                            asset_type: 'icing',
+                            quantity: 1
+                        });
+                        setUsedAssets(prev => {
+                            const newAssets = [...prev, {
+                                asset_id: decoration.id,
+                                asset_type: 'icing',
+                                quantity: 1
+                            }];
+                            console.log('Updated usedAssets (decoration fallback):', newAssets);
+                            return newAssets;
+                        });
                     };
                     img.src = dataURL;
                 } catch (fallbackError) {
@@ -1090,11 +1163,29 @@ const CakeCustomization = () => {
                 fabricImage.set({
                     left: 320,
                     top: 270,
-                    name: 'topping'
+                    name: 'topping',
+                    assetId: topping.id, // Store the asset ID
+                    assetType: 'topping'
                 });
                 canvas.current.add(fabricImage);
                 canvas.current.setActiveObject(fabricImage);
                 canvas.current.renderAll();
+
+                // Track the used asset
+                console.log('Adding topping asset:', {
+                    asset_id: topping.id,
+                    asset_type: 'topping',
+                    quantity: 1
+                });
+                setUsedAssets(prev => {
+                    const newAssets = [...prev, {
+                        asset_id: topping.id,
+                        asset_type: 'topping',
+                        quantity: 1
+                    }];
+                    console.log('Updated usedAssets (topping):', newAssets);
+                    return newAssets;
+                });
 
             } catch (corsError) {
                 try {
@@ -1107,11 +1198,29 @@ const CakeCustomization = () => {
                         fabricImage.set({
                             left: 320,
                             top: 270,
-                            name: 'topping'
+                            name: 'topping',
+                            assetId: topping.id, // Store the asset ID
+                            assetType: 'topping'
                         });
                         canvas.current.add(fabricImage);
                         canvas.current.setActiveObject(fabricImage);
                         canvas.current.renderAll();
+
+                        // Track the used asset
+                        console.log('Adding topping asset (fallback):', {
+                            asset_id: topping.id,
+                            asset_type: 'topping',
+                            quantity: 1
+                        });
+                        setUsedAssets(prev => {
+                            const newAssets = [...prev, {
+                                asset_id: topping.id,
+                                asset_type: 'topping',
+                                quantity: 1
+                            }];
+                            console.log('Updated usedAssets (topping fallback):', newAssets);
+                            return newAssets;
+                        });
                     };
                     img.src = dataURL;
                 } catch (fallbackError) {
@@ -1250,6 +1359,13 @@ const CakeCustomization = () => {
         canvas.current.clear();
         canvas.current.backgroundColor = '#f8f9fa';
         canvas.current.renderAll();
+
+        console.log('=== CANVAS CLEARED ===');
+        console.log('Clearing usedAssets array');
+        setUsedAssets([]);
+        console.log('usedAssets after clear:', []);
+        console.log('=== END CANVAS CLEARED ===');
+
         toast.success('Canvas cleared');
     };
 
@@ -1350,12 +1466,18 @@ const CakeCustomization = () => {
             const sevenDaysFromNow = new Date();
             sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
             setOrderDate(sevenDaysFromNow.toISOString().split('T')[0]);
-            setOrderTime("14:00");
+            setOrderTime("");
             setCakeQuantity(1);
             setCurrentStep(1);
 
             // Close loading toast and open order modal
             toast.dismiss();
+
+            console.log('=== EXPORT DESIGN DEBUG ===');
+            console.log('usedAssets when exporting design:', usedAssets);
+            console.log('usedAssets length:', usedAssets.length);
+            console.log('=== END EXPORT DESIGN DEBUG ===');
+
             setIsOrderModalOpen(true);
 
         } catch (error) {
@@ -1378,6 +1500,22 @@ const CakeCustomization = () => {
     };
 
     const nextStep = () => {
+        // Validate step 1 requirements before proceeding
+        if (currentStep === 1) {
+            if (!orderDate) {
+                toast.error('Please select a date for your order');
+                return;
+            }
+            if (!orderTime) {
+                toast.error('Please select a time for your order');
+                return;
+            }
+            if (orderType === "Delivery" && !deliveryAddress.trim()) {
+                toast.error('Please enter a delivery address');
+                return;
+            }
+        }
+
         if (currentStep < 3) {
             setCurrentStep(currentStep + 1);
         }
@@ -1493,6 +1631,42 @@ const CakeCustomization = () => {
                 return;
             }
 
+            // Save used assets to CUSTOM-CAKE-ASSETS table
+            console.log('=== ASSET TRACKING DEBUG ===');
+            console.log('usedAssets array:', usedAssets);
+            console.log('usedAssets length:', usedAssets.length);
+            console.log('nextCcId:', nextCcId);
+
+            if (usedAssets.length > 0) {
+                const customCakeAssetsData = usedAssets.map(asset => ({
+                    cc_id: nextCcId,
+                    asset_id: asset.asset_id,
+                    quantity: asset.quantity
+                }));
+
+                console.log('customCakeAssetsData to insert:', customCakeAssetsData);
+
+                const { data: insertData, error: assetsError } = await supabase
+                    .from('CUSTOM-CAKE-ASSETS')
+                    .insert(customCakeAssetsData)
+                    .select();
+
+                if (assetsError) {
+                    console.error('Error saving custom cake assets:', assetsError);
+                    console.error('Error details:', {
+                        message: assetsError.message,
+                        details: assetsError.details,
+                        hint: assetsError.hint,
+                        code: assetsError.code
+                    });
+                    // Don't fail the order if asset tracking fails
+                } else {
+                    console.log('Custom cake assets saved successfully:', insertData);
+                }
+            } else {
+                console.log('No assets to save - usedAssets array is empty');
+            }
+            console.log('=== END ASSET TRACKING DEBUG ===');
 
             // Create payment record
             const customCakePrice = 1500; // Base price for custom cakes
@@ -1500,7 +1674,8 @@ const CakeCustomization = () => {
 
             const paymentData = {
                 payment_method: "Cash",
-                amount_paid: totalPrice,
+                amount_paid: 0, // Default to 0.00 for new orders
+                total: totalPrice, // Total price the customer needs to pay
                 payment_date: new Date().toISOString().split('T')[0],
                 payment_status: "Unpaid",
                 receipt: null,
@@ -1794,7 +1969,6 @@ const CakeCustomization = () => {
                                     >
                                         <option value="Poppins" style={{ fontFamily: 'Poppins, sans-serif' }}>Poppins</option>
                                         <option value="Abhaya Libre" style={{ fontFamily: 'Abhaya Libre, serif' }}>Abhaya Libre</option>
-                                        <option value="Jost" style={{ fontFamily: 'Jost, sans-serif' }}>Jost</option>
                                         <option value="Arial" style={{ fontFamily: 'Arial, sans-serif' }}>Arial</option>
                                         <option value="Times New Roman" style={{ fontFamily: 'Times New Roman, serif' }}>Times New Roman</option>
                                         <option value="Courier New" style={{ fontFamily: 'Courier New, monospace' }}>Courier New</option>
@@ -2340,7 +2514,6 @@ const CakeCustomization = () => {
                                         >
                                             <option value="Poppins" style={{ fontFamily: 'Poppins, sans-serif' }}>Poppins</option>
                                             <option value="Abhaya Libre" style={{ fontFamily: 'Abhaya Libre, serif' }}>Abhaya Libre</option>
-                                            <option value="Jost" style={{ fontFamily: 'Jost, sans-serif' }}>Jost</option>
                                             <option value="Arial" style={{ fontFamily: 'Arial, sans-serif' }}>Arial</option>
                                             <option value="Times New Roman" style={{ fontFamily: 'Times New Roman, serif' }}>Times New Roman</option>
                                             <option value="Courier New" style={{ fontFamily: 'Courier New, monospace' }}>Courier New</option>

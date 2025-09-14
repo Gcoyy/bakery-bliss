@@ -158,11 +158,12 @@ const CakeCatalog = () => {
   const [sortBy, setSortBy] = useState("default");
   const [tier, setTier] = useState("all");
   const [selectedThemes, setSelectedThemes] = useState([]);
+  const [availableThemes, setAvailableThemes] = useState([]);
   const [selectedCake, setSelectedCake] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const cakesPerPage = 21;
+  const cakesPerPage = 8;
 
   // Order form states
   const [orderDate, setOrderDate] = useState("");
@@ -352,6 +353,27 @@ const CakeCatalog = () => {
     }
   };
 
+  // Fetch themes from the database
+  const fetchThemes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("CAKE")
+        .select("theme")
+        .not("theme", "is", null);
+
+      if (error) {
+        console.error("Error fetching themes:", error);
+        return;
+      }
+
+      // Get unique themes and sort them alphabetically
+      const uniqueThemes = [...new Set(data.map(cake => cake.theme))].sort();
+      setAvailableThemes(uniqueThemes);
+    } catch (error) {
+      console.error("Error fetching themes:", error);
+    }
+  };
+
   // Fetch cake data from Supabase
   useEffect(() => {
     const fetchCakes = async () => {
@@ -370,6 +392,9 @@ const CakeCatalog = () => {
         });
 
         setCakes(cakesWithImages);
+
+        // Fetch themes after cakes are loaded
+        await fetchThemes();
       } catch (error) {
         toast.error("Failed to load cakes. Please try again.");
       } finally {
@@ -415,8 +440,8 @@ const CakeCatalog = () => {
     sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
     setOrderDate(sevenDaysFromNow.toISOString().split('T')[0]);
 
-    // Set default time to 2 PM
-    setOrderTime("14:00");
+    // Reset time to empty - customer must select
+    setOrderTime("");
 
     // Reset quantity to 1 and step to 1, then open order modal
     setCakeQuantity(1);
@@ -525,7 +550,8 @@ const CakeCatalog = () => {
         .insert([
           {
             payment_method: "Cash", // Default to Cash for now
-            amount_paid: totalPrice,
+            amount_paid: 0, // Default to 0.00 for new orders
+            total: totalPrice, // Total price the customer needs to pay
             payment_date: new Date().toISOString().split('T')[0],
             payment_status: "Unpaid", // Default to Unpaid
             receipt: null, // No receipt uploaded yet
@@ -581,6 +607,26 @@ const CakeCatalog = () => {
   };
 
   const nextStep = () => {
+    // Validate step 1 requirements before proceeding
+    if (currentStep === 1) {
+      if (!orderDate) {
+        toast.error('Please select a date for your order');
+        return;
+      }
+      if (!orderTime) {
+        toast.error('Please select a time for your order');
+        return;
+      }
+      if (orderType === "Delivery" && !deliveryAddress.trim()) {
+        toast.error('Please enter a delivery address');
+        return;
+      }
+      if (isDateBlocked || isDateBlockedForCalendar(orderDate)) {
+        toast.error('The selected date is not available for orders');
+        return;
+      }
+    }
+
     if (currentStep < 3) {
       setCurrentStep(currentStep + 1);
     }
@@ -733,14 +779,17 @@ const CakeCatalog = () => {
                       </svg>
                       Price Range
                     </h3>
-                    <input
-                      type="range"
-                      min="0"
-                      max="16000"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      className="w-full cursor-pointer slider-design appearance-none bg-[#AF524D]/20 rounded-lg h-2"
-                    />
+                    <div className="relative">
+                      <div className="w-full h-2 bg-[#AF524D] rounded-lg"></div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="16000"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        className="absolute top-0 left-0 w-full h-2 cursor-pointer slider-design appearance-none bg-transparent"
+                      />
+                    </div>
                     <div className="flex justify-between text-sm text-[#492220]/70">
                       <span>₱0</span>
                       <span className="font-semibold text-[#AF524D]">₱{price}</span>
@@ -756,23 +805,27 @@ const CakeCatalog = () => {
                       Theme
                     </h3>
                     <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {["Plain", "Birthday", "Wedding", "Christmas", "Graduation", "Anniversary", "New Years"].map((theme) => (
-                        <label key={theme} className="flex items-center gap-3 cursor-pointer hover:bg-[#AF524D]/10 p-2 rounded-lg transition-colors">
-                          <input
-                            type="checkbox"
-                            className="w-4 h-4 text-[#AF524D] bg-white border-2 border-[#AF524D]/30 rounded focus:ring-[#AF524D]/20 focus:ring-2"
-                            checked={selectedThemes.includes(theme)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedThemes([...selectedThemes, theme]);
-                              } else {
-                                setSelectedThemes(selectedThemes.filter((t) => t !== theme));
-                              }
-                            }}
-                          />
-                          <span className="text-sm text-[#492220]">{theme}</span>
-                        </label>
-                      ))}
+                      {availableThemes.length === 0 ? (
+                        <p className="text-sm text-gray-500 text-center py-2">No themes available</p>
+                      ) : (
+                        availableThemes.map((theme) => (
+                          <label key={theme} className="flex items-center gap-3 cursor-pointer hover:bg-[#AF524D]/10 p-2 rounded-lg transition-colors">
+                            <input
+                              type="checkbox"
+                              className="w-4 h-4 text-[#AF524D] bg-white border-2 border-[#AF524D]/30 rounded focus:ring-[#AF524D]/20 focus:ring-2"
+                              checked={selectedThemes.includes(theme)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedThemes([...selectedThemes, theme]);
+                                } else {
+                                  setSelectedThemes(selectedThemes.filter((t) => t !== theme));
+                                }
+                              }}
+                            />
+                            <span className="text-sm text-[#492220]">{theme}</span>
+                          </label>
+                        ))
+                      )}
                     </div>
                   </div>
 

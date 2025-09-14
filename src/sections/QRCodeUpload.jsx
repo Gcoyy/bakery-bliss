@@ -7,7 +7,6 @@ import { UserAuth } from '../context/AuthContext';
 const QRCodeUpload = () => {
     const { session } = UserAuth();
     const [uploadedFiles, setUploadedFiles] = useState([]);
-    const [dragActive, setDragActive] = useState(false);
     const [scanning, setScanning] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [scannedResult, setScannedResult] = useState(null);
@@ -58,26 +57,6 @@ const QRCodeUpload = () => {
         setUploading(false);
     };
 
-    // Handle drag and drop
-    const handleDrag = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.type === "dragenter" || e.type === "dragover") {
-            setDragActive(true);
-        } else if (e.type === "dragleave") {
-            setDragActive(false);
-        }
-    };
-
-    const handleDrop = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragActive(false);
-
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            handleFileUpload(e.dataTransfer.files);
-        }
-    };
 
     // Handle file input change
     const handleFileInputChange = (e) => {
@@ -199,16 +178,7 @@ const QRCodeUpload = () => {
 
             {/* Upload Area */}
             <div className="mb-4 sm:mb-6">
-                <div
-                    className={`relative border-2 border-dashed rounded-xl p-4 sm:p-6 text-center transition-all duration-200 ${dragActive
-                        ? 'border-[#AF524D] bg-[#AF524D]/5'
-                        : 'border-gray-300 hover:border-[#AF524D] hover:bg-gray-50'
-                        }`}
-                    onDragEnter={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDragOver={handleDrag}
-                    onDrop={handleDrop}
-                >
+                <div className="relative border-2 border-dashed border-gray-300 rounded-xl p-4 sm:p-6 text-center transition-all duration-200 hover:border-[#AF524D] hover:bg-gray-50">
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -227,10 +197,10 @@ const QRCodeUpload = () => {
 
                         <div>
                             <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-1">
-                                {dragActive ? 'Drop QR codes here' : 'Upload QR Code Images'}
+                                Upload QR Code Images
                             </h3>
                             <p className="text-gray-600 mb-3 text-xs sm:text-sm">
-                                Drag and drop QR code images here, or tap to browse
+                                Click to browse and select QR code images
                             </p>
                             <button
                                 onClick={handleClick}
@@ -241,10 +211,6 @@ const QRCodeUpload = () => {
                             </button>
                         </div>
 
-                        <div className="text-xs text-gray-500 px-2">
-                            <p className="hidden sm:block">Supported formats: JPG, PNG, GIF, WebP • Max size: 5MB per file</p>
-                            <p className="sm:hidden">JPG, PNG, GIF, WebP • Max 5MB</p>
-                        </div>
                     </div>
                 </div>
             </div>

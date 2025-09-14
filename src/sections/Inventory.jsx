@@ -35,7 +35,7 @@ const Inventory = () => {
           .select(`
             quantity,
             CAKE!inner(cake_id),
-            CAKE-INGREDIENT!inner(
+            "CAKE-INGREDIENT"!inner(
               ci_id,
               quantity as ingredient_quantity,
               INGREDIENT!inner(
@@ -205,12 +205,7 @@ const Inventory = () => {
       }
 
       if (lowStockItems && lowStockItems.length > 0) {
-        const lowStockNames = lowStockItems.map(item => item.INGREDIENT.ingred_name).join(', ');
-        toast.error(`Low stock alert: ${lowStockNames}`, {
-          duration: 6000,
-        });
-
-        // Here you could trigger automatic restock or send notifications
+        // Low stock check - no toast notification
         console.log('Low stock items detected:', lowStockItems);
       }
     } catch (error) {
@@ -637,19 +632,6 @@ const Inventory = () => {
         </div>
       </div>
 
-      {/* Low Stock Summary */}
-      {filteredRows.some(item => item.quantity < 10) && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-          <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-            <span className="text-red-800 font-semibold">
-              Low Stock Alert: {filteredRows.filter(item => item.quantity < 10).length} item(s) need restocking
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* Inventory Table */}
       <div className="flex-1 overflow-hidden bg-gray-50 rounded-xl border border-gray-200">
@@ -1041,49 +1023,81 @@ const Inventory = () => {
 
 // Export inventory management functions for use in other components
 export const inventoryManagement = {
-  deductInventoryForOrder: async (orderId, previousPaymentStatus, newPaymentStatus) => {
+  deductInventoryForCustomCakeOrder: async (orderId, previousPaymentStatus, newPaymentStatus) => {
     try {
       // Deduct inventory: Unpaid → Partial Payment or Fully Paid
       if (previousPaymentStatus === 'Unpaid' && (newPaymentStatus === 'Partial Payment' || newPaymentStatus === 'Fully Paid')) {
-        console.log(`Deducting inventory for order ${orderId} - Status change: ${previousPaymentStatus} → ${newPaymentStatus}`);
+        console.log(`Deducting inventory for custom cake order ${orderId} - Status change: ${previousPaymentStatus} → ${newPaymentStatus}`);
 
-        // Get cake orders for this order
-        const { data: cakeOrders, error: cakeOrdersError } = await supabase
-          .from('CAKE-ORDERS')
-          .select(`
-            quantity,
-            CAKE!inner(cake_id),
-            CAKE-INGREDIENT!inner(
-              ci_id,
-              quantity as ingredient_quantity,
-              INGREDIENT!inner(
-                ingred_id,
-                ingred_name
-              )
-            )
-          `)
-          .eq('order_id', orderId);
+        // Get custom cake ID for this order
+        const { data: customCakeData, error: customCakeError } = await supabase
+          .from('CUSTOM-CAKE')
+          .select('cc_id')
+          .eq('order_id', orderId)
+          .single();
 
-        if (cakeOrdersError) {
-          console.error('Error fetching cake orders:', cakeOrdersError);
+        if (customCakeError) {
+          console.error('Error fetching custom cake data:', customCakeError);
           return;
         }
 
-        if (!cakeOrders || cakeOrders.length === 0) {
-          console.log('No cake orders found for this order');
+        if (!customCakeData) {
+          console.log('No custom cake found for this order');
+          return;
+        }
+
+        // Get custom cake assets for this order
+        const { data: customCakeAssets, error: customCakeAssetsError } = await supabase
+          .from('CUSTOM-CAKE-ASSETS')
+          .select(`
+            quantity,
+            asset_id
+          `)
+          .eq('cc_id', customCakeData.cc_id);
+
+        if (customCakeAssetsError) {
+          console.error('Error fetching custom cake assets:', customCakeAssetsError);
+          return;
+        }
+
+        if (!customCakeAssets || customCakeAssets.length === 0) {
+          console.log('No custom cake assets found for this order');
           return;
         }
 
         // Calculate total ingredients needed
         const ingredientDeductions = {};
 
-        for (const cakeOrder of cakeOrders) {
-          const cakeQuantity = cakeOrder.quantity;
+        for (const customCakeAsset of customCakeAssets) {
+          const assetQuantity = customCakeAsset.quantity;
+          const assetId = customCakeAsset.asset_id;
 
-          for (const cakeIngredient of cakeOrder['CAKE-INGREDIENT']) {
-            const ingredientId = cakeIngredient.INGREDIENT.ingred_id;
-            const ingredientName = cakeIngredient.INGREDIENT.ingred_name;
-            const requiredQuantity = cakeIngredient.ingredient_quantity * cakeQuantity;
+          // Get ingredients for this specific asset
+          const { data: assetIngredients, error: assetIngredientsError } = await supabase
+            .from('ASSET-INGREDIENT')
+            .select(`
+              ai_id,
+              ai_quantity,
+              INGREDIENT!inner(
+                ingred_id,
+                ingred_name
+              )
+            `)
+            .eq('asset_id', assetId);
+
+          if (assetIngredientsError) {
+            console.error(`Error fetching ingredients for asset ${assetId}:`, assetIngredientsError);
+            continue;
+          }
+
+          if (!assetIngredients || assetIngredients.length === 0) {
+            continue;
+          }
+
+          for (const assetIngredient of assetIngredients) {
+            const ingredientId = assetIngredient.INGREDIENT.ingred_id;
+            const ingredientName = assetIngredient.INGREDIENT.ingred_name;
+            const requiredQuantity = assetIngredient.ai_quantity * assetQuantity;
 
             if (ingredientDeductions[ingredientId]) {
               ingredientDeductions[ingredientId].quantity += requiredQuantity;
@@ -1098,10 +1112,136 @@ export const inventoryManagement = {
 
         // Deduct ingredients from inventory
         for (const [ingredientId, deduction] of Object.entries(ingredientDeductions)) {
+          // First, get the current stock quantity
+          const { data: currentInventory, error: fetchError } = await supabase
+            .from('INVENTORY')
+            .select('stock_quantity')
+            .eq('ingred_id', ingredientId)
+            .single();
+
+          if (fetchError) {
+            console.error(`Error fetching current inventory for ingredient ${ingredientId}:`, fetchError);
+            continue;
+          }
+
+          // Calculate new stock quantity
+          const newStockQuantity = currentInventory.stock_quantity - deduction.quantity;
+
+          // Update the inventory
+          const { error: updateError } = await supabase
+            .from('INVENTORY')
+            .update({
+              stock_quantity: newStockQuantity,
+              last_updated: new Date().toISOString()
+            })
+            .eq('ingred_id', ingredientId);
+
+          if (updateError) {
+            console.error(`Error updating inventory for ingredient ${ingredientId}:`, updateError);
+          } else {
+            console.log(`Deducted ${deduction.quantity} ${deduction.name} from inventory`);
+          }
+        }
+
+      }
+    } catch (error) {
+      console.error('Error in custom cake inventory deduction:', error);
+    }
+  },
+
+  deductInventoryForOrder: async (orderId, previousPaymentStatus, newPaymentStatus) => {
+    try {
+      // Deduct inventory: Unpaid → Partial Payment or Fully Paid
+      if (previousPaymentStatus === 'Unpaid' && (newPaymentStatus === 'Partial Payment' || newPaymentStatus === 'Fully Paid')) {
+        console.log(`Deducting inventory for order ${orderId} - Status change: ${previousPaymentStatus} → ${newPaymentStatus}`);
+
+        // Get cake orders for this order
+        const { data: cakeOrders, error: cakeOrdersError } = await supabase
+          .from('CAKE-ORDERS')
+          .select(`
+            quantity,
+            cake_id
+          `)
+          .eq('order_id', orderId);
+
+        if (cakeOrdersError) {
+          console.error('Error fetching cake orders:', cakeOrdersError);
+          return;
+        }
+
+        if (!cakeOrders || cakeOrders.length === 0) {
+          return;
+        }
+
+
+        // Calculate total ingredients needed
+        const ingredientDeductions = {};
+
+        for (const cakeOrder of cakeOrders) {
+          const cakeQuantity = cakeOrder.quantity;
+          const cakeId = cakeOrder.cake_id;
+
+          // Get ingredients for this specific cake
+          const { data: cakeIngredients, error: ingredientsError } = await supabase
+            .from('CAKE-INGREDIENT')
+            .select(`
+              ci_id,
+              quantity,
+              INGREDIENT!inner(
+                ingred_id,
+                ingred_name
+              )
+            `)
+            .eq('cake_id', cakeId);
+
+          if (ingredientsError) {
+            console.error(`Error fetching ingredients for cake ${cakeId}:`, ingredientsError);
+            continue;
+          }
+
+          if (!cakeIngredients || cakeIngredients.length === 0) {
+            continue;
+          }
+
+          for (const cakeIngredient of cakeIngredients) {
+            const ingredientId = cakeIngredient.INGREDIENT.ingred_id;
+            const ingredientName = cakeIngredient.INGREDIENT.ingred_name;
+            const requiredQuantity = cakeIngredient.quantity * cakeQuantity;
+
+            if (ingredientDeductions[ingredientId]) {
+              ingredientDeductions[ingredientId].quantity += requiredQuantity;
+            } else {
+              ingredientDeductions[ingredientId] = {
+                name: ingredientName,
+                quantity: requiredQuantity
+              };
+            }
+          }
+        }
+
+        // Deduct ingredients from inventory
+        for (const [ingredientId, deduction] of Object.entries(ingredientDeductions)) {
+          // First, get the current stock quantity
+          const { data: currentInventory, error: fetchError } = await supabase
+            .from('INVENTORY')
+            .select('stock_quantity')
+            .eq('ingred_id', ingredientId)
+            .single();
+
+          if (fetchError) {
+            console.error(`Error fetching current inventory for ingredient ${ingredientId}:`, fetchError);
+            toast.error(`Failed to fetch current inventory for ${deduction.name}`);
+            continue;
+          }
+
+          // Calculate new stock quantity
+          const newStockQuantity = currentInventory.stock_quantity - deduction.quantity;
+
+          // Update the inventory
           const { error: deductError } = await supabase
             .from('INVENTORY')
             .update({
-              stock_quantity: supabase.raw(`stock_quantity - ${deduction.quantity}`),
+              stock_quantity: newStockQuantity,
               last_updated: new Date().toISOString()
             })
             .eq('ingred_id', ingredientId);
@@ -1110,7 +1250,7 @@ export const inventoryManagement = {
             console.error(`Error deducting ${deduction.name}:`, deductError);
             toast.error(`Failed to deduct ${deduction.name} from inventory`);
           } else {
-            console.log(`Deducted ${deduction.quantity} units of ${deduction.name}`);
+            console.log(`Deducted ${deduction.quantity} units of ${deduction.name} (${currentInventory.stock_quantity} → ${newStockQuantity})`);
           }
         }
 
@@ -1125,15 +1265,7 @@ export const inventoryManagement = {
           .from('CAKE-ORDERS')
           .select(`
             quantity,
-            CAKE!inner(cake_id),
-            CAKE-INGREDIENT!inner(
-              ci_id,
-              quantity as ingredient_quantity,
-              INGREDIENT!inner(
-                ingred_id,
-                ingred_name
-              )
-            )
+            cake_id
           `)
           .eq('order_id', orderId);
 
@@ -1147,16 +1279,40 @@ export const inventoryManagement = {
           return;
         }
 
+
         // Calculate total ingredients to restock
         const ingredientRestocks = {};
 
         for (const cakeOrder of cakeOrders) {
           const cakeQuantity = cakeOrder.quantity;
+          const cakeId = cakeOrder.cake_id;
 
-          for (const cakeIngredient of cakeOrder['CAKE-INGREDIENT']) {
+          // Get ingredients for this specific cake
+          const { data: cakeIngredients, error: ingredientsError } = await supabase
+            .from('CAKE-INGREDIENT')
+            .select(`
+              ci_id,
+              quantity,
+              INGREDIENT!inner(
+                ingred_id,
+                ingred_name
+              )
+            `)
+            .eq('cake_id', cakeId);
+
+          if (ingredientsError) {
+            console.error(`Error fetching ingredients for cake ${cakeId}:`, ingredientsError);
+            continue;
+          }
+
+          if (!cakeIngredients || cakeIngredients.length === 0) {
+            continue;
+          }
+
+          for (const cakeIngredient of cakeIngredients) {
             const ingredientId = cakeIngredient.INGREDIENT.ingred_id;
             const ingredientName = cakeIngredient.INGREDIENT.ingred_name;
-            const restockQuantity = cakeIngredient.ingredient_quantity * cakeQuantity;
+            const restockQuantity = cakeIngredient.quantity * cakeQuantity;
 
             if (ingredientRestocks[ingredientId]) {
               ingredientRestocks[ingredientId].quantity += restockQuantity;
@@ -1171,10 +1327,27 @@ export const inventoryManagement = {
 
         // Restock ingredients in inventory
         for (const [ingredientId, restock] of Object.entries(ingredientRestocks)) {
+          // First, get the current stock quantity
+          const { data: currentInventory, error: fetchError } = await supabase
+            .from('INVENTORY')
+            .select('stock_quantity')
+            .eq('ingred_id', ingredientId)
+            .single();
+
+          if (fetchError) {
+            console.error(`Error fetching current inventory for ingredient ${ingredientId}:`, fetchError);
+            toast.error(`Failed to fetch current inventory for ${restock.name}`);
+            continue;
+          }
+
+          // Calculate new stock quantity
+          const newStockQuantity = currentInventory.stock_quantity + restock.quantity;
+
+          // Update the inventory
           const { error: restockError } = await supabase
             .from('INVENTORY')
             .update({
-              stock_quantity: supabase.raw(`stock_quantity + ${restock.quantity}`),
+              stock_quantity: newStockQuantity,
               last_updated: new Date().toISOString()
             })
             .eq('ingred_id', ingredientId);

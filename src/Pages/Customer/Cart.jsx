@@ -29,6 +29,13 @@ const Cart = () => {
     // Helper function to get public image URL
     const getPublicImageUrl = (path) => {
         if (!path) return null;
+
+        // If the path is already a full URL, return it as is
+        if (path.startsWith('http://') || path.startsWith('https://')) {
+            return path;
+        }
+
+        // If it's a file path, generate the public URL
         return supabase.storage.from("cake").getPublicUrl(path).data.publicUrl;
     };
 
@@ -51,20 +58,36 @@ const Cart = () => {
         return daysDiff >= 5;
     };
 
-    // Function to automatically cancel unpaid orders 7 days before delivery
+    // Function to automatically cancel unpaid orders less than 7 days before delivery
     const autoCancelUnpaidOrders = async () => {
         if (!session?.user) return;
 
         try {
-            // Get all pending orders with payment info
+            // Get all pending orders with payment info and related data
             const { data: allOrders, error: fetchError } = await supabase
                 .from('ORDER')
                 .select(`
                     order_id,
                     order_schedule,
                     order_status,
+                    order_date,
+                    delivery_method,
+                    delivery_address,
+                    cus_id,
+                    CUSTOMER!inner(
+                        email
+                    ),
                     PAYMENT!inner(
-                        payment_status
+                        payment_status,
+                        amount_paid,
+                        total
+                    ),
+                    "CAKE-ORDERS"(
+                        quantity,
+                        CAKE(
+                            name,
+                            price
+                        )
                     )
                 `)
                 .eq('order_status', 'Pending')
@@ -88,14 +111,14 @@ const Cart = () => {
                 const timeDiff = deliveryDate.getTime() - currentDate.getTime();
                 const daysUntilDelivery = Math.ceil(timeDiff / (1000 * 3600 * 24));
 
-                // If 7 days or less until delivery, mark for cancellation
-                if (daysUntilDelivery <= 7) {
+                // If less than 7 days until delivery, mark for cancellation
+                if (daysUntilDelivery < 7) {
                     ordersToCancel.push(order);
                 }
             }
 
             if (ordersToCancel.length > 0) {
-                console.log(`Found ${ordersToCancel.length} unpaid orders to auto-cancel (7 days or less before delivery)`);
+                console.log(`Found ${ordersToCancel.length} unpaid orders to auto-cancel (less than 7 days before delivery)`);
 
                 // Cancel each unpaid order
                 for (const order of ordersToCancel) {
@@ -111,14 +134,37 @@ const Cart = () => {
                             continue;
                         }
 
-                        // Update payment status to 'Cancelled'
-                        const { error: paymentError } = await supabase
-                            .from('PAYMENT')
-                            .update({ payment_status: 'Cancelled' })
-                            .eq('order_id', order.order_id);
+                        // Send email notification to admin
+                        const cancellationReason = "Order has been automatically cancelled because the customer has not paid";
+                        try {
+                            // Get cake details from CAKE-ORDERS relationship
+                            const cakeOrders = order["CAKE-ORDERS"] || [];
+                            const cakeNames = cakeOrders.map(co => co.CAKE?.name).filter(Boolean);
+                            const cakeName = cakeNames.length > 0 ? cakeNames.join(', ') : 'Custom Cake';
 
-                        if (paymentError) {
-                            console.error(`Error updating payment for order ${order.order_id}:`, paymentError);
+                            // Calculate total quantity
+                            const totalQuantity = cakeOrders.reduce((sum, co) => sum + (co.quantity || 0), 0);
+
+                            // Get payment amounts (numerical values)
+                            const amountPaid = order.PAYMENT?.amount_paid || 0;
+                            const totalAmount = order.PAYMENT?.total || 0;
+
+                            const emailParams = {
+                                to_email: 'admin@bakerybliss.com', // Replace with actual admin email
+                                subject: `Order #${order.order_id} Auto-Cancelled - No Payment`,
+                                message: `Order #${order.order_id} has been automatically cancelled due to non-payment.\n\nOrder Details:\n- Order ID: ${order.order_id}\n- Order Date: ${new Date(order.order_date).toLocaleDateString()}\n- Delivery Date: ${new Date(order.order_schedule).toLocaleDateString()}\n- Delivery Method: ${order.delivery_method || 'Pickup'}\n- Delivery Address: ${order.delivery_address || 'N/A'}\n- Customer ID: ${order.cus_id}\n- Customer Email: ${order.CUSTOMER?.email || 'Unknown'}\n\nCake Details:\n- Cake(s): ${cakeName}\n- Total Quantity: ${totalQuantity}\n\nPayment Details:\n- Amount Paid: ₱${amountPaid.toLocaleString()}\n- Total Amount: ₱${totalAmount.toLocaleString()}\n\nCancellation Reason:\n"${cancellationReason}"\n\nThis order was automatically cancelled by the system because payment was not received within 7 days of the delivery date.`
+                            };
+
+                            await emailjs.send(
+                                'YOUR_SERVICE_ID', // Replace with your EmailJS service ID
+                                'YOUR_TEMPLATE_ID', // Replace with your EmailJS template ID for cancellations
+                                emailParams,
+                                'YOUR_PUBLIC_KEY' // Replace with your EmailJS public key
+                            );
+
+                            console.log(`Email sent for auto-cancelled order ${order.order_id}`);
+                        } catch (emailError) {
+                            console.error(`Error sending email for order ${order.order_id}:`, emailError);
                         }
 
                         console.log(`Auto-cancelled order ${order.order_id} (${Math.ceil((new Date(order.order_schedule).getTime() - currentDate.getTime()) / (1000 * 3600 * 24))} days before delivery)`);
@@ -214,7 +260,16 @@ const Cart = () => {
                             order_type: 'regular',
                             CAKE: cakeOrder.CAKE ? {
                                 ...cakeOrder.CAKE,
-                                publicUrl: getPublicImageUrl(cakeOrder.CAKE.cake_img)
+                                publicUrl: (() => {
+                                    const imagePath = cakeOrder.CAKE.cake_img;
+                                    const publicUrl = getPublicImageUrl(imagePath);
+                                    console.log('Regular cake image processing:', {
+                                        cakeName: cakeOrder.CAKE.name,
+                                        originalPath: imagePath,
+                                        publicUrl: publicUrl
+                                    });
+                                    return publicUrl;
+                                })()
                             } : null,
                             payment: order.PAYMENT?.[0] || null,
                             total_price: cakeOrder.CAKE ? cakeOrder.CAKE.price * cakeOrder.quantity : 0
@@ -227,6 +282,11 @@ const Cart = () => {
                     order['CUSTOM-CAKE'].forEach(customCake => {
                         // Get public URL for custom cake image
                         const customCakeUrl = supabase.storage.from('cust.cakes').getPublicUrl(customCake.cc_img).data.publicUrl;
+                        console.log('Custom cake image processing:', {
+                            ccId: customCake.cc_id,
+                            originalPath: customCake.cc_img,
+                            publicUrl: customCakeUrl
+                        });
 
                         processedOrders.push({
                             order_id: order.order_id,
@@ -629,7 +689,7 @@ const Cart = () => {
                         {orders.filter(order => order.order_status === 'Pending').length === 0 ? (
                             <div className="text-center py-12">
                                 <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m6 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01"></path>
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
                                 </svg>
                                 <h3 className="text-xl font-semibold text-gray-600 mb-2">No pending orders</h3>
                                 <p className="text-gray-500">Your pending orders will appear here</p>

@@ -36,7 +36,8 @@ const Cakes = () => {
     description: '',
     tier: 1,
     price: '',
-    cake_img: ''
+    cake_img: '',
+    imageFile: null
   });
 
   const [editFormData, setEditFormData] = useState({
@@ -45,7 +46,8 @@ const Cakes = () => {
     description: '',
     tier: 1,
     price: '',
-    cake_img: ''
+    cake_img: '',
+    imageFile: null
   });
 
 
@@ -132,6 +134,32 @@ const Cakes = () => {
 
   const addCake = async (cake) => {
     try {
+      let imageUrl = cake.cake_img || '';
+
+      // If there's an image file, upload it to Supabase storage
+      if (cake.imageFile) {
+        const fileExt = cake.imageFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `cake-images/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('cake')
+          .upload(filePath, cake.imageFile);
+
+        if (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          toast.error('Failed to upload image');
+          return;
+        }
+
+        // Get the public URL for the uploaded image
+        const { data: { publicUrl } } = supabase.storage
+          .from('cake')
+          .getPublicUrl(filePath);
+
+        imageUrl = publicUrl;
+      }
+
       const { error: insertError } = await supabase
         .from('CAKE')
         .insert([{
@@ -140,7 +168,7 @@ const Cakes = () => {
           description: cake.description,
           tier: parseInt(cake.tier) || 1,
           price: parseFloat(cake.price) || 0,
-          cake_img: cake.cake_img || '',
+          cake_img: imageUrl,
         }]);
 
       if (insertError) {
@@ -150,7 +178,7 @@ const Cakes = () => {
 
       toast.success('Cake added successfully');
       setShowAddModal(false);
-      setNewCake({ name: '', theme: '', description: '', tier: 1, price: '', cake_img: '' });
+      setNewCake({ name: '', theme: '', description: '', tier: 1, price: '', cake_img: '', imageFile: null });
       fetchCakes();
     } catch (error) {
       toast.error('Failed to add cake');
@@ -165,7 +193,8 @@ const Cakes = () => {
       description: cake.description || '',
       tier: cake.tier,
       price: cake.price.toString(),
-      cake_img: cake.cake_img || ''
+      cake_img: cake.cake_img || '',
+      imageFile: null
     });
     setShowEditModal(true);
   };
@@ -188,13 +217,39 @@ const Cakes = () => {
 
   const updateCake = async (cakeId, cake) => {
     try {
+      let imageUrl = cake.cake_img || '';
+
+      // If there's a new image file, upload it to Supabase storage
+      if (cake.imageFile) {
+        const fileExt = cake.imageFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `cake-images/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('cake')
+          .upload(filePath, cake.imageFile);
+
+        if (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          toast.error('Failed to upload image');
+          return;
+        }
+
+        // Get the public URL for the uploaded image
+        const { data: { publicUrl } } = supabase.storage
+          .from('cake')
+          .getPublicUrl(filePath);
+
+        imageUrl = publicUrl;
+      }
+
       const updateData = {
         name: cake.name,
         theme: cake.theme,
         description: cake.description,
         tier: parseInt(cake.tier) || 1,
         price: parseFloat(cake.price) || 0,
-        cake_img: cake.cake_img || '',
+        cake_img: imageUrl,
       };
 
       const { error: updateError } = await supabase
@@ -280,7 +335,7 @@ const Cakes = () => {
   const cancelEdit = () => {
     setShowEditModal(false);
     setCakeToEdit(null);
-    setEditFormData({ name: '', theme: '', description: '', tier: 1, price: '', cake_img: '' });
+    setEditFormData({ name: '', theme: '', description: '', tier: 1, price: '', cake_img: '', imageFile: null });
   };
 
   const formatPrice = (price) => {
@@ -513,119 +568,188 @@ const Cakes = () => {
 
       {/* Add Cake Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md border-2 border-[#AF524D] shadow-2xl">
-            <h3 className="text-2xl font-bold text-[#381914] mb-6">Add New Cake</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 p-4 overflow-y-auto">
+          <div className="min-h-full flex items-center justify-center py-8">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg border-2 border-[#AF524D] shadow-2xl">
+              <h3 className="text-2xl font-bold text-[#381914] mb-6">Add New Cake</h3>
 
-            <div className="space-y-4">
-              {/* Cake Name */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Cake Name *
-                </label>
-                <input
-                  type="text"
-                  value={newCake.name}
-                  onChange={(e) => setNewCake(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                  placeholder="Enter cake name..."
-                />
-              </div>
+              <div className="space-y-4">
+                {/* Cake Name */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Cake Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={newCake.name}
+                    onChange={(e) => setNewCake(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                    placeholder="Enter cake name..."
+                  />
+                </div>
 
-              {/* Theme */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Theme *
-                </label>
-                <input
-                  type="text"
-                  value={newCake.theme}
-                  onChange={(e) => setNewCake(prev => ({ ...prev, theme: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                  placeholder="Enter cake theme..."
-                />
-              </div>
+                {/* Theme */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Theme *
+                  </label>
+                  <input
+                    type="text"
+                    value={newCake.theme}
+                    onChange={(e) => setNewCake(prev => ({ ...prev, theme: e.target.value }))}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                    placeholder="Enter cake theme..."
+                  />
+                </div>
 
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={newCake.description}
-                  onChange={(e) => setNewCake(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200 resize-none"
-                  placeholder="Enter cake description..."
-                  rows={3}
-                />
-              </div>
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={newCake.description}
+                    onChange={(e) => setNewCake(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200 resize-none"
+                    placeholder="Enter cake description..."
+                    rows={3}
+                  />
+                </div>
 
-              {/* Tier */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Tier
-                </label>
-                <select
-                  value={newCake.tier}
-                  onChange={(e) => setNewCake(prev => ({ ...prev, tier: parseInt(e.target.value) }))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                >
-                  <option value={1}>1 Tier</option>
-                  <option value={2}>2 Tiers</option>
-                  <option value={3}>3 Tiers</option>
-                  <option value={4}>4 Tiers</option>
-                </select>
-              </div>
+                {/* Tier */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Tier
+                  </label>
+                  <select
+                    value={newCake.tier}
+                    onChange={(e) => setNewCake(prev => ({ ...prev, tier: parseInt(e.target.value) }))}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                  >
+                    <option value={1}>1 Tier</option>
+                    <option value={2}>2 Tiers</option>
+                    <option value={3}>3 Tiers</option>
+                    <option value={4}>4 Tiers</option>
+                  </select>
+                </div>
 
-              {/* Price */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Price *
-                </label>
-                <input
-                  type="number"
-                  value={newCake.price}
-                  onChange={(e) => setNewCake(prev => ({ ...prev, price: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                  placeholder="Enter price..."
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-            </div>
+                {/* Price */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Price *
+                  </label>
+                  <input
+                    type="number"
+                    value={newCake.price}
+                    onChange={(e) => setNewCake(prev => ({ ...prev, price: e.target.value }))}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                    placeholder="Enter price..."
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
 
-            {/* Modal Actions */}
-            <div className="flex justify-end gap-3 mt-8">
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setNewCake({ name: '', theme: '', description: '', tier: 1, price: '', cake_img: '' });
-                }}
-                className="px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors font-medium"
-                disabled={saving}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddCake}
-                disabled={saving}
-                className={`px-6 py-3 rounded-xl font-medium transition-all duration-200 ${saving
-                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                  : 'bg-[#AF524D] text-white hover:bg-[#8B3A3A] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
-                  }`}
-              >
-                {saving ? (
-                  <div className="flex items-center gap-2">
-                    <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Adding...
+                {/* Cake Image Upload */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Cake Image
+                  </label>
+                  <div className="space-y-3">
+                    {/* Upload Area */}
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            // Create a preview URL for the selected image
+                            const previewUrl = URL.createObjectURL(file);
+                            setNewCake(prev => ({ ...prev, cake_img: previewUrl, imageFile: file }));
+                          }
+                        }}
+                        className="hidden"
+                        id="cake-image-upload"
+                      />
+                      <label
+                        htmlFor="cake-image-upload"
+                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 hover:border-[#AF524D] transition-all duration-200"
+                      >
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <svg className="w-8 h-8 mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                          <p className="mb-2 text-sm text-gray-500">
+                            <span className="font-semibold">Click to upload</span>
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+
+                    {/* Image Preview */}
+                    {newCake.cake_img && (
+                      <div className="mt-3">
+                        <p className="text-sm text-gray-600 mb-2">Preview:</p>
+                        <div className="relative">
+                          <img
+                            src={newCake.cake_img}
+                            alt="Cake preview"
+                            className="w-full h-32 object-cover rounded-xl border-2 border-gray-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (newCake.cake_img && newCake.cake_img.startsWith('blob:')) {
+                                URL.revokeObjectURL(newCake.cake_img);
+                              }
+                              setNewCake(prev => ({ ...prev, cake_img: '', imageFile: null }));
+                            }}
+                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  'Add Cake'
-                )}
-              </button>
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex justify-end gap-3 mt-8">
+                <button
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setNewCake({ name: '', theme: '', description: '', tier: 1, price: '', cake_img: '', imageFile: null });
+                  }}
+                  className="px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors font-medium"
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddCake}
+                  disabled={saving}
+                  className={`px-6 py-3 rounded-xl font-medium transition-all duration-200 ${saving
+                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                    : 'bg-[#AF524D] text-white hover:bg-[#8B3A3A] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                    }`}
+                >
+                  {saving ? (
+                    <div className="flex items-center gap-2">
+                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Adding...
+                    </div>
+                  ) : (
+                    'Add Cake'
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -633,116 +757,208 @@ const Cakes = () => {
 
       {/* Edit Cake Modal */}
       {showEditModal && cakeToEdit && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md border-2 border-blue-200 shadow-2xl">
-            <h3 className="text-2xl font-bold text-[#381914] mb-6">Edit Cake</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 p-4 overflow-y-auto">
+          <div className="min-h-full flex items-center justify-center py-8">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg border-2 border-blue-200 shadow-2xl">
+              <h3 className="text-2xl font-bold text-[#381914] mb-6">Edit Cake</h3>
 
-            <div className="space-y-4">
-              {/* Cake Name */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Cake Name *
-                </label>
-                <input
-                  type="text"
-                  value={editFormData.name}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                  placeholder="Enter cake name..."
-                />
-              </div>
+              <div className="space-y-4">
+                {/* Cake Name */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Cake Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.name}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                    placeholder="Enter cake name..."
+                  />
+                </div>
 
-              {/* Theme */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Theme *
-                </label>
-                <input
-                  type="text"
-                  value={editFormData.theme}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, theme: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                  placeholder="Enter cake theme..."
-                />
-              </div>
+                {/* Theme */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Theme *
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.theme}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, theme: e.target.value }))}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                    placeholder="Enter cake theme..."
+                  />
+                </div>
 
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={editFormData.description}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200 resize-none"
-                  placeholder="Enter cake description..."
-                  rows={3}
-                />
-              </div>
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={editFormData.description}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200 resize-none"
+                    placeholder="Enter cake description..."
+                    rows={3}
+                  />
+                </div>
 
-              {/* Tier */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Tier
-                </label>
-                <select
-                  value={editFormData.tier}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, tier: parseInt(e.target.value) }))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                >
-                  <option value={1}>1 Tier</option>
-                  <option value={2}>2 Tiers</option>
-                  <option value={3}>3 Tiers</option>
-                  <option value={4}>4 Tiers</option>
-                </select>
-              </div>
+                {/* Tier */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Tier
+                  </label>
+                  <select
+                    value={editFormData.tier}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, tier: parseInt(e.target.value) }))}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                  >
+                    <option value={1}>1 Tier</option>
+                    <option value={2}>2 Tiers</option>
+                    <option value={3}>3 Tiers</option>
+                    <option value={4}>4 Tiers</option>
+                  </select>
+                </div>
 
-              {/* Price */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Price *
-                </label>
-                <input
-                  type="number"
-                  value={editFormData.price}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, price: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                  placeholder="Enter price..."
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-            </div>
+                {/* Price */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Price *
+                  </label>
+                  <input
+                    type="number"
+                    value={editFormData.price}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, price: e.target.value }))}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                    placeholder="Enter price..."
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
 
-            {/* Modal Actions */}
-            <div className="flex justify-end gap-3 mt-8">
-              <button
-                onClick={cancelEdit}
-                className="px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors font-medium"
-                disabled={saving}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateCake}
-                disabled={saving}
-                className={`px-6 py-3 rounded-xl font-medium transition-all duration-200 ${saving
-                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
-                  }`}
-              >
-                {saving ? (
-                  <div className="flex items-center gap-2">
-                    <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Updating...
+                {/* Cake Image Upload */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Cake Image
+                  </label>
+                  <div className="space-y-3">
+                    {/* Current Image Display */}
+                    {editFormData.cake_img && !editFormData.imageFile && (
+                      <div className="mb-4">
+                        <p className="text-sm text-gray-600 mb-2">Current Image:</p>
+                        <div className="relative inline-block">
+                          <img
+                            src={getPublicImageUrl(editFormData.cake_img)}
+                            alt="Current cake"
+                            className="w-32 h-32 object-cover rounded-xl border-2 border-gray-200"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                          <div className="hidden w-32 h-32 items-center justify-center text-gray-500 bg-gray-100 rounded-xl border-2 border-gray-200">
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Upload Area */}
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            // Create a preview URL for the selected image
+                            const previewUrl = URL.createObjectURL(file);
+                            setEditFormData(prev => ({ ...prev, cake_img: previewUrl, imageFile: file }));
+                          }
+                        }}
+                        className="hidden"
+                        id="edit-cake-image-upload"
+                      />
+                      <label
+                        htmlFor="edit-cake-image-upload"
+                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 hover:border-[#AF524D] transition-all duration-200"
+                      >
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <svg className="w-8 h-8 mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                          <p className="mb-2 text-sm text-gray-500">
+                            <span className="font-semibold">Click to upload new image</span>
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+
+                    {/* New Image Preview */}
+                    {editFormData.imageFile && (
+                      <div className="mt-3">
+                        <p className="text-sm text-gray-600 mb-2">New Image Preview:</p>
+                        <div className="relative">
+                          <img
+                            src={editFormData.cake_img}
+                            alt="New cake preview"
+                            className="w-full h-32 object-cover rounded-xl border-2 border-gray-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (editFormData.cake_img && editFormData.cake_img.startsWith('blob:')) {
+                                URL.revokeObjectURL(editFormData.cake_img);
+                              }
+                              setEditFormData(prev => ({ ...prev, cake_img: cakeToEdit?.cake_img || '', imageFile: null }));
+                            }}
+                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  'Update Cake'
-                )}
-              </button>
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex justify-end gap-3 mt-8">
+                <button
+                  onClick={cancelEdit}
+                  className="px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors font-medium"
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateCake}
+                  disabled={saving}
+                  className={`px-6 py-3 rounded-xl font-medium transition-all duration-200 ${saving
+                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                    }`}
+                >
+                  {saving ? (
+                    <div className="flex items-center gap-2">
+                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Updating...
+                    </div>
+                  ) : (
+                    'Update Cake'
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -750,60 +966,62 @@ const Cakes = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && cakeToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md border-2 border-red-200 shadow-2xl">
-            <div className="text-center">
-              {/* Warning Icon */}
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-                <svg className="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-              </div>
-
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Delete Cake</h3>
-              <p className="text-gray-600 mb-6">
-                Are you sure you want to delete this cake? This action cannot be undone.
-              </p>
-
-              {/* Cake Details */}
-              <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
-                <div className="flex items-center gap-3 mb-2">
-                  <h4 className="text-lg font-semibold text-gray-900">
-                    {cakeToDelete.name}
-                  </h4>
-                  <span className="px-2 py-1 bg-[#AF524D]/10 text-[#AF524D] text-xs font-medium rounded-full">
-                    {cakeToDelete.theme}
-                  </span>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 p-4 overflow-y-auto">
+          <div className="min-h-full flex items-center justify-center py-8">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md border-2 border-red-200 shadow-2xl">
+              <div className="text-center">
+                {/* Warning Icon */}
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                  <svg className="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
                 </div>
 
-                <p className="text-gray-600 mb-2">
-                  <span className="font-medium">Tier:</span> {cakeToDelete.tier}
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Delete Cake</h3>
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to delete this cake? This action cannot be undone.
                 </p>
 
-                <p className="text-gray-600">
-                  <span className="font-medium">Price:</span> {formatPrice(cakeToDelete.price)}
-                </p>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3">
-                <button
-                  onClick={cancelDelete}
-                  className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium shadow-lg hover:shadow-xl"
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Delete
+                {/* Cake Details */}
+                <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h4 className="text-lg font-semibold text-gray-900">
+                      {cakeToDelete.name}
+                    </h4>
+                    <span className="px-2 py-1 bg-[#AF524D]/10 text-[#AF524D] text-xs font-medium rounded-full">
+                      {cakeToDelete.theme}
+                    </span>
                   </div>
-                </button>
+
+                  <p className="text-gray-600 mb-2">
+                    <span className="font-medium">Tier:</span> {cakeToDelete.tier}
+                  </p>
+
+                  <p className="text-gray-600">
+                    <span className="font-medium">Price:</span> {formatPrice(cakeToDelete.price)}
+                  </p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={cancelDelete}
+                    className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium shadow-lg hover:shadow-xl"
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Delete
+                    </div>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
