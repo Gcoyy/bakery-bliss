@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -163,7 +163,24 @@ const CakeCatalog = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [pageLoading, setPageLoading] = useState(false);
   const cakesPerPage = 8;
+  const isInitialMount = useRef(true);
+
+  // Skeleton component for loading cards
+  const CakeCardSkeleton = () => (
+    <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6 text-center animate-pulse">
+      <div className="relative mb-4 overflow-hidden rounded-xl">
+        <div className="w-full h-48 bg-gray-300 rounded-xl"></div>
+      </div>
+      <div className="h-6 bg-gray-300 rounded mb-2"></div>
+      <div className="h-6 bg-gray-300 rounded mb-3 w-20 mx-auto"></div>
+      <div className="flex items-center justify-center gap-2">
+        <div className="h-6 bg-gray-300 rounded-full w-16"></div>
+        <div className="h-6 bg-gray-300 rounded-full w-20"></div>
+      </div>
+    </div>
+  );
 
   // Order form states
   const [orderDate, setOrderDate] = useState("");
@@ -379,7 +396,14 @@ const CakeCatalog = () => {
     const fetchCakes = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase.from("CAKE").select("*");
+
+        // Start both the API call and minimum loading time simultaneously
+        const [apiResult] = await Promise.all([
+          supabase.from("CAKE").select("*"),
+          new Promise(resolve => setTimeout(resolve, 1000)) // Minimum 1 second loading
+        ]);
+
+        const { data, error } = apiResult;
         if (error) {
           toast.error("Failed to load cakes. Please try again.");
           return;
@@ -670,6 +694,47 @@ const CakeCatalog = () => {
     setCurrentPage(1);
   }, [price, tier, selectedThemes, sortBy]);
 
+  // Reload cards when page changes
+  useEffect(() => {
+    const reloadCakes = async () => {
+      try {
+        setPageLoading(true);
+
+        // Start both the API call and minimum loading time simultaneously
+        const [apiResult] = await Promise.all([
+          supabase.from("CAKE").select("*"),
+          new Promise(resolve => setTimeout(resolve, 1000)) // Minimum 1 second loading
+        ]);
+
+        const { data, error } = apiResult;
+        if (error) {
+          console.error("Error fetching cakes:", error);
+          return;
+        }
+
+        const cakesWithImages = data.map((cake) => {
+          const publicUrl = getPublicImageUrl(cake.cake_img);
+          return { ...cake, publicUrl };
+        });
+
+        setCakes(cakesWithImages);
+      } catch (error) {
+        console.error("Error reloading cakes:", error);
+      } finally {
+        setPageLoading(false);
+      }
+    };
+
+    // Skip the initial mount to avoid double loading with the main fetchCakes
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    // Reload for all subsequent page changes
+    reloadCakes();
+  }, [currentPage]);
+
   // Fetch blocked dates on component mount
   useEffect(() => {
     fetchBlockedDates();
@@ -867,37 +932,45 @@ const CakeCatalog = () => {
 
             {/* Cake Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {currentCakes.map((cake) => (
-                <div
-                  key={cake.cake_id}
-                  className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6 text-center cursor-pointer hover:shadow-2xl transition-all duration-300 hover:scale-105 transform group"
-                  onClick={() => handleCakeClick(cake)}
-                >
-                  <div className="relative mb-4 overflow-hidden rounded-xl">
-                    <img
-                      src={cake.publicUrl || "/saved-cake.png"}
-                      alt={cake.name}
-                      className="w-full h-48 object-contain group-hover:scale-110 transition-transform duration-300"
-                      onError={(e) => {
-                        e.target.src = "/saved-cake.png";
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              {pageLoading ? (
+                // Show skeleton cards during page loading
+                Array.from({ length: cakesPerPage }, (_, index) => (
+                  <CakeCardSkeleton key={`skeleton-${index}`} />
+                ))
+              ) : (
+                // Show actual cake cards
+                currentCakes.map((cake) => (
+                  <div
+                    key={cake.cake_id}
+                    className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6 text-center cursor-pointer hover:shadow-2xl transition-all duration-300 hover:scale-105 transform group"
+                    onClick={() => handleCakeClick(cake)}
+                  >
+                    <div className="relative mb-4 overflow-hidden rounded-xl">
+                      <img
+                        src={cake.publicUrl || "/saved-cake.png"}
+                        alt={cake.name}
+                        className="w-full h-48 object-contain group-hover:scale-110 transition-transform duration-300"
+                        onError={(e) => {
+                          e.target.src = "/saved-cake.png";
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    </div>
+                    <h3 className="text-lg font-semibold text-[#492220] mb-2 group-hover:text-[#AF524D] transition-colors">
+                      {cake.name}
+                    </h3>
+                    <p className="text-xl font-bold text-[#AF524D] mb-3">₱{cake.price}</p>
+                    <div className="flex items-center justify-center gap-2 text-sm text-[#492220]/70">
+                      <span className="bg-[#AF524D]/10 text-[#AF524D] px-2 py-1 rounded-full">
+                        {cake.tier} Tier
+                      </span>
+                      <span className="bg-[#DFAD56]/10 text-[#8B3A3A] px-2 py-1 rounded-full">
+                        {cake.theme}
+                      </span>
+                    </div>
                   </div>
-                  <h3 className="text-lg font-semibold text-[#492220] mb-2 group-hover:text-[#AF524D] transition-colors">
-                    {cake.name}
-                  </h3>
-                  <p className="text-xl font-bold text-[#AF524D] mb-3">₱{cake.price}</p>
-                  <div className="flex items-center justify-center gap-2 text-sm text-[#492220]/70">
-                    <span className="bg-[#AF524D]/10 text-[#AF524D] px-2 py-1 rounded-full">
-                      {cake.tier} Tier
-                    </span>
-                    <span className="bg-[#DFAD56]/10 text-[#8B3A3A] px-2 py-1 rounded-full">
-                      {cake.theme}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             {/* Pagination Controls */}
@@ -905,7 +978,7 @@ const CakeCatalog = () => {
               <div className="flex justify-center items-center mt-8 space-x-2">
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
+                  disabled={currentPage === 1 || pageLoading}
                   className="px-6 py-3 bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white rounded-xl hover:from-[#8B3A3A] hover:to-[#AF524D] disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none"
                 >
                   Previous
@@ -916,7 +989,8 @@ const CakeCatalog = () => {
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`px-4 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 ${currentPage === page
+                      disabled={pageLoading}
+                      className={`px-4 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:transform-none ${currentPage === page
                         ? 'bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white'
                         : 'bg-white/80 text-[#492220] hover:bg-[#AF524D]/10 border border-[#AF524D]/20'
                         }`}
@@ -928,7 +1002,7 @@ const CakeCatalog = () => {
 
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages || pageLoading}
                   className="px-6 py-3 bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white rounded-xl hover:from-[#8B3A3A] hover:to-[#AF524D] disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none"
                 >
                   Next
