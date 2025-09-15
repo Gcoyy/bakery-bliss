@@ -570,7 +570,10 @@ const Assets = () => {
                 {(showAddModal ? newAsset.src : editFormData.src) && (
                   <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
                     <p className="text-sm text-green-700">
-                      <span className="font-medium">Selected file:</span> {showAddModal ? newAsset.src : editFormData.src}
+                      <span className="font-medium">Selected file:</span>
+                      <span className="ml-1 truncate block max-w-full">
+                        {showAddModal ? newAsset.src : editFormData.src}
+                      </span>
                     </p>
                   </div>
                 )}
