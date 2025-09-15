@@ -46,8 +46,8 @@ const ContactUs = () => {
     try {
       // Send email using EmailJS
       const result = await emailjs.send(
-        'YOUR_SERVICE_ID', // Replace with your EmailJS service ID
-        'YOUR_TEMPLATE_ID', // Replace with your EmailJS template ID
+        'service_qjrk6rs', // EmailJS service ID
+        'template_08ka2zu', // EmailJS template ID for contact form
         {
           from_name: formData.name,
           from_email: formData.email,
@@ -55,7 +55,7 @@ const ContactUs = () => {
           message: formData.message,
           to_email: 'dejesus.connie@gmail.com', // Your business email
         },
-        'YOUR_PUBLIC_KEY' // Replace with your EmailJS public key
+        'bkqhQ7VXGwKuEjz_G' // EmailJS public key
       );
 
       if (result.status === 200) {

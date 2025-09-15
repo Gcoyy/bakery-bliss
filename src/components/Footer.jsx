@@ -79,7 +79,7 @@ const Footer = () => {
               <h3 className="text-[#F8E6B4] font-semibold text-lg mb-4 font-abhaya">Quick Links</h3>
               <ul className="space-y-3">
                 <li>
-                  <Link to="/cakes" className="text-[#E2D2A2] hover:text-[#AF524D] transition-colors duration-200 flex items-center group">
+                  <Link to="/cakecatalog" className="text-[#E2D2A2] hover:text-[#AF524D] transition-colors duration-200 flex items-center group">
                     <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
@@ -95,7 +95,7 @@ const Footer = () => {
                   </Link>
                 </li>
                 <li>
-                  <Link to="/contact" className="text-[#E2D2A2] hover:text-[#AF524D] transition-colors duration-200 flex items-center group">
+                  <Link to="/contactus" className="text-[#E2D2A2] hover:text-[#AF524D] transition-colors duration-200 flex items-center group">
                     <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
@@ -103,7 +103,7 @@ const Footer = () => {
                   </Link>
                 </li>
                 <li>
-                  <Link to="/customize" className="text-[#E2D2A2] hover:text-[#AF524D] transition-colors duration-200 flex items-center group">
+                  <Link to="/cakecustomization" className="text-[#E2D2A2] hover:text-[#AF524D] transition-colors duration-200 flex items-center group">
                     <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>

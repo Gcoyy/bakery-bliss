@@ -156,10 +156,10 @@ const Cart = () => {
                             };
 
                             await emailjs.send(
-                                'YOUR_SERVICE_ID', // Replace with your EmailJS service ID
-                                'YOUR_TEMPLATE_ID', // Replace with your EmailJS template ID for cancellations
+                                'service_qjrk6rs', // EmailJS service ID
+                                'template_1b8rn3c', // EmailJS template ID for order cancellations
                                 emailParams,
-                                'YOUR_PUBLIC_KEY' // Replace with your EmailJS public key
+                                'bkqhQ7VXGwKuEjz_G' // EmailJS public key
                             );
 
                             console.log(`Email sent for auto-cancelled order ${order.order_id}`);
@@ -448,10 +448,10 @@ const Cart = () => {
             };
 
             const result = await emailjs.send(
-                'YOUR_SERVICE_ID', // Replace with your EmailJS service ID
-                'YOUR_TEMPLATE_ID', // Replace with your EmailJS template ID for cancellations
+                'service_qjrk6rs', // EmailJS service ID
+                'template_1b8rn3c', // EmailJS template ID for order cancellations
                 emailParams,
-                'YOUR_PUBLIC_KEY' // Replace with your EmailJS public key
+                'bkqhQ7VXGwKuEjz_G' // EmailJS public key
             );
 
             if (result.status === 200) {

@@ -50,6 +50,7 @@ const Assets = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchType, setSearchType] = useState('all'); // 'all', 'src', 'type'
   const [currentAdminId, setCurrentAdminId] = useState(null);
+  const [imageLoadingStates, setImageLoadingStates] = useState({});
 
   const [newAsset, setNewAsset] = useState({
     src: '',
@@ -69,6 +70,35 @@ const Assets = () => {
     'icing',
     'topping'
   ];
+
+  // Image loading handlers
+  const handleImageLoad = (assetId) => {
+    setImageLoadingStates(prev => ({
+      ...prev,
+      [assetId]: false
+    }));
+  };
+
+  const handleImageLoadStart = (assetId) => {
+    setImageLoadingStates(prev => ({
+      ...prev,
+      [assetId]: true
+    }));
+  };
+
+  const handleImageError = (assetId) => {
+    setImageLoadingStates(prev => ({
+      ...prev,
+      [assetId]: false
+    }));
+  };
+
+  // Image skeleton component
+  const ImageSkeleton = () => (
+    <div className="w-16 h-16 rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-100 flex items-center justify-center animate-pulse">
+      <div className="w-full h-full bg-gray-300 rounded"></div>
+    </div>
+  );
 
   // Fetch current admin ID
   useEffect(() => {
@@ -124,6 +154,15 @@ const Assets = () => {
           };
         });
         setRows(mapped);
+
+        // Initialize loading states for all assets with images
+        const loadingStates = {};
+        mapped.forEach(asset => {
+          if (asset.src_url) {
+            loadingStates[asset.asset_id] = true;
+          }
+        });
+        setImageLoadingStates(loadingStates);
       }
     } catch (error) {
       console.error('Error fetching assets:', error);
@@ -435,12 +474,16 @@ const Assets = () => {
                     {/* Preview Column */}
                     <td className="py-6 px-6 align-middle">
                       {asset.src_url ? (
-                        <div className="w-16 h-16 rounded-lg overflow-hidden border-2 border-green-300 bg-green-50 flex items-center justify-center">
+                        <div className="w-16 h-16 rounded-lg overflow-hidden border-2 border-green-300 bg-green-50 flex items-center justify-center relative">
+                          {imageLoadingStates[asset.asset_id] && <ImageSkeleton />}
                           <img
                             src={asset.src_url}
                             alt="Asset preview"
-                            className="w-full h-full object-cover"
+                            className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoadingStates[asset.asset_id] ? 'opacity-0 absolute' : 'opacity-100'}`}
+                            onLoadStart={() => handleImageLoadStart(asset.asset_id)}
+                            onLoad={() => handleImageLoad(asset.asset_id)}
                             onError={(e) => {
+                              handleImageError(asset.asset_id);
                               e.target.style.display = 'none';
                               e.target.nextSibling.style.display = 'flex';
                             }}

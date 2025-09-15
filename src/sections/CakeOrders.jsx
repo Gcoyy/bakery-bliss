@@ -369,6 +369,16 @@ const CakeOrders = () => {
     // Determine if this is a custom cake order
     const isCustomCake = customCake && !cakeOrder;
 
+    // Debug logging for custom cakes
+    if (isCustomCake) {
+      console.log('Custom cake order detected:', {
+        order_id: order.order_id,
+        payment_total: payment?.total,
+        isCustomCake: isCustomCake,
+        calculated_total: payment?.total ?? 1500
+      });
+    }
+
     return {
       order_id: order.order_id,
       order_date: order.order_date,
@@ -400,7 +410,7 @@ const CakeOrders = () => {
       order_type: order.delivery_method,
       // Payment information
       amount_paid: payment?.amount_paid ?? 0,
-      total: payment?.total ?? cake?.price ?? 0,
+      total: payment?.total ?? (isCustomCake ? 1500 : (cake?.price ?? 0)),
       payment_method: payment?.payment_method || 'Cash',
       payment_status: payment?.payment_status || 'Unpaid',
       payment_date: payment?.payment_date ? (() => {
@@ -419,6 +429,10 @@ const CakeOrders = () => {
   };
 
   const handleEditOrder = (order) => {
+    console.log('Opening edit modal for order:', order);
+    console.log('Order total:', order.total);
+    console.log('Order amount_paid:', order.amount_paid);
+
     setOrderToEdit(order);
     setEditFormData({
       cake_name: order.cake_name || '',
@@ -432,7 +446,8 @@ const CakeOrders = () => {
       payment_method: order.payment_method || '',
       amount_paid: order.amount_paid || '',
       payment_status: order.payment_status || '',
-      payment_date: order.payment_date || ''
+      payment_date: order.payment_date || '',
+      total: order.total || ''
     });
     setShowEditModal(true);
   };
@@ -514,7 +529,7 @@ const CakeOrders = () => {
       }
 
       // Update or create PAYMENT record
-      if (order.payment_method || order.amount_paid || order.payment_status || order.payment_date) {
+      if (order.payment_method || order.amount_paid || order.total || order.payment_status || order.payment_date) {
         // Check if payment record exists and get previous payment status
         const { data: existingPayment, error: fetchError } = await supabase
           .from('PAYMENT')
@@ -534,6 +549,7 @@ const CakeOrders = () => {
         const paymentData = {};
         if (order.payment_method) paymentData.payment_method = order.payment_method;
         if (order.amount_paid) paymentData.amount_paid = order.amount_paid;
+        if (order.total) paymentData.total = order.total;
         if (order.payment_status) paymentData.payment_status = order.payment_status;
         if (order.payment_date) paymentData.payment_date = order.payment_date;
 
@@ -1194,11 +1210,55 @@ const CakeOrders = () => {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Total Price
+                    </label>
+                    <input
+                      type="text"
+                      value={editFormData.total}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, total: e.target.value }))}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                      placeholder="e.g., P5,000"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Payment Status
                     </label>
                     <select
                       value={editFormData.payment_status}
-                      onChange={(e) => setEditFormData(prev => ({ ...prev, payment_status: e.target.value }))}
+                      onChange={(e) => {
+                        const newPaymentStatus = e.target.value;
+                        console.log('Payment status changed to:', newPaymentStatus);
+
+                        setEditFormData(prev => {
+                          console.log('Previous form data:', prev);
+                          console.log('Previous total:', prev.total);
+                          console.log('Previous amount_paid:', prev.amount_paid);
+
+                          const updated = { ...prev, payment_status: newPaymentStatus };
+
+                          // If changing to Partial Payment, set amount paid to half the total
+                          if (newPaymentStatus === 'Partial Payment' && updated.total) {
+                            console.log('Calculating partial payment...');
+                            const totalAmount = typeof updated.total === 'string'
+                              ? parseFloat(updated.total.replace(/[P₱,]/g, ''))
+                              : parseFloat(updated.total);
+                            console.log('Total amount after parsing:', totalAmount);
+
+                            const halfAmount = totalAmount / 2;
+                            console.log('Half amount calculated:', halfAmount);
+
+                            updated.amount_paid = halfAmount.toString();
+                            console.log('Updated amount_paid:', updated.amount_paid);
+                          } else {
+                            console.log('Not setting partial payment - newPaymentStatus:', newPaymentStatus, 'updated.total:', updated.total);
+                          }
+
+                          console.log('Final updated form data:', updated);
+                          return updated;
+                        });
+                      }}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
                     >
                       <option value="">Select payment status</option>
