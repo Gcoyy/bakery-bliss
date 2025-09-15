@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 import { inventoryManagement } from './Inventory';
 
-const getPublicImageUrl = (path, type = 'cake') => {
+const getPublicImageUrl = (path, type = 'cake', isCustomCake = false) => {
   if (!path) return null;
 
   // If the path is already a full URL, return it as is
@@ -11,8 +11,11 @@ const getPublicImageUrl = (path, type = 'cake') => {
     return path;
   }
 
+  // Determine the correct bucket based on image type
+  const bucketName = isCustomCake ? 'cust.cakes' : type;
+
   // If it's a file path, generate the public URL from the appropriate bucket
-  return supabase.storage.from(type).getPublicUrl(path).data.publicUrl;
+  return supabase.storage.from(bucketName).getPublicUrl(path).data.publicUrl;
 };
 
 const CakeOrders = () => {
@@ -23,6 +26,9 @@ const CakeOrders = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showReceiptViewModal, setShowReceiptViewModal] = useState(false);
+  const [showCakeImageModal, setShowCakeImageModal] = useState(false);
+  const [selectedCakeImage, setSelectedCakeImage] = useState(null);
+  const [selectedCakeName, setSelectedCakeName] = useState('');
   const [orderToEdit, setOrderToEdit] = useState(null);
   const [selectedReceiptRow, setSelectedReceiptRow] = useState(null);
   const [selectedReceiptForView, setSelectedReceiptForView] = useState(null);
@@ -568,10 +574,11 @@ const CakeOrders = () => {
             .eq('order_id', orderId);
 
           if (customCakeData && customCakeData.length > 0) {
-            // This is a custom cake order - use custom cake inventory deduction
+            // This is a custom cake order - use custom cake inventory management
             await inventoryManagement.deductInventoryForCustomCakeOrder(orderId, previousPaymentStatus, newPaymentStatus);
+            await inventoryManagement.restockInventoryForCustomCakeOrder(orderId, previousPaymentStatus, newPaymentStatus);
           } else {
-            // This is a regular cake order - use regular inventory deduction
+            // This is a regular cake order - use regular inventory management
             await inventoryManagement.deductInventoryForOrder(orderId, previousPaymentStatus, newPaymentStatus);
           }
 
@@ -611,6 +618,25 @@ const CakeOrders = () => {
       order_schedule: '', delivery_method: '', delivery_address: '',
       order_status: '', quantity: 1
     });
+  };
+
+  const handleCakeImageClick = (order) => {
+    if (order.cake_img) {
+      setSelectedCakeImage({
+        path: order.cake_img,
+        isCustomCake: order.cake_name === 'Custom Cake'
+      });
+      setSelectedCakeName(order.cake_name);
+      setShowCakeImageModal(true);
+    } else {
+      toast.error('No image available for this cake');
+    }
+  };
+
+  const closeCakeImageModal = () => {
+    setShowCakeImageModal(false);
+    setSelectedCakeImage(null);
+    setSelectedCakeName('');
   };
 
   const formatPrice = (price) => {
@@ -842,8 +868,15 @@ const CakeOrders = () => {
                     {/* Cake Column */}
                     <td className="py-6 px-6 align-top">
                       <div className="space-y-2">
-                        <h4 className="font-semibold text-gray-900 text-base">
+                        <h4
+                          className={`font-semibold text-base ${order.cake_img ? 'text-[#AF524D] hover:text-[#8B3A3A] cursor-pointer transition-colors duration-200' : 'text-gray-900'}`}
+                          onClick={() => order.cake_img && handleCakeImageClick(order)}
+                          title={order.cake_img ? 'Click to view cake image' : 'No image available'}
+                        >
                           {order.cake_name}
+                          {order.cake_img && (
+                            <span className="ml-2 text-xs">🖼️</span>
+                          )}
                         </h4>
                         <div className="flex items-center gap-2">
                           <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#AF524D]/10 text-[#AF524D]">
@@ -1346,6 +1379,56 @@ const CakeOrders = () => {
                     setSelectedReceiptForView(null);
                   }}
                   className="px-6 py-3 bg-[#AF524D] text-white rounded-xl hover:bg-[#8B3A3A] transition-colors font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cake Image Modal */}
+      {showCakeImageModal && selectedCakeImage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl border-2 border-[#AF524D]/20 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-2xl font-bold text-[#381914]">
+                {selectedCakeName}
+              </h3>
+              <button
+                onClick={closeCakeImageModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="text-center">
+                <img
+                  src={getPublicImageUrl(selectedCakeImage.path, 'cake', selectedCakeImage.isCustomCake)}
+                  alt={selectedCakeName}
+                  className="max-w-full max-h-[60vh] mx-auto rounded-lg shadow-lg object-contain"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'block';
+                  }}
+                />
+                <div className="hidden mt-8 p-8 bg-gray-100 rounded-lg">
+                  <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-gray-600">Failed to load cake image</p>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={closeCakeImageModal}
+                  className="px-6 py-2 bg-[#AF524D] text-white rounded-lg hover:bg-[#8B3A3A] transition-colors duration-200"
                 >
                   Close
                 </button>

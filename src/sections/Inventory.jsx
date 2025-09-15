@@ -1149,6 +1149,131 @@ export const inventoryManagement = {
     }
   },
 
+  restockInventoryForCustomCakeOrder: async (orderId, previousPaymentStatus, newPaymentStatus) => {
+    try {
+      // Restock inventory: Fully Paid or Partial Payment → Unpaid (payment reversal)
+      if ((previousPaymentStatus === 'Fully Paid' || previousPaymentStatus === 'Partial Payment') && newPaymentStatus === 'Unpaid') {
+        console.log(`Restocking inventory for custom cake order ${orderId} - Payment reversal: ${previousPaymentStatus} → ${newPaymentStatus}`);
+
+        // Get custom cake ID for this order
+        const { data: customCakeData, error: customCakeError } = await supabase
+          .from('CUSTOM-CAKE')
+          .select('cc_id')
+          .eq('order_id', orderId)
+          .single();
+
+        if (customCakeError) {
+          console.error('Error fetching custom cake data:', customCakeError);
+          return;
+        }
+
+        if (!customCakeData) {
+          console.log('No custom cake found for this order');
+          return;
+        }
+
+        // Get custom cake assets for this order
+        const { data: customCakeAssets, error: customCakeAssetsError } = await supabase
+          .from('CUSTOM-CAKE-ASSETS')
+          .select(`
+            quantity,
+            asset_id
+          `)
+          .eq('cc_id', customCakeData.cc_id);
+
+        if (customCakeAssetsError) {
+          console.error('Error fetching custom cake assets:', customCakeAssetsError);
+          return;
+        }
+
+        if (!customCakeAssets || customCakeAssets.length === 0) {
+          console.log('No custom cake assets found for this order');
+          return;
+        }
+
+        // Calculate total ingredients to restock
+        const ingredientRestocks = {};
+
+        for (const customCakeAsset of customCakeAssets) {
+          const assetQuantity = customCakeAsset.quantity;
+
+          // Get ingredients for this asset
+          const { data: assetIngredients, error: assetIngredientsError } = await supabase
+            .from('ASSET-INGREDIENT')
+            .select(`
+              ai_quantity,
+              INGREDIENT!inner(
+                ingred_id,
+                ingred_name
+              )
+            `)
+            .eq('asset_id', customCakeAsset.asset_id);
+
+          if (assetIngredientsError) {
+            console.error(`Error fetching ingredients for asset ${customCakeAsset.asset_id}:`, assetIngredientsError);
+            continue;
+          }
+
+          if (!assetIngredients || assetIngredients.length === 0) {
+            console.log(`No ingredients found for asset ${customCakeAsset.asset_id}`);
+            continue;
+          }
+
+          for (const assetIngredient of assetIngredients) {
+            const ingredientId = assetIngredient.INGREDIENT.ingred_id;
+            const ingredientName = assetIngredient.INGREDIENT.ingred_name;
+            const restockQuantity = assetIngredient.ai_quantity * assetQuantity;
+
+            if (ingredientRestocks[ingredientId]) {
+              ingredientRestocks[ingredientId].quantity += restockQuantity;
+            } else {
+              ingredientRestocks[ingredientId] = {
+                name: ingredientName,
+                quantity: restockQuantity
+              };
+            }
+          }
+        }
+
+        // Restock ingredients in inventory
+        for (const [ingredientId, restock] of Object.entries(ingredientRestocks)) {
+          console.log(`Restocking ${restock.quantity} units of ${restock.name} (ID: ${ingredientId})`);
+
+          // Get current stock quantity
+          const { data: currentStock, error: stockError } = await supabase
+            .from('INVENTORY')
+            .select('stock_quantity')
+            .eq('ingred_id', ingredientId)
+            .single();
+
+          if (stockError) {
+            console.error(`Error fetching current stock for ingredient ${ingredientId}:`, stockError);
+            continue;
+          }
+
+          const newStockQuantity = (currentStock.stock_quantity || 0) + restock.quantity;
+
+          // Update stock quantity
+          const { error: updateError } = await supabase
+            .from('INVENTORY')
+            .update({ stock_quantity: newStockQuantity })
+            .eq('ingred_id', ingredientId);
+
+          if (updateError) {
+            console.error(`Error updating stock for ingredient ${ingredientId}:`, updateError);
+            continue;
+          }
+
+          console.log(`Successfully restocked ${restock.quantity} units of ${restock.name}. New stock: ${newStockQuantity}`);
+        }
+
+        console.log('Custom cake inventory restocking completed successfully');
+      }
+    } catch (error) {
+      console.error('Error in custom cake inventory restocking:', error);
+    }
+  },
+
   deductInventoryForOrder: async (orderId, previousPaymentStatus, newPaymentStatus) => {
     try {
       // Deduct inventory: Unpaid → Partial Payment or Fully Paid

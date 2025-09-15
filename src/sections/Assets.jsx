@@ -53,12 +53,14 @@ const Assets = () => {
 
   const [newAsset, setNewAsset] = useState({
     src: '',
-    type: 'cake base'
+    type: 'cake base',
+    file: null
   });
 
   const [editFormData, setEditFormData] = useState({
     src: '',
-    type: 'cake base'
+    type: 'cake base',
+    file: null
   });
 
   // Asset types for dropdown
@@ -158,7 +160,8 @@ const Assets = () => {
   const handleAddAsset = () => {
     setNewAsset({
       src: '',
-      type: 'cake base'
+      type: 'cake base',
+      file: null
     });
     setShowAddModal(true);
   };
@@ -167,7 +170,8 @@ const Assets = () => {
     setAssetToEdit(asset);
     setEditFormData({
       src: asset.src,
-      type: asset.type
+      type: asset.type,
+      file: null
     });
     setShowEditModal(true);
   };
@@ -237,7 +241,9 @@ const Assets = () => {
   };
 
   const handleSaveAsset = async () => {
-    if (!editFormData.src || !editFormData.type) {
+    const formData = showAddModal ? newAsset : editFormData;
+
+    if (!formData.src || !formData.type) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -245,13 +251,38 @@ const Assets = () => {
     try {
       setSaving(true);
 
+      // Get the file from the state
+      const file = formData.file;
+
+      if (!file) {
+        toast.error('Please select an image file');
+        return;
+      }
+
+      // Generate unique filename and path
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const folderName = getFolderName(formData.type);
+      const filePath = folderName !== 'misc' ? `${folderName}/${fileName}` : fileName;
+
+      // Upload file to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('asset')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        toast.error('Failed to upload image to storage');
+        return;
+      }
+
       if (assetToEdit) {
         // Update existing asset
         const { error } = await supabase
           .from('ASSET')
           .update({
-            src: editFormData.src,
-            type: editFormData.type
+            src: filePath,
+            type: formData.type
           })
           .eq('asset_id', assetToEdit.asset_id);
 
@@ -268,8 +299,8 @@ const Assets = () => {
         const { error } = await supabase
           .from('ASSET')
           .insert({
-            src: editFormData.src,
-            type: editFormData.type,
+            src: filePath,
+            type: formData.type,
             admin_id: currentAdminId
           });
 
@@ -284,7 +315,8 @@ const Assets = () => {
       }
 
       setAssetToEdit(null);
-      setEditFormData({ src: '', type: 'cake base' });
+      setEditFormData({ src: '', type: 'cake base', file: null });
+      setNewAsset({ src: '', type: 'cake base', file: null });
       fetchAssets();
     } catch (error) {
       console.error('Error saving asset:', error);
@@ -296,7 +328,8 @@ const Assets = () => {
 
   const cancelEdit = () => {
     setAssetToEdit(null);
-    setEditFormData({ src: '', type: 'cake base' });
+    setEditFormData({ src: '', type: 'cake base', file: null });
+    setNewAsset({ src: '', type: 'cake base', file: null });
     setShowAddModal(false);
     setShowEditModal(false);
   };
@@ -481,8 +514,14 @@ const Assets = () => {
                   Type *
                 </label>
                 <select
-                  value={editFormData.type}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, type: e.target.value }))}
+                  value={showAddModal ? newAsset.type : editFormData.type}
+                  onChange={(e) => {
+                    if (showAddModal) {
+                      setNewAsset(prev => ({ ...prev, type: e.target.value }));
+                    } else {
+                      setEditFormData(prev => ({ ...prev, type: e.target.value }));
+                    }
+                  }}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
                 >
                   {assetTypes.map((type) => (
@@ -504,7 +543,11 @@ const Assets = () => {
                     onChange={(e) => {
                       const file = e.target.files[0];
                       if (file) {
-                        setEditFormData(prev => ({ ...prev, src: file.name }));
+                        if (showAddModal) {
+                          setNewAsset(prev => ({ ...prev, src: file.name, file: file }));
+                        } else {
+                          setEditFormData(prev => ({ ...prev, src: file.name, file: file }));
+                        }
                       }
                     }}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -524,10 +567,10 @@ const Assets = () => {
                     </div>
                   </label>
                 </div>
-                {editFormData.src && (
+                {(showAddModal ? newAsset.src : editFormData.src) && (
                   <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
                     <p className="text-sm text-green-700">
-                      <span className="font-medium">Selected file:</span> {editFormData.src}
+                      <span className="font-medium">Selected file:</span> {showAddModal ? newAsset.src : editFormData.src}
                     </p>
                   </div>
                 )}
