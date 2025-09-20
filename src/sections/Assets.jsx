@@ -48,7 +48,6 @@ const Assets = () => {
   const [assetToDelete, setAssetToDelete] = useState(null);
   const [assetToEdit, setAssetToEdit] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchType, setSearchType] = useState('all'); // 'all', 'src', 'type'
   const [currentAdminId, setCurrentAdminId] = useState(null);
   const [imageLoadingStates, setImageLoadingStates] = useState({});
 
@@ -126,10 +125,10 @@ const Assets = () => {
     fetchAssets();
   }, []);
 
-  // Filter assets when search term or search type changes
+  // Filter assets when search term changes
   useEffect(() => {
     filterAssets();
-  }, [rows, searchTerm, searchType]);
+  }, [rows, searchTerm]);
 
   const fetchAssets = async () => {
     try {
@@ -180,17 +179,8 @@ const Assets = () => {
 
     const filtered = rows.filter(asset => {
       const searchLower = searchTerm.toLowerCase();
-
-      switch (searchType) {
-        case 'src':
-          return asset.src?.toLowerCase().includes(searchLower);
-        case 'type':
-          return asset.type?.toLowerCase().includes(searchLower);
-        case 'all':
-        default:
-          return asset.src?.toLowerCase().includes(searchLower) ||
-            asset.type?.toLowerCase().includes(searchLower);
-      }
+      return asset.src?.toLowerCase().includes(searchLower) ||
+        asset.type?.toLowerCase().includes(searchLower);
     });
 
     setFilteredRows(filtered);
@@ -430,18 +420,6 @@ const Assets = () => {
             </div>
           </div>
 
-          {/* Search Type Filter */}
-          <div className="flex gap-2">
-            <select
-              value={searchType}
-              onChange={(e) => setSearchType(e.target.value)}
-              className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-            >
-              <option value="all">All Fields</option>
-              <option value="src">Source</option>
-              <option value="type">Type</option>
-            </select>
-          </div>
         </div>
       </div>
 

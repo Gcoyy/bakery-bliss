@@ -25,7 +25,6 @@ const Cakes = () => {
   const [cakeToDelete, setCakeToDelete] = useState(null);
   const [cakeToEdit, setCakeToEdit] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchType, setSearchType] = useState('all'); // 'all', 'name', 'theme'
   const [themeFilter, setThemeFilter] = useState("");
   const [tierFilter, setTierFilter] = useState("");
   const [pendingImageFiles, setPendingImageFiles] = useState({});
@@ -59,7 +58,7 @@ const Cakes = () => {
   // Filter cakes when search term or filters change
   useEffect(() => {
     filterCakes();
-  }, [rows, searchTerm, searchType, themeFilter, tierFilter]);
+  }, [rows, searchTerm, themeFilter, tierFilter]);
 
   const fetchCakes = async () => {
     try {
@@ -84,17 +83,9 @@ const Cakes = () => {
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(cake => {
-        switch (searchType) {
-          case 'name':
-            return cake.name?.toLowerCase().includes(searchLower);
-          case 'theme':
-            return cake.theme?.toLowerCase().includes(searchLower);
-          case 'all':
-          default:
-            return cake.name?.toLowerCase().includes(searchLower) ||
-              cake.theme?.toLowerCase().includes(searchLower) ||
-              cake.description?.toLowerCase().includes(searchLower);
-        }
+        return cake.name?.toLowerCase().includes(searchLower) ||
+          cake.theme?.toLowerCase().includes(searchLower) ||
+          cake.description?.toLowerCase().includes(searchLower);
       });
     }
 
@@ -389,18 +380,6 @@ const Cakes = () => {
             </div>
           </div>
 
-          {/* Search Type Filter */}
-          <div className="flex gap-2">
-            <select
-              value={searchType}
-              onChange={(e) => setSearchType(e.target.value)}
-              className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-            >
-              <option value="all">All Fields</option>
-              <option value="name">Name Only</option>
-              <option value="theme">Theme Only</option>
-            </select>
-          </div>
 
           {/* Theme Filter */}
           <div className="flex gap-2">

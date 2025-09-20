@@ -11,7 +11,6 @@ const BlockedDates = () => {
     const [saving, setSaving] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [searchType, setSearchType] = useState('all'); // 'all', 'date', 'reason'
     const [newBlockedDate, setNewBlockedDate] = useState({
         start_date: '',
         end_date: '',
@@ -52,10 +51,10 @@ const BlockedDates = () => {
         }
     };
 
-    // Filter blocked dates when search term or search type changes
+    // Filter blocked dates when search term changes
     useEffect(() => {
         filterBlockedDates();
-    }, [blockedDates, searchTerm, searchType]);
+    }, [blockedDates, searchTerm]);
 
     const fetchBlockedDates = async () => {
         try {
@@ -90,54 +89,27 @@ const BlockedDates = () => {
         const filtered = blockedDates.filter(date => {
             const searchLower = searchTerm.toLowerCase();
 
-            switch (searchType) {
-                case 'date':
-                    // Search by date (supports various formats and natural language)
-                    const dateObj = new Date(date.start_date);
-                    const dateStr = dateObj.toLocaleDateString('en-US');
-                    const dateStrAlt = date.start_date;
-                    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-                    const monthName = dateObj.toLocaleDateString('en-US', { month: 'long' });
-                    const dayNumber = dateObj.getDate().toString();
-                    const monthNumber = (dateObj.getMonth() + 1).toString();
-                    const year = dateObj.getFullYear().toString();
+            // Search in all fields including natural language date search
+            const dateObj = new Date(date.start_date);
+            const dateStr = dateObj.toLocaleDateString('en-US');
+            const dateStrAlt = date.start_date;
+            const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+            const monthName = dateObj.toLocaleDateString('en-US', { month: 'long' });
+            const dayNumber = dateObj.getDate().toString();
+            const monthNumber = (dateObj.getMonth() + 1).toString();
+            const year = dateObj.getFullYear().toString();
+            const reason = date.reason.toLowerCase();
+            const timeRange = date.whole_day ? 'full day' : `${date.start_time}-${date.end_time}`;
 
-                    return dateStr.includes(searchLower) ||
-                        dateStrAlt.includes(searchLower) ||
-                        dayName.toLowerCase().includes(searchLower) ||
-                        monthName.toLowerCase().includes(searchLower) ||
-                        dayNumber.includes(searchLower) ||
-                        monthNumber.includes(searchLower) ||
-                        year.includes(searchLower);
-
-                case 'reason':
-                    // Search by reason
-                    return date.reason.toLowerCase().includes(searchLower);
-
-                case 'all':
-                default:
-                    // Search in all fields including natural language date search
-                    const dateObjAll = new Date(date.start_date);
-                    const dateStrAll = dateObjAll.toLocaleDateString('en-US');
-                    const dateStrAltAll = date.start_date;
-                    const dayNameAll = dateObjAll.toLocaleDateString('en-US', { weekday: 'long' });
-                    const monthNameAll = dateObjAll.toLocaleDateString('en-US', { month: 'long' });
-                    const dayNumberAll = dateObjAll.getDate().toString();
-                    const monthNumberAll = (dateObjAll.getMonth() + 1).toString();
-                    const yearAll = dateObjAll.getFullYear().toString();
-                    const reason = date.reason.toLowerCase();
-                    const timeRange = date.whole_day ? 'full day' : `${date.start_time}-${date.end_time}`;
-
-                    return dateStrAll.includes(searchLower) ||
-                        dateStrAltAll.includes(searchLower) ||
-                        dayNameAll.toLowerCase().includes(searchLower) ||
-                        monthNameAll.toLowerCase().includes(searchLower) ||
-                        dayNumberAll.includes(searchLower) ||
-                        monthNumberAll.includes(searchLower) ||
-                        yearAll.includes(searchLower) ||
-                        reason.includes(searchLower) ||
-                        timeRange.includes(searchLower);
-            }
+            return dateStr.includes(searchLower) ||
+                dateStrAlt.includes(searchLower) ||
+                dayName.toLowerCase().includes(searchLower) ||
+                monthName.toLowerCase().includes(searchLower) ||
+                dayNumber.includes(searchLower) ||
+                monthNumber.includes(searchLower) ||
+                year.includes(searchLower) ||
+                reason.includes(searchLower) ||
+                timeRange.includes(searchLower);
         });
 
         setFilteredDates(filtered);
@@ -428,18 +400,6 @@ const BlockedDates = () => {
                         </div>
                     </div>
 
-                    {/* Search Type Filter */}
-                    <div className="flex gap-2">
-                        <select
-                            value={searchType}
-                            onChange={(e) => setSearchType(e.target.value)}
-                            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                        >
-                            <option value="all">All Fields</option>
-                            <option value="date">Date Only</option>
-                            <option value="reason">Reason Only</option>
-                        </select>
-                    </div>
                 </div>
 
             </div>

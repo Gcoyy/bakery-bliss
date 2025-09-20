@@ -33,7 +33,6 @@ const CakeOrders = () => {
   const [selectedReceiptRow, setSelectedReceiptRow] = useState(null);
   const [selectedReceiptForView, setSelectedReceiptForView] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchType, setSearchType] = useState('all'); // 'all', 'customer', 'cake', 'status'
   const [statusFilter, setStatusFilter] = useState("");
   const [pendingReceiptFiles, setPendingReceiptFiles] = useState({});
   const suppressRealtimeToast = useRef(false);
@@ -101,7 +100,7 @@ const CakeOrders = () => {
   // Filter orders when search term or filters change
   useEffect(() => {
     filterOrders();
-  }, [rows, searchTerm, searchType, statusFilter]);
+  }, [rows, searchTerm, statusFilter]);
 
   const fetchOrders = async () => {
     try {
@@ -182,31 +181,15 @@ const CakeOrders = () => {
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(order => {
-        switch (searchType) {
-          case 'customer':
-            return order.customer?.toLowerCase().includes(searchLower) ||
-              order.phone?.toLowerCase().includes(searchLower) ||
-              order.email?.toLowerCase().includes(searchLower) ||
-              order.customer_fname?.toLowerCase().includes(searchLower) ||
-              order.customer_lname?.toLowerCase().includes(searchLower);
-          case 'cake':
-            return order.cake_name?.toLowerCase().includes(searchLower) ||
-              order.theme?.toLowerCase().includes(searchLower);
-          case 'status':
-            return order.order_status?.toLowerCase().includes(searchLower) ||
-              order.delivery_method?.toLowerCase().includes(searchLower);
-          case 'all':
-          default:
-            return order.customer?.toLowerCase().includes(searchLower) ||
-              order.customer_fname?.toLowerCase().includes(searchLower) ||
-              order.customer_lname?.toLowerCase().includes(searchLower) ||
-              order.phone?.toLowerCase().includes(searchLower) ||
-              order.email?.toLowerCase().includes(searchLower) ||
-              order.cake_name?.toLowerCase().includes(searchLower) ||
-              order.theme?.toLowerCase().includes(searchLower) ||
-              order.order_status?.toLowerCase().includes(searchLower) ||
-              order.delivery_method?.toLowerCase().includes(searchLower);
-        }
+        return order.customer?.toLowerCase().includes(searchLower) ||
+          order.customer_fname?.toLowerCase().includes(searchLower) ||
+          order.customer_lname?.toLowerCase().includes(searchLower) ||
+          order.phone?.toLowerCase().includes(searchLower) ||
+          order.email?.toLowerCase().includes(searchLower) ||
+          order.cake_name?.toLowerCase().includes(searchLower) ||
+          order.theme?.toLowerCase().includes(searchLower) ||
+          order.order_status?.toLowerCase().includes(searchLower) ||
+          order.delivery_method?.toLowerCase().includes(searchLower);
       });
     }
 
@@ -1468,19 +1451,6 @@ const CakeOrders = () => {
             </div>
           </div>
 
-          {/* Search Type Filter */}
-          <div className="flex gap-2">
-            <select
-              value={searchType}
-              onChange={(e) => setSearchType(e.target.value)}
-              className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-            >
-              <option value="all">All Fields</option>
-              <option value="customer">Customer Only</option>
-              <option value="cake">Cake Only</option>
-              <option value="status">Status Only</option>
-            </select>
-          </div>
 
           {/* Status Filter */}
           <div className="flex gap-2">

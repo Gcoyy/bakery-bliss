@@ -12,7 +12,6 @@ const RecipeManagement = () => {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [searchType, setSearchType] = useState('all'); // 'all', 'name', 'theme', 'tier'
 
     // Form states
     const [showAddCake, setShowAddCake] = useState(false);
@@ -58,10 +57,10 @@ const RecipeManagement = () => {
         fetchData();
     }, []);
 
-    // Filter cakes when search term or search type changes
+    // Filter cakes when search term changes
     useEffect(() => {
         filterCakes();
-    }, [cakes, searchTerm, searchType]);
+    }, [cakes, searchTerm]);
 
     const fetchData = async () => {
         try {
@@ -108,6 +107,7 @@ const RecipeManagement = () => {
             setCakes(cakesData || []);
             setIngredients(ingredientsData || []);
             setCakeIngredients(cakeIngredientsData || []);
+            setFilteredCakes(cakesData || []);
 
         } catch (error) {
             console.error('Error fetching data:', error);
@@ -125,23 +125,12 @@ const RecipeManagement = () => {
 
         const filtered = cakes.filter(cake => {
             const searchLower = searchTerm.toLowerCase();
-
-            switch (searchType) {
-                case 'name':
-                    return cake.name.toLowerCase().includes(searchLower);
-                case 'theme':
-                    return cake.theme.toLowerCase().includes(searchLower);
-                case 'tier':
-                    return cake.tier.toLowerCase().includes(searchLower);
-                case 'all':
-                default:
-                    return (
-                        cake.name.toLowerCase().includes(searchLower) ||
-                        cake.theme.toLowerCase().includes(searchLower) ||
-                        cake.tier.toLowerCase().includes(searchLower) ||
-                        cake.description.toLowerCase().includes(searchLower)
-                    );
-            }
+            return (
+                cake.name?.toLowerCase().includes(searchLower) ||
+                cake.theme?.toLowerCase().includes(searchLower) ||
+                cake.tier?.toString().toLowerCase().includes(searchLower) ||
+                cake.description?.toLowerCase().includes(searchLower)
+            );
         });
 
         setFilteredCakes(filtered);
@@ -477,19 +466,6 @@ const RecipeManagement = () => {
                         </div>
                     </div>
 
-                    {/* Search Type Filter */}
-                    <div className="flex gap-2">
-                        <select
-                            value={searchType}
-                            onChange={(e) => setSearchType(e.target.value)}
-                            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                        >
-                            <option value="all">All Fields</option>
-                            <option value="name">Name Only</option>
-                            <option value="theme">Theme Only</option>
-                            <option value="tier">Tier Only</option>
-                        </select>
-                    </div>
                 </div>
             </div>
 
