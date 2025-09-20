@@ -13,7 +13,6 @@ const RecipeManagement = () => {
     const [saving, setSaving] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [searchType, setSearchType] = useState('all'); // 'all', 'name', 'theme', 'tier'
-    const [activeTab, setActiveTab] = useState('cakes'); // 'cakes', 'ingredients'
 
     // Form states
     const [showAddCake, setShowAddCake] = useState(false);
@@ -38,14 +37,15 @@ const RecipeManagement = () => {
     // Ingredient form data
     const [ingredientFormData, setIngredientFormData] = useState({
         ingred_name: '',
-        unit: ''
+        unit: 'pcs'
     });
 
     // Cake ingredient form data
     const [cakeIngredientFormData, setCakeIngredientFormData] = useState({
         cake_id: '',
         ingred_id: '',
-        quantity: ''
+        quantity: '',
+        unit: 'pcs'
     });
 
     // Selected items for editing/deleting
@@ -358,8 +358,9 @@ const RecipeManagement = () => {
             setSaving(true);
 
             const formData = {
-                ...cakeIngredientFormData,
-                cake_id: selectedCakeForIngredient.cake_id
+                cake_id: selectedCakeForIngredient.cake_id,
+                ingred_id: cakeIngredientFormData.ingred_id,
+                quantity: cakeIngredientFormData.quantity
             };
 
             const { error } = await supabase
@@ -453,27 +454,6 @@ const RecipeManagement = () => {
                     <h1 className="text-4xl font-bold text-[#381914] mb-2">Recipe Management</h1>
                     <p className="text-gray-600">Manage cake recipes, ingredients, and their quantities</p>
                 </div>
-
-                <div className="flex gap-3">
-                    <button
-                        className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 ${activeTab === 'cakes'
-                            ? 'bg-[#AF524D] text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                        onClick={() => setActiveTab('cakes')}
-                    >
-                        Cakes
-                    </button>
-                    <button
-                        className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 ${activeTab === 'ingredients'
-                            ? 'bg-[#AF524D] text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                        onClick={() => setActiveTab('ingredients')}
-                    >
-                        Ingredients
-                    </button>
-                </div>
             </div>
 
             {/* Search Bar */}
@@ -489,7 +469,7 @@ const RecipeManagement = () => {
                             </div>
                             <input
                                 type="text"
-                                placeholder={`Search ${activeTab}...`}
+                                placeholder={`Search cakes...`}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
@@ -505,15 +485,9 @@ const RecipeManagement = () => {
                             className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
                         >
                             <option value="all">All Fields</option>
-                            {activeTab === 'cakes' ? (
-                                <>
-                                    <option value="name">Name Only</option>
-                                    <option value="theme">Theme Only</option>
-                                    <option value="tier">Tier Only</option>
-                                </>
-                            ) : (
-                                <option value="name">Name Only</option>
-                            )}
+                            <option value="name">Name Only</option>
+                            <option value="theme">Theme Only</option>
+                            <option value="tier">Tier Only</option>
                         </select>
                     </div>
                 </div>
@@ -526,8 +500,8 @@ const RecipeManagement = () => {
                         <div className="flex items-center justify-center h-32">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#AF524D]"></div>
                         </div>
-                    ) : activeTab === 'cakes' ? (
-                        // Cakes Tab Content
+                    ) : (
+                        // Cakes Content
                         filteredCakes.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-32 text-gray-500">
                                 <svg className="w-12 h-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -549,16 +523,35 @@ const RecipeManagement = () => {
                                     >
                                         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                                             <div className="flex-1">
-                                                <div className="flex items-center gap-3 mb-2">
-                                                    <h3 className="text-lg font-semibold text-[#381914]">{cake.name}</h3>
-                                                    <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-                                                        {cake.theme} - {cake.tier} Tier
-                                                    </span>
-                                                    <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                                                        ₱{cake.price}
-                                                    </span>
+                                                <div className="flex items-start gap-4 mb-3">
+                                                    {/* Cake Image */}
+                                                    {cake.cake_img && (
+                                                        <div className="flex-shrink-0">
+                                                            <img
+                                                                src={cake.cake_img}
+                                                                alt={cake.name}
+                                                                className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200 shadow-sm"
+                                                                onError={(e) => {
+                                                                    e.target.style.display = 'none';
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    )}
+
+                                                    {/* Cake Details */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-3 mb-2">
+                                                            <h3 className="text-lg font-semibold text-[#381914]">{cake.name}</h3>
+                                                            <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                                                                {cake.theme} - {cake.tier} Tier
+                                                            </span>
+                                                            <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                                                                ₱{cake.price}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-gray-600">{cake.description}</p>
+                                                    </div>
                                                 </div>
-                                                <p className="text-gray-600 mb-3">{cake.description}</p>
 
                                                 {/* Recipe Ingredients */}
                                                 <div className="border-t pt-3">
@@ -631,90 +624,23 @@ const RecipeManagement = () => {
                                 ))}
                             </div>
                         )
-                    ) : (
-                        // Ingredients Tab Content
-                        ingredients.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-32 text-gray-500">
-                                <svg className="w-12 h-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                </svg>
-                                <p className="text-lg font-medium">No ingredients</p>
-                                <p className="text-sm">Click "Add New Ingredient" to get started</p>
-                            </div>
-                        ) : (
-                            <div className="p-6 space-y-4">
-                                {ingredients.map((ingredient) => (
-                                    <div
-                                        key={ingredient.ingred_id}
-                                        className="bg-white rounded-xl border-2 border-[#AF524D] p-6 shadow-sm hover:shadow-md transition-all duration-200"
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <h3 className="text-lg font-semibold text-[#381914]">{ingredient.ingred_name}</h3>
-                                                <p className="text-gray-600">Unit: {ingredient.unit}</p>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <button
-                                                    onClick={() => openEditIngredient(ingredient)}
-                                                    className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium"
-                                                    disabled={saving}
-                                                >
-                                                    <div className="flex items-center gap-2">
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                        </svg>
-                                                        Edit
-                                                    </div>
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteIngredient(ingredient.ingred_id)}
-                                                    className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium"
-                                                    disabled={saving}
-                                                >
-                                                    <div className="flex items-center gap-2">
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                        Delete
-                                                    </div>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )
                     )}
                 </div>
             </div>
 
             {/* Action Buttons */}
             <div className="mt-6 flex justify-end gap-4">
-                {activeTab === 'cakes' ? (
-                    <button
-                        className="bg-[#AF524D] hover:bg-[#8B3A3A] text-white px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                        onClick={() => setShowAddCake(true)}
-                    >
-                        <div className="flex items-center gap-2">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                            </svg>
-                            Add New Cake
-                        </div>
-                    </button>
-                ) : (
-                    <button
-                        className="bg-[#AF524D] hover:bg-[#8B3A3A] text-white px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                        onClick={() => setShowAddIngredient(true)}
-                    >
-                        <div className="flex items-center gap-2">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                            </svg>
-                            Add New Ingredient
-                        </div>
-                    </button>
-                )}
+                <button
+                    className="bg-[#AF524D] hover:bg-[#8B3A3A] text-white px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                    onClick={() => setShowAddCake(true)}
+                >
+                    <div className="flex items-center gap-2">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Add New Cake
+                    </div>
+                </button>
             </div>
 
             {/* Add Cake Modal */}
@@ -814,199 +740,112 @@ const RecipeManagement = () => {
             {/* Edit Cake Modal */}
             {
                 showEditCake && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-2xl p-8 w-full max-w-md border-2 border-[#AF524D] shadow-2xl">
-                            <h3 className="text-2xl font-bold text-[#381914] mb-6">Edit Cake</h3>
-                            <form onSubmit={handleEditCake} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Theme</label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g., Wedding, Birthday, Anniversary"
-                                        value={cakeFormData.theme}
-                                        onChange={(e) => setCakeFormData({ ...cakeFormData, theme: e.target.value })}
-                                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                                        required
-                                    />
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+                        <div className="bg-white rounded-2xl p-4 sm:p-6 lg:p-8 w-full max-w-xs sm:max-w-lg lg:max-w-2xl xl:max-w-4xl border-2 border-[#AF524D] shadow-2xl max-h-[95vh] overflow-y-auto">
+                            <h3 className="text-xl sm:text-2xl font-bold text-[#381914] mb-4 sm:mb-6">Edit Cake</h3>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                                {/* Cake Information */}
+                                <div className="space-y-4">
+                                    <h4 className="text-base sm:text-lg font-semibold text-gray-700 border-b pb-2">Cake Information</h4>
+
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Theme</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g., Wedding, Birthday, Anniversary"
+                                            value={cakeFormData.theme}
+                                            onChange={(e) => setCakeFormData({ ...cakeFormData, theme: e.target.value })}
+                                            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Tier</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g., 2, 3, 4"
+                                            value={cakeFormData.tier}
+                                            onChange={(e) => setCakeFormData({ ...cakeFormData, tier: e.target.value })}
+                                            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Name</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Cake name"
+                                            value={cakeFormData.name}
+                                            onChange={(e) => setCakeFormData({ ...cakeFormData, name: e.target.value })}
+                                            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                                            required
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Tier</label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g., 2, 3, 4"
-                                        value={cakeFormData.tier}
-                                        onChange={(e) => setCakeFormData({ ...cakeFormData, tier: e.target.value })}
-                                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                                        required
-                                    />
+
+                                {/* Additional Details */}
+                                <div className="space-y-4">
+                                    <h4 className="text-base sm:text-lg font-semibold text-gray-700 border-b pb-2">Additional Details</h4>
+
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                                        <textarea
+                                            placeholder="Describe the cake..."
+                                            value={cakeFormData.description}
+                                            onChange={(e) => setCakeFormData({ ...cakeFormData, description: e.target.value })}
+                                            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                                            rows="3"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Price</label>
+                                        <input
+                                            type="number"
+                                            placeholder="0"
+                                            value={cakeFormData.price}
+                                            onChange={(e) => setCakeFormData({ ...cakeFormData, price: e.target.value })}
+                                            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                                            required
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Name</label>
-                                    <input
-                                        type="text"
-                                        placeholder="Cake name"
-                                        value={cakeFormData.name}
-                                        onChange={(e) => setCakeFormData({ ...cakeFormData, name: e.target.value })}
-                                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
-                                    <textarea
-                                        placeholder="Describe the cake..."
-                                        value={cakeFormData.description}
-                                        onChange={(e) => setCakeFormData({ ...cakeFormData, description: e.target.value })}
-                                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                                        rows="3"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Price</label>
-                                    <input
-                                        type="number"
-                                        placeholder="0"
-                                        value={cakeFormData.price}
-                                        onChange={(e) => setCakeFormData({ ...cakeFormData, price: e.target.value })}
-                                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Image URL (Optional)</label>
-                                    <input
-                                        type="text"
-                                        placeholder="https://example.com/image.jpg"
-                                        value={cakeFormData.cake_img}
-                                        onChange={(e) => setCakeFormData({ ...cakeFormData, cake_img: e.target.value })}
-                                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                                    />
-                                </div>
-                                <div className="flex space-x-3 pt-4">
-                                    <button
-                                        type="submit"
-                                        disabled={saving}
-                                        className="flex-1 bg-[#AF524D] hover:bg-[#8B3A3A] text-white py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50"
-                                    >
-                                        {saving ? 'Updating...' : 'Update Cake'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowEditCake(false)}
-                                        className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-3 rounded-xl font-semibold transition-all duration-200"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </form>
+                            </div>
+
+                            {/* Modal Actions */}
+                            <div className="flex justify-end gap-3 mt-8">
+                                <button
+                                    onClick={() => setShowEditCake(false)}
+                                    className="px-6 py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors font-medium"
+                                    disabled={saving}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleEditCake}
+                                    disabled={saving}
+                                    className={`px-6 py-3 rounded-xl font-medium transition-all duration-200 ${saving
+                                        ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                        : 'bg-[#AF524D] text-white hover:bg-[#8B3A3A] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                                        }`}
+                                >
+                                    {saving ? (
+                                        <div className="flex items-center gap-2">
+                                            <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Updating...
+                                        </div>
+                                    ) : (
+                                        'Update Cake'
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )
             }
-
-            {/* Add Ingredient Modal */}
-            {
-                showAddIngredient && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-2xl p-8 w-full max-w-md border-2 border-[#AF524D] shadow-2xl">
-                            <h3 className="text-2xl font-bold text-[#381914] mb-6">Add New Ingredient</h3>
-                            <form onSubmit={handleAddIngredient} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Ingredient Name</label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g., Flour, Sugar, Butter"
-                                        value={ingredientFormData.ingred_name}
-                                        onChange={(e) => setIngredientFormData({ ...ingredientFormData, ingred_name: e.target.value })}
-                                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Unit</label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g., cups, tbs, kg, grams"
-                                        value={ingredientFormData.unit}
-                                        onChange={(e) => setIngredientFormData({ ...ingredientFormData, unit: e.target.value })}
-                                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                                        required
-                                    />
-                                </div>
-                                <div className="flex space-x-3 pt-4">
-                                    <button
-                                        type="submit"
-                                        disabled={saving}
-                                        className="flex-1 bg-[#AF524D] hover:bg-[#8B3A3A] text-white py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50"
-                                    >
-                                        {saving ? 'Adding...' : 'Add Ingredient'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowAddIngredient(false)}
-                                        className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-3 rounded-xl font-semibold transition-all duration-200"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                )
-            }
-
-            {/* Edit Ingredient Modal */}
-            {
-                showEditIngredient && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-2xl p-8 w-full max-w-md border-2 border-[#AF524D] shadow-2xl">
-                            <h3 className="text-2xl font-bold text-[#381914] mb-6">Edit Ingredient</h3>
-                            <form onSubmit={handleEditIngredient} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Ingredient Name</label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g., Flour, Sugar, Butter"
-                                        value={ingredientFormData.ingred_name}
-                                        onChange={(e) => setIngredientFormData({ ...ingredientFormData, ingred_name: e.target.value })}
-                                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Unit</label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g., cups, tbs, kg, grams"
-                                        value={ingredientFormData.unit}
-                                        onChange={(e) => setIngredientFormData({ ...ingredientFormData, unit: e.target.value })}
-                                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                                        required
-                                    />
-                                </div>
-                                <div className="flex space-x-3 pt-4">
-                                    <button
-                                        type="submit"
-                                        disabled={saving}
-                                        className="flex-1 bg-[#AF524D] hover:bg-[#8B3A3A] text-white py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50"
-                                    >
-                                        {saving ? 'Updating...' : 'Update Ingredient'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowEditIngredient(false)}
-                                        className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-3 rounded-xl font-semibold transition-all duration-200"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                )
-            }
-
 
             {/* Delete Confirmation Modals */}
             {
@@ -1154,32 +993,54 @@ const RecipeManagement = () => {
                                         ))}
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity</label>
-                                    <input
-                                        type="number"
-                                        step="0.1"
-                                        placeholder="0.0"
-                                        value={cakeIngredientFormData.quantity}
-                                        onChange={(e) => setCakeIngredientFormData({ ...cakeIngredientFormData, quantity: e.target.value })}
-                                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                                        required
-                                    />
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity</label>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            placeholder="0.0"
+                                            value={cakeIngredientFormData.quantity}
+                                            onChange={(e) => setCakeIngredientFormData({ ...cakeIngredientFormData, quantity: e.target.value })}
+                                            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Unit</label>
+                                        <select
+                                            value={cakeIngredientFormData.unit}
+                                            onChange={(e) => setCakeIngredientFormData({ ...cakeIngredientFormData, unit: e.target.value })}
+                                            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                                            required
+                                        >
+                                            <option value="pcs">Pieces</option>
+                                            <option value="kg">Kilograms</option>
+                                            <option value="g">Grams</option>
+                                            <option value="lbs">Pounds</option>
+                                            <option value="oz">Ounces</option>
+                                            <option value="L">Liters</option>
+                                            <option value="ml">Milliliters</option>
+                                            <option value="cups">Cups</option>
+                                            <option value="tbsp">Tablespoons</option>
+                                            <option value="tsp">Teaspoons</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div className="flex space-x-3 pt-4">
-                                    <button
-                                        type="submit"
-                                        disabled={saving}
-                                        className="flex-1 bg-[#AF524D] hover:bg-[#8B3A3A] text-white py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50"
-                                    >
-                                        {saving ? 'Adding...' : 'Add to Recipe'}
-                                    </button>
                                     <button
                                         type="button"
                                         onClick={() => setShowAddCakeIngredient(false)}
                                         className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-3 rounded-xl font-semibold transition-all duration-200"
                                     >
                                         Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={saving}
+                                        className="flex-1 bg-[#AF524D] hover:bg-[#8B3A3A] text-white py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50"
+                                    >
+                                        {saving ? 'Adding...' : 'Add to Recipe'}
                                     </button>
                                 </div>
                             </form>

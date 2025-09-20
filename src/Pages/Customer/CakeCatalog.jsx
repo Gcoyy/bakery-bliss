@@ -74,7 +74,7 @@ const getOrdersCountForDate = async (date) => {
     const { data: orders, error } = await supabase
       .from('ORDER')
       .select('order_id')
-      .eq('order_schedule', date);
+      .like('order_schedule', `${date}%`);
 
     if (error) {
       return 0;
@@ -530,7 +530,7 @@ const CakeCatalog = () => {
       const orderInsertData = {
         order_date: new Date().toISOString(), // Current date and time
         delivery_method: orderType,
-        order_schedule: scheduledDate.toISOString().split('T')[0],
+        order_schedule: scheduledDate.toISOString(),
         delivery_address: orderType === "Delivery" ? deliveryAddress : null,
         cus_id: customer.cus_id,
         order_status: 'Pending' // New orders start as pending

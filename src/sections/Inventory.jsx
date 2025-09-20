@@ -936,7 +936,7 @@ const Inventory = () => {
                 disabled={saving}
                 className={`px-6 py-3 rounded-xl font-medium transition-all duration-200 ${saving
                   ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                  : 'bg-[#AF524D] text-white over:bg-[#8B3A3A] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
                   }`}
               >
                 {saving ? (

@@ -88,6 +88,10 @@ const Cart = () => {
                             name,
                             price
                         )
+                    ),
+                    "CUSTOM-CAKE"(
+                        cc_id,
+                        cc_img
                     )
                 `)
                 .eq('order_status', 'Pending')
@@ -139,11 +143,22 @@ const Cart = () => {
                         try {
                             // Get cake details from CAKE-ORDERS relationship
                             const cakeOrders = order["CAKE-ORDERS"] || [];
-                            const cakeNames = cakeOrders.map(co => co.CAKE?.name).filter(Boolean);
-                            const cakeName = cakeNames.length > 0 ? cakeNames.join(', ') : 'Custom Cake';
+                            const customCakes = order["CUSTOM-CAKE"] || [];
 
-                            // Calculate total quantity
-                            const totalQuantity = cakeOrders.reduce((sum, co) => sum + (co.quantity || 0), 0);
+                            let cakeName = '';
+                            let totalQuantity = 0;
+
+                            if (cakeOrders.length > 0) {
+                                const cakeNames = cakeOrders.map(co => co.CAKE?.name).filter(Boolean);
+                                cakeName = cakeNames.join(', ');
+                                totalQuantity = cakeOrders.reduce((sum, co) => sum + (co.quantity || 0), 0);
+                            } else if (customCakes.length > 0) {
+                                cakeName = 'Custom Cake Design';
+                                totalQuantity = customCakes.length; // Each custom cake is typically 1 quantity
+                            } else {
+                                cakeName = 'Unknown Cake';
+                                totalQuantity = 0;
+                            }
 
                             // Get payment amounts (numerical values)
                             const amountPaid = order.PAYMENT?.amount_paid || 0;
@@ -152,7 +167,7 @@ const Cart = () => {
                             const emailParams = {
                                 to_email: 'admin@bakerybliss.com', // Replace with actual admin email
                                 subject: `Order #${order.order_id} Auto-Cancelled - No Payment`,
-                                message: `Order #${order.order_id} has been automatically cancelled due to non-payment.\n\nOrder Details:\n- Order ID: ${order.order_id}\n- Order Date: ${new Date(order.order_date).toLocaleDateString()}\n- Delivery Date: ${new Date(order.order_schedule).toLocaleDateString()}\n- Delivery Method: ${order.delivery_method || 'Pickup'}\n- Delivery Address: ${order.delivery_address || 'N/A'}\n- Customer ID: ${order.cus_id}\n- Customer Email: ${order.CUSTOMER?.email || 'Unknown'}\n\nCake Details:\n- Cake(s): ${cakeName}\n- Total Quantity: ${totalQuantity}\n\nPayment Details:\n- Amount Paid: ₱${amountPaid.toLocaleString()}\n- Total Amount: ₱${totalAmount.toLocaleString()}\n\nCancellation Reason:\n"${cancellationReason}"\n\nThis order was automatically cancelled by the system because payment was not received within 7 days of the delivery date.`
+                                message: `Order #${order.order_id} has been automatically cancelled due to non-payment.\n\nOrder Details:\n- Order ID: ${order.order_id}\n- Order Date: ${new Date(order.order_schedule).toLocaleDateString()}\n- Delivery Date: ${new Date(order.order_schedule).toLocaleDateString()}\n- Delivery Method: ${order.delivery_method || 'Pickup'}\n- Delivery Address: ${order.delivery_address || 'N/A'}\n- Customer ID: ${order.cus_id}\n- Customer Email: ${order.CUSTOMER?.email || 'Unknown'}\n\nCake Details:\n- Cake(s): ${cakeName}\n- Total Quantity: ${totalQuantity}\n\nPayment Details:\n- Amount Paid: ₱${amountPaid.toLocaleString()}\n- Total Amount: ₱${totalAmount.toLocaleString()}\n\nCancellation Reason:\n"${cancellationReason}"\n\nThis order was automatically cancelled by the system because payment was not received within 7 days of the delivery date.`
                             };
 
                             await emailjs.send(
@@ -229,6 +244,7 @@ const Cart = () => {
                          payment_id,
                          payment_method,
                          amount_paid,
+                         total,
                          payment_status,
                          payment_date
                      )
@@ -288,6 +304,10 @@ const Cart = () => {
                             publicUrl: customCakeUrl
                         });
 
+                        // Get payment details from database
+                        const payment = order.PAYMENT?.[0] || null;
+                        const totalPrice = payment?.total || 1500; // Use actual payment total from DB or fallback to base price
+
                         processedOrders.push({
                             order_id: order.order_id,
                             order_date: order.order_date,
@@ -300,11 +320,11 @@ const Cart = () => {
                             order_type: 'custom',
                             CAKE: {
                                 name: 'Custom Cake Design',
-                                price: 5000, // Base price for custom cakes
+                                price: totalPrice, // Use actual price from database
                                 publicUrl: customCakeUrl
                             },
-                            payment: order.PAYMENT?.[0] || null,
-                            total_price: 5000 // Base price for custom cakes
+                            payment: payment,
+                            total_price: totalPrice // Use actual total from database
                         });
                     });
                 }
@@ -415,7 +435,7 @@ const Cart = () => {
                 .insert({
                     order_id: order.order_id,
                     customer_email: session.user.email,
-                    cake_name: order.CAKE ? order.CAKE.name : 'Custom Cake',
+                    cake_name: order.CAKE ? order.CAKE.name : 'Custom Cake Design',
                     total_price: order.total_price,
                     order_date: order.order_date,
                     delivery_date: order.order_schedule,
@@ -435,16 +455,16 @@ const Cart = () => {
                 to_email: adminData.email,
                 from_name: 'Bakery Bliss Customer',
                 from_email: session.user.email,
-                subject: `Order Cancellation - #${order.order_id} - ${order.CAKE ? order.CAKE.name : 'Custom Cake'}`,
+                subject: `Order Cancellation - #${order.order_id} - ${order.CAKE ? order.CAKE.name : 'Custom Cake Design'}`,
                 order_id: order.order_id,
                 customer_email: session.user.email,
-                cake_name: order.CAKE ? order.CAKE.name : 'Custom Cake',
+                cake_name: order.CAKE ? order.CAKE.name : 'Custom Cake Design',
                 total_price: `₱${order.total_price.toLocaleString()}`,
                 order_date: new Date(order.order_date).toLocaleDateString(),
                 delivery_date: new Date(order.order_schedule).toLocaleDateString(),
                 delivery_method: order.delivery_method,
                 cancellation_reason: reason,
-                message: `Order #${order.order_id} has been cancelled by the customer.\n\nOrder Details:\n- Cake: ${order.CAKE ? order.CAKE.name : 'Custom Cake'}\n- Total Price: ₱${order.total_price.toLocaleString()}\n- Order Date: ${new Date(order.order_date).toLocaleDateString()}\n- Delivery Date: ${new Date(order.order_schedule).toLocaleDateString()}\n- Delivery Method: ${order.delivery_method}\n\nCancellation Reason:\n"${reason}"\n\nCustomer Email: ${session.user.email}`
+                message: `Order #${order.order_id} has been cancelled by the customer.\n\nOrder Details:\n- Cake: ${order.CAKE ? order.CAKE.name : 'Custom Cake Design'}\n- Total Price: ₱${order.total_price.toLocaleString()}\n- Order Date: ${new Date(order.order_schedule).toLocaleDateString()}\n- Delivery Date: ${new Date(order.order_schedule).toLocaleDateString()}\n- Delivery Method: ${order.delivery_method}\n\nCancellation Reason:\n"${reason}"\n\nCustomer Email: ${session.user.email}`
             };
 
             const result = await emailjs.send(
@@ -740,7 +760,7 @@ const Cart = () => {
                                                                     <svg className="w-4 h-4 text-[#AF524D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                                     </svg>
-                                                                    <span className="text-gray-600">{new Date(order.order_date).toLocaleDateString()}</span>
+                                                                    <span className="text-gray-600">{new Date(order.order_schedule).toLocaleDateString()}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
                                                                     <svg className="w-4 h-4 text-[#AF524D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -882,7 +902,7 @@ const Cart = () => {
                                                                     <svg className="w-4 h-4 text-[#AF524D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                                     </svg>
-                                                                    <span className="text-gray-600">{new Date(order.order_date).toLocaleDateString()}</span>
+                                                                    <span className="text-gray-600">{new Date(order.order_schedule).toLocaleDateString()}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
                                                                     <svg className="w-4 h-4 text-[#AF524D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1000,7 +1020,7 @@ const Cart = () => {
                                                             Quantity: {order.quantity}
                                                         </p>
                                                         <p className="text-sm text-gray-600">
-                                                            Date: {new Date(order.order_date).toLocaleDateString()}
+                                                            Date: {new Date(order.order_schedule).toLocaleDateString()}
                                                         </p>
                                                         <p className="text-sm text-gray-600">
                                                             Method: {order.delivery_method}
@@ -1078,7 +1098,7 @@ const Cart = () => {
                                                             Quantity: {order.quantity}
                                                         </p>
                                                         <p className="text-sm text-gray-600">
-                                                            Date: {new Date(order.order_date).toLocaleDateString()}
+                                                            Date: {new Date(order.order_schedule).toLocaleDateString()}
                                                         </p>
                                                         <p className="text-sm text-gray-600">
                                                             Method: {order.delivery_method}

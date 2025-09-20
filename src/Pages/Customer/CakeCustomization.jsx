@@ -63,6 +63,40 @@ const CakeCustomization = () => {
 
     const navigate = useNavigate();
     const { session, userRole } = UserAuth();
+
+    // Add custom styles for scrollbar
+    useEffect(() => {
+        const style = document.createElement('style');
+        style.textContent = `
+            .custom-scrollbar {
+                scrollbar-width: thin;
+                scrollbar-color: #AF524D #F8E6B4;
+            }
+            .custom-scrollbar::-webkit-scrollbar {
+                width: 8px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-track {
+                background: #F8E6B4;
+                border-radius: 4px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: #AF524D;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: #8B3A3A;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb:active {
+                background: #6B2A2A;
+            }
+        `;
+        document.head.appendChild(style);
+
+        return () => {
+            document.head.removeChild(style);
+        };
+    }, []);
     const canvasRef = useRef(null);
     const canvas = useRef(null);
     const colorWheelRef = useRef(null);
@@ -75,7 +109,6 @@ const CakeCustomization = () => {
     const [textValue, setTextValue] = useState('');
     const [fontSize, setFontSize] = useState(24);
     const [fontFamily, setFontFamily] = useState('Poppins');
-    const [opacity, setOpacity] = useState(1);
     const [currentFontSize, setCurrentFontSize] = useState(24);
     const [canvasReady, setCanvasReady] = useState(false);
     const [selectedObject, setSelectedObject] = useState(null);
@@ -90,7 +123,6 @@ const CakeCustomization = () => {
     const [orderTime, setOrderTime] = useState("");
     const [orderType, setOrderType] = useState("Pickup");
     const [deliveryAddress, setDeliveryAddress] = useState("");
-    const [cakeQuantity, setCakeQuantity] = useState(1);
     const [isOrderTypeDropdownOpen, setIsOrderTypeDropdownOpen] = useState(false);
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
     const [customCakeImage, setCustomCakeImage] = useState(null);
@@ -736,12 +768,6 @@ const CakeCustomization = () => {
         }, 500);
     }, []);
 
-    // Sync opacity state with selected object
-    useEffect(() => {
-        if (selectedObject) {
-            setOpacity(selectedObject.opacity || 1);
-        }
-    }, [selectedObject, objectUpdateTrigger]);
 
     // Sync font size state with selected text object
     useEffect(() => {
@@ -931,7 +957,6 @@ const CakeCustomization = () => {
             setObjectUpdateTrigger(prev => prev + 1);
 
             // Update local state variables for sliders
-            setOpacity(activeObject.opacity || 1);
             if (activeObject.type === 'text') {
                 setCurrentFontSize(activeObject.fontSize || 24);
             }
@@ -952,7 +977,6 @@ const CakeCustomization = () => {
         setSelectedObject(null);
         setObjectUpdateTrigger(0);
         // Clear local state variables for sliders
-        setOpacity(1);
         setCurrentFontSize(24);
     };
 
@@ -1576,7 +1600,6 @@ const CakeCustomization = () => {
             sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
             setOrderDate(sevenDaysFromNow.toISOString().split('T')[0]);
             setOrderTime("");
-            setCakeQuantity(1);
             setCurrentStep(1);
 
             // Close loading toast and open order modal
@@ -1601,7 +1624,6 @@ const CakeCustomization = () => {
         setOrderTime("");
         setOrderType("Pickup");
         setDeliveryAddress("");
-        setCakeQuantity(1);
         setCurrentStep(1);
         setIsOrderTypeDropdownOpen(false);
         setIsPlacingOrder(false);
@@ -1784,7 +1806,7 @@ const CakeCustomization = () => {
 
             // Create payment record
             const customCakePrice = 1500; // Base price for custom cakes
-            const totalPrice = customCakePrice * cakeQuantity;
+            const totalPrice = customCakePrice * 1; // Fixed quantity of 1 for custom cakes
 
             const paymentData = {
                 payment_method: "Cash",
@@ -2023,7 +2045,7 @@ const CakeCustomization = () => {
                 {/* Left Sidebar - Tools Panel */}
                 <div className="w-80 bg-gradient-to-br from-[#F8E6B4] to-[#E2D2A2] border-r border-[#AF524D]/20 flex flex-col overflow-hidden relative">
                     {/* Background Pattern */}
-                    <div className="absolute inset-0 opacity-5">
+                    <div className="absolute inset-0 opacity-5 pointer-events-none">
                         <div className="absolute top-10 left-10 w-16 h-16 bg-[#AF524D] rounded-full blur-2xl"></div>
                         <div className="absolute bottom-10 right-10 w-20 h-20 bg-[#DFAD56] rounded-full blur-2xl"></div>
                     </div>
@@ -2101,7 +2123,7 @@ const CakeCustomization = () => {
                     )}
 
                     {/* Assets Panel with Tabs */}
-                    <div className="flex-1 overflow-y-auto min-h-0">
+                    <div className="flex-1 overflow-y-auto min-h-0 relative z-10 custom-scrollbar">
                         {/* Asset Type Tabs */}
                         <div className="p-6 pb-4 relative z-10">
                             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
@@ -2442,51 +2464,18 @@ const CakeCustomization = () => {
                                 </div>
                             </div>
 
-                            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
-                                <label className="block text-sm font-semibold text-[#492220] mb-3">Position</label>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-[#492220]/70">X Position</label>
-                                        <input
-                                            type="number"
-                                            value={Math.round(selectedObject.left || 0)}
-                                            onChange={(e) => {
-                                                selectedObject.set('left', parseFloat(e.target.value));
-                                                canvas.current.renderAll();
-                                                setObjectUpdateTrigger(prev => prev + 1);
-                                            }}
-                                            className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
-                                            placeholder="X"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-[#492220]/70">Y Position</label>
-                                        <input
-                                            type="number"
-                                            value={Math.round(selectedObject.top || 0)}
-                                            onChange={(e) => {
-                                                selectedObject.set('top', parseFloat(e.target.value));
-                                                canvas.current.renderAll();
-                                                setObjectUpdateTrigger(prev => prev + 1);
-                                            }}
-                                            className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
-                                            placeholder="Y"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
 
                             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
                                 <label className="block text-sm font-semibold text-[#492220] mb-3">Size</label>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-[#492220]/70">Width (inches)</label>
+                                        <label className="block text-xs font-medium text-[#492220]/70">Width (inches ×2)</label>
                                         <input
                                             type="number"
                                             step="0.1"
-                                            value={Math.round(((selectedObject.width * (selectedObject.scaleX || 1)) / 96) * 10) / 10}
+                                            value={Math.round(((selectedObject.width * (selectedObject.scaleX || 1)) / 96) * 20) / 10}
                                             onChange={(e) => {
-                                                const newWidthInches = parseFloat(e.target.value);
+                                                const newWidthInches = parseFloat(e.target.value) / 2; // Divide by 2 since display is doubled
                                                 const newWidthPixels = newWidthInches * 96;
                                                 const scaleX = newWidthPixels / selectedObject.width;
                                                 selectedObject.set('scaleX', scaleX);
@@ -2494,17 +2483,17 @@ const CakeCustomization = () => {
                                                 setObjectUpdateTrigger(prev => prev + 1);
                                             }}
                                             className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
-                                            placeholder="Width (in)"
+                                            placeholder="Width (in) ×2"
                                         />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-[#492220]/70">Height (inches)</label>
+                                        <label className="block text-xs font-medium text-[#492220]/70">Height (inches ×2)</label>
                                         <input
                                             type="number"
                                             step="0.1"
-                                            value={Math.round(((selectedObject.height * (selectedObject.scaleY || 1)) / 96) * 10) / 10}
+                                            value={Math.round(((selectedObject.height * (selectedObject.scaleY || 1)) / 96) * 20) / 10}
                                             onChange={(e) => {
-                                                const newHeightInches = parseFloat(e.target.value);
+                                                const newHeightInches = parseFloat(e.target.value) / 2; // Divide by 2 since display is doubled
                                                 const newHeightPixels = newHeightInches * 96;
                                                 const scaleY = newHeightPixels / selectedObject.height;
                                                 selectedObject.set('scaleY', scaleY);
@@ -2512,7 +2501,7 @@ const CakeCustomization = () => {
                                                 setObjectUpdateTrigger(prev => prev + 1);
                                             }}
                                             className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
-                                            placeholder="Height (in)"
+                                            placeholder="Height (in) ×2"
                                         />
                                     </div>
                                 </div>
@@ -2536,48 +2525,6 @@ const CakeCustomization = () => {
                                 </div>
                             </div>
 
-                            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-[#AF524D]/20">
-                                <label className="block text-sm font-semibold text-[#492220] mb-3">Opacity</label>
-                                <div className="space-y-3">
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max="1"
-                                        step="0.01"
-                                        value={(() => {
-                                            const activeObject = canvas.current?.getActiveObject();
-                                            return activeObject ? activeObject.opacity || 1 : 1;
-                                        })()}
-                                        onChange={(e) => {
-                                            const value = parseFloat(e.target.value);
-                                            setOpacity(value); // update slider UI immediately
-                                            if (canvas.current) {
-                                                const activeObject = canvas.current.getActiveObject();
-                                                if (activeObject) {
-                                                    activeObject.set('opacity', value);
-                                                    canvas.current.renderAll();
-                                                }
-                                            }
-                                        }}
-                                        className="w-full h-2 bg-[#AF524D]/20 rounded-lg appearance-none cursor-pointer slider-design"
-                                        style={{
-                                            background: (() => {
-                                                const activeObject = canvas.current?.getActiveObject();
-                                                const opacity = activeObject ? activeObject.opacity || 1 : 1;
-                                                return `linear-gradient(to right, #AF524D 0%, #AF524D ${opacity * 100}%, #E5E7EB ${opacity * 100}%, #E5E7EB 100%)`;
-                                            })()
-                                        }}
-                                    />
-                                    <div className="bg-gradient-to-r from-[#AF524D]/10 to-[#8B3A3A]/10 rounded-xl px-4 py-2 border border-[#AF524D]/20">
-                                        <div className="text-sm font-semibold text-[#492220] text-center">
-                                            {(() => {
-                                                const activeObject = canvas.current?.getActiveObject();
-                                                return Math.round((activeObject ? activeObject.opacity || 1 : 1) * 100);
-                                            })()}%
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
 
                             {selectedObject.type === 'text' && (
                                 <>
@@ -2768,13 +2715,10 @@ const CakeCustomization = () => {
                                     />
                                     <div>
                                         <h3 className="font-semibold text-[#492220] text-lg">Custom Cake Design</h3>
-                                        <p className="text-[#AF524D] font-bold text-xl">₱1,500</p>
+                                        <p className="text-[#AF524D] font-bold text-xl"> Estimated Price: ₱1,500</p>
                                         <div className="flex gap-2 mt-1">
                                             <span className="bg-[#AF524D]/10 text-[#AF524D] px-2 py-1 rounded-full text-xs">
                                                 Custom
-                                            </span>
-                                            <span className="bg-[#DFAD56]/10 text-[#8B3A3A] px-2 py-1 rounded-full text-xs">
-                                                Personalized
                                             </span>
                                         </div>
                                     </div>
@@ -2785,33 +2729,6 @@ const CakeCustomization = () => {
                             {currentStep === 1 && (
                                 <div className="space-y-6">
                                     {/* Quantity Selection */}
-                                    <div className="space-y-3">
-                                        <label className="block text-sm font-semibold text-[#492220] flex items-center gap-2">
-                                            <svg className="w-4 h-4 text-[#AF524D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 0h10m-10 0a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2M9 4h6" />
-                                            </svg>
-                                            Quantity *
-                                        </label>
-                                        <div className="flex items-center justify-center gap-4 p-4 bg-[#F8E6B4]/20 rounded-2xl">
-                                            <button
-                                                type="button"
-                                                onClick={() => setCakeQuantity(Math.max(1, cakeQuantity - 1))}
-                                                className="w-12 h-12 rounded-full bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white hover:from-[#8B3A3A] hover:to-[#AF524D] transition-all duration-300 flex items-center justify-center font-bold text-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                                            >
-                                                -
-                                            </button>
-                                            <span className="w-20 text-center font-bold text-[#492220] text-2xl bg-white/70 px-4 py-2 rounded-xl">
-                                                {cakeQuantity}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={() => setCakeQuantity(cakeQuantity + 1)}
-                                                className="w-12 h-12 rounded-full bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] text-white hover:from-[#8B3A3A] hover:to-[#AF524D] transition-all duration-300 flex items-center justify-center font-bold text-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                                            >
-                                                +
-                                            </button>
-                                        </div>
-                                    </div>
 
                                     {/* Date Selection */}
                                     <div className="space-y-3">
@@ -3205,15 +3122,15 @@ const CakeCustomization = () => {
                                             </div>
                                             <div className="flex justify-between items-center p-3 bg-white/50 rounded-xl">
                                                 <span className="font-medium text-[#492220]">Quantity:</span>
-                                                <span className="text-[#8B3A3A] font-semibold">{cakeQuantity}</span>
+                                                <span className="text-[#8B3A3A] font-semibold">1</span>
                                             </div>
                                             <div className="flex justify-between items-center p-3 bg-white/50 rounded-xl">
-                                                <span className="font-medium text-[#492220]">Base price per cake:</span>
+                                                <span className="font-medium text-[#492220]">Estimated price per cake:</span>
                                                 <span className="text-[#AF524D] font-semibold">₱1,500</span>
                                             </div>
                                             <div className="flex justify-between items-center p-4 bg-gradient-to-r from-[#AF524D]/10 to-[#8B3A3A]/10 rounded-xl border-t-2 border-[#AF524D]/20">
-                                                <span className="font-bold text-[#492220] text-lg">Total Base Price:</span>
-                                                <span className="font-bold text-[#AF524D] text-xl">₱{1500 * cakeQuantity}</span>
+                                                <span className="font-bold text-[#492220] text-lg">Total Estimated Price:</span>
+                                                <span className="font-bold text-[#AF524D] text-xl">₱1,500</span>
                                             </div>
                                             <div className="flex justify-between items-center p-3 bg-white/50 rounded-xl">
                                                 <span className="font-medium text-[#492220]">Date:</span>
@@ -3301,11 +3218,11 @@ const CakeCustomization = () => {
                                             <div className="space-y-2">
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-green-800 font-medium">Quantity:</span>
-                                                    <span className="text-green-800 font-semibold">{cakeQuantity} {cakeQuantity === 1 ? 'cake' : 'cakes'}</span>
+                                                    <span className="text-green-800 font-semibold">1 cake</span>
                                                 </div>
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-green-800 font-medium">Total Base Amount:</span>
-                                                    <span className="text-green-800 font-semibold text-lg">₱{(1500 * cakeQuantity).toLocaleString()}</span>
+                                                    <span className="text-green-800 font-semibold text-lg">₱1,500</span>
                                                 </div>
                                             </div>
                                         </div>

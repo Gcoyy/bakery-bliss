@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 import { inventoryManagement } from './Inventory';
@@ -36,6 +36,7 @@ const CakeOrders = () => {
   const [searchType, setSearchType] = useState('all'); // 'all', 'customer', 'cake', 'status'
   const [statusFilter, setStatusFilter] = useState("");
   const [pendingReceiptFiles, setPendingReceiptFiles] = useState({});
+  const suppressRealtimeToast = useRef(false);
 
   // Helper function to check if an order is new (not edited yet - still in Pending status)
   const isNewOrder = (orderStatus) => {
@@ -47,6 +48,7 @@ const CakeOrders = () => {
     theme: '',
     tier: 1,
     order_schedule: '',
+    order_time: '',
     delivery_method: '',
     delivery_address: '',
     order_status: '',
@@ -348,10 +350,14 @@ const CakeOrders = () => {
         )
       );
 
-      // Show notification
-      toast.success(`Order #${updatedOrderData.order_id} has been updated!`, {
-        duration: 3000,
-      });
+      // Show notification unless we're in the middle of a local update flow
+      if (!suppressRealtimeToast.current) {
+        toast.success(`Order #${updatedOrderData.order_id} has been updated!`, {
+          duration: 3000,
+        });
+      } else {
+        console.log('[Realtime] Update toast suppressed');
+      }
     } catch (error) {
       console.error('Error handling order update:', error);
     }
@@ -413,14 +419,7 @@ const CakeOrders = () => {
       total: payment?.total ?? (isCustomCake ? 1500 : (cake?.price ?? 0)),
       payment_method: payment?.payment_method || 'Cash',
       payment_status: payment?.payment_status || 'Unpaid',
-      payment_date: payment?.payment_date ? (() => {
-        // Format date for date input field (YYYY-MM-DD)
-        const date = new Date(payment.payment_date);
-        return date.toISOString().split('T')[0];
-      })() : (order.order_date ? (() => {
-        const date = new Date(order.order_date);
-        return date.toISOString().split('T')[0];
-      })() : ''),
+      payment_date: payment?.payment_date || order.order_date || '',
       // Receipt information
       receipt: payment?.receipt || null,
       receipt_url: payment?.receipt || null,
@@ -438,16 +437,29 @@ const CakeOrders = () => {
       cake_name: order.cake_name || '',
       theme: order.theme || '',
       tier: order.tier || 1,
-      order_schedule: order.order_schedule || '',
+      order_schedule: order.order_schedule ? (() => {
+        // Extract date part from datetime string for date input field
+        const date = new Date(order.order_schedule);
+        return date.toISOString().split('T')[0];
+      })() : '',
+      order_time: order.order_schedule ? (() => {
+        // Extract time part from datetime string for time input field
+        const date = new Date(order.order_schedule);
+        return date.toTimeString().split(' ')[0].substring(0, 5); // HH:MM format
+      })() : '',
       delivery_method: order.delivery_method || '',
       delivery_address: order.delivery_address || '',
       order_status: order.order_status || '',
       quantity: order.quantity || 1,
       payment_method: order.payment_method || '',
-      amount_paid: order.amount_paid || '',
+      amount_paid: order.amount_paid !== undefined ? order.amount_paid : '',
       payment_status: order.payment_status || '',
-      payment_date: order.payment_date || '',
-      total: order.total || ''
+      payment_date: order.payment_date ? (() => {
+        // Format date for date input field (YYYY-MM-DD)
+        const date = new Date(order.payment_date);
+        return date.toISOString().split('T')[0];
+      })() : '',
+      total: order.total !== undefined ? order.total : ''
     });
     setShowEditModal(true);
   };
@@ -466,21 +478,454 @@ const CakeOrders = () => {
 
     try {
       setSaving(true);
+      suppressRealtimeToast.current = true;
       await updateOrder(orderToEdit.order_id, editFormData);
     } catch (error) {
       console.error('Error updating order:', error);
       toast.error('Failed to update order');
     } finally {
       setSaving(false);
+      // Allow a short delay for any realtime events caused by this update to pass
+      setTimeout(() => { suppressRealtimeToast.current = false; }, 500);
+    }
+  };
+
+  // Function to check if there are enough ingredients for an order
+  const checkInventoryAvailability = async (orderId) => {
+    try {
+      console.groupCollapsed('[InventoryCheck] Start', { orderId });
+      const LOW_STOCK_THRESHOLD = 10;
+      const lowStockWarnings = [];
+      // Check if this is a custom cake order
+      const { data: customCakeData, error: customCakeError } = await supabase
+        .from('CUSTOM-CAKE')
+        .select('cc_id')
+        .eq('order_id', orderId);
+
+      if (customCakeError) {
+        console.error('Error checking custom cake data:', customCakeError);
+        console.groupEnd();
+        return { available: true }; // Allow update if we can't check
+      }
+
+      if (customCakeData && customCakeData.length > 0) {
+        console.log('[InventoryCheck] Detected custom cake order', { cc_id: customCakeData[0].cc_id });
+        // This is a custom cake order - check custom cake ingredients
+        const { data: customCakeAssets, error: assetsError } = await supabase
+          .from('CUSTOM-CAKE-ASSETS')
+          .select('asset_id, quantity')
+          .eq('cc_id', customCakeData[0].cc_id);
+
+        if (assetsError) {
+          console.error('Error fetching custom cake assets:', assetsError);
+          console.groupEnd();
+          return { available: true }; // Allow update if we can't check
+        }
+
+        // Check each asset's ingredients
+        for (const asset of customCakeAssets) {
+          console.log('[InventoryCheck] Asset', { asset_id: asset.asset_id, asset_quantity: asset.quantity });
+          const { data: assetIngredients, error: ingredientsError } = await supabase
+            .from('ASSET-INGREDIENT')
+            .select('ai_quantity, INGREDIENT!inner(ingred_id, ingred_name)')
+            .eq('asset_id', asset.asset_id);
+
+          if (ingredientsError) {
+            console.error('Error fetching asset ingredients:', ingredientsError);
+            continue;
+          }
+
+          // Check inventory for each ingredient
+          for (const ingredient of assetIngredients) {
+            const { data: inventory, error: inventoryError } = await supabase
+              .from('INVENTORY')
+              .select('stock_quantity')
+              .eq('ingred_id', ingredient.INGREDIENT.ingred_id)
+              .single();
+
+            if (inventoryError) {
+              console.error('Error fetching inventory:', inventoryError);
+              continue;
+            }
+
+            const requiredQuantity = ingredient.ai_quantity * asset.quantity;
+            console.log('[InventoryCheck] Ingredient (custom)', {
+              ingred_id: ingredient.INGREDIENT.ingred_id,
+              ingred_name: ingredient.INGREDIENT.ingred_name,
+              per_unit_required: ingredient.ai_quantity,
+              asset_quantity: asset.quantity,
+              required_total: requiredQuantity,
+              stock_quantity: inventory.stock_quantity
+            });
+            if (inventory.stock_quantity < requiredQuantity) {
+              console.warn('[InventoryCheck] Insufficient stock (custom)', {
+                ingred_id: ingredient.INGREDIENT.ingred_id,
+                ingred_name: ingredient.INGREDIENT.ingred_name,
+                required: requiredQuantity,
+                available: inventory.stock_quantity
+              });
+              const result = {
+                available: false,
+                message: `Insufficient inventory for ${ingredient.INGREDIENT.ingred_name}. Required: ${requiredQuantity}, Available: ${inventory.stock_quantity}`
+              };
+              console.groupEnd();
+              return result;
+            }
+            // Warn if will fall below threshold
+            const projected = (inventory.stock_quantity || 0) - requiredQuantity;
+            if (projected < LOW_STOCK_THRESHOLD) {
+              lowStockWarnings.push({ ingred_id: ingredient.INGREDIENT.ingred_id, ingred_name: ingredient.INGREDIENT.ingred_name, projected, current: inventory.stock_quantity, required: requiredQuantity });
+            }
+          }
+        }
+      } else {
+        console.log('[InventoryCheck] Detected regular cake order');
+        // This is a regular cake order - check regular cake ingredients
+        const { data: cakeOrders, error: cakeOrdersError } = await supabase
+          .from('CAKE-ORDERS')
+          .select('cake_id, quantity')
+          .eq('order_id', orderId);
+
+        if (cakeOrdersError) {
+          console.error('Error fetching cake orders:', cakeOrdersError);
+          console.groupEnd();
+          return { available: true }; // Allow update if we can't check
+        }
+
+        // Check each cake's ingredients
+        for (const cakeOrder of cakeOrders) {
+          console.log('[InventoryCheck] Cake order', { cake_id: cakeOrder.cake_id, order_quantity: cakeOrder.quantity });
+          const { data: cakeIngredients, error: ingredientsError } = await supabase
+            .from('CAKE-INGREDIENT')
+            .select('quantity, INGREDIENT!inner(ingred_id, ingred_name)')
+            .eq('cake_id', cakeOrder.cake_id);
+
+          if (ingredientsError) {
+            console.error('Error fetching cake ingredients:', ingredientsError);
+            continue;
+          }
+
+          // Check inventory for each ingredient
+          for (const ingredient of cakeIngredients) {
+            const { data: inventory, error: inventoryError } = await supabase
+              .from('INVENTORY')
+              .select('stock_quantity')
+              .eq('ingred_id', ingredient.INGREDIENT.ingred_id)
+              .single();
+
+            if (inventoryError) {
+              console.error('Error fetching inventory:', inventoryError);
+              continue;
+            }
+
+            const requiredQuantity = ingredient.quantity * cakeOrder.quantity;
+            console.log('[InventoryCheck] Ingredient (regular)', {
+              ingred_id: ingredient.INGREDIENT.ingred_id,
+              ingred_name: ingredient.INGREDIENT.ingred_name,
+              per_cake_required: ingredient.quantity,
+              order_quantity: cakeOrder.quantity,
+              required_total: requiredQuantity,
+              stock_quantity: inventory.stock_quantity
+            });
+            if (inventory.stock_quantity < requiredQuantity) {
+              console.warn('[InventoryCheck] Insufficient stock (regular)', {
+                ingred_id: ingredient.INGREDIENT.ingred_id,
+                ingred_name: ingredient.INGREDIENT.ingred_name,
+                required: requiredQuantity,
+                available: inventory.stock_quantity
+              });
+              const result = {
+                available: false,
+                message: `Insufficient inventory for ${ingredient.INGREDIENT.ingred_name}. Required: ${requiredQuantity}, Available: ${inventory.stock_quantity}`
+              };
+              console.groupEnd();
+              return result;
+            }
+            // Warn if will fall below threshold
+            const projected = (inventory.stock_quantity || 0) - requiredQuantity;
+            if (projected < LOW_STOCK_THRESHOLD) {
+              lowStockWarnings.push({ ingred_id: ingredient.INGREDIENT.ingred_id, ingred_name: ingredient.INGREDIENT.ingred_name, projected, current: inventory.stock_quantity, required: requiredQuantity });
+            }
+          }
+        }
+      }
+
+      console.log('[InventoryCheck] All ingredients sufficient');
+      console.groupEnd();
+      return { available: true, warnings: lowStockWarnings };
+    } catch (error) {
+      console.error('Error checking inventory availability:', error);
+      console.groupEnd();
+      return { available: true }; // Allow update if we can't check
+    }
+  };
+
+  // Deduct inventory when transitioning to Approved (manual approval flow)
+  const deductInventoryForApproval = async (orderId) => {
+    try {
+      // Detect custom cake
+      const { data: customCakeData } = await supabase
+        .from('CUSTOM-CAKE')
+        .select('cc_id')
+        .eq('order_id', orderId);
+
+      if (customCakeData && customCakeData.length > 0) {
+        // Custom cake: aggregate required ingredient quantities
+        const { data: customCakeAssets, error: assetsError } = await supabase
+          .from('CUSTOM-CAKE-ASSETS')
+          .select('asset_id, quantity')
+          .eq('cc_id', customCakeData[0].cc_id);
+
+        if (assetsError) throw assetsError;
+
+        const ingredientRequirements = new Map(); // ingred_id -> required qty
+
+        for (const asset of customCakeAssets) {
+          const { data: assetIngredients, error: aiError } = await supabase
+            .from('ASSET-INGREDIENT')
+            .select('ingred_id, ai_quantity')
+            .eq('asset_id', asset.asset_id);
+
+          if (aiError) throw aiError;
+
+          for (const ingredient of assetIngredients) {
+            const required = (ingredient.ai_quantity || 0) * (asset.quantity || 0);
+            if (!ingredientRequirements.has(ingredient.ingred_id)) {
+              ingredientRequirements.set(ingredient.ingred_id, 0);
+            }
+            ingredientRequirements.set(
+              ingredient.ingred_id,
+              ingredientRequirements.get(ingredient.ingred_id) + required
+            );
+          }
+        }
+
+        // Apply deductions
+        for (const [ingredientId, required] of ingredientRequirements.entries()) {
+          const { data: inv, error: invErr } = await supabase
+            .from('INVENTORY')
+            .select('stock_quantity')
+            .eq('ingred_id', ingredientId)
+            .single();
+          if (invErr) throw invErr;
+
+          const newQty = Math.max(0, (inv?.stock_quantity || 0) - required);
+          const { error: updErr } = await supabase
+            .from('INVENTORY')
+            .update({ stock_quantity: newQty })
+            .eq('ingred_id', ingredientId);
+          if (updErr) throw updErr;
+        }
+      } else {
+        // Regular cake order
+        const { data: cakeOrders, error: coError } = await supabase
+          .from('CAKE-ORDERS')
+          .select('cake_id, quantity')
+          .eq('order_id', orderId);
+        if (coError) throw coError;
+
+        const ingredientRequirements = new Map();
+
+        for (const co of cakeOrders) {
+          const { data: cakeIngredients, error: ciError } = await supabase
+            .from('CAKE-INGREDIENT')
+            .select('ingred_id, quantity')
+            .eq('cake_id', co.cake_id);
+          if (ciError) throw ciError;
+
+          for (const ingredient of cakeIngredients) {
+            const required = (ingredient.quantity || 0) * (co.quantity || 0);
+            if (!ingredientRequirements.has(ingredient.ingred_id)) {
+              ingredientRequirements.set(ingredient.ingred_id, 0);
+            }
+            ingredientRequirements.set(
+              ingredient.ingred_id,
+              ingredientRequirements.get(ingredient.ingred_id) + required
+            );
+          }
+        }
+
+        for (const [ingredientId, required] of ingredientRequirements.entries()) {
+          const { data: inv, error: invErr } = await supabase
+            .from('INVENTORY')
+            .select('stock_quantity')
+            .eq('ingred_id', ingredientId)
+            .single();
+          if (invErr) throw invErr;
+
+          const newQty = Math.max(0, (inv?.stock_quantity || 0) - required);
+          const { error: updErr } = await supabase
+            .from('INVENTORY')
+            .update({ stock_quantity: newQty })
+            .eq('ingred_id', ingredientId);
+          if (updErr) throw updErr;
+        }
+      }
+    } catch (err) {
+      console.error('Error deducting inventory on approval:', err);
+      throw err;
+    }
+  };
+
+  // Restock inventory when transitioning from Approved back to Pending
+  const restockInventoryForApprovalReversal = async (orderId) => {
+    try {
+      // Detect custom cake
+      const { data: customCakeData } = await supabase
+        .from('CUSTOM-CAKE')
+        .select('cc_id')
+        .eq('order_id', orderId);
+
+      if (customCakeData && customCakeData.length > 0) {
+        // Custom cake: aggregate required ingredient quantities
+        const { data: customCakeAssets, error: assetsError } = await supabase
+          .from('CUSTOM-CAKE-ASSETS')
+          .select('asset_id, quantity')
+          .eq('cc_id', customCakeData[0].cc_id);
+
+        if (assetsError) throw assetsError;
+
+        const ingredientRestocks = new Map(); // ingred_id -> qty to add back
+
+        for (const asset of customCakeAssets) {
+          const { data: assetIngredients, error: aiError } = await supabase
+            .from('ASSET-INGREDIENT')
+            .select('ingred_id, ai_quantity')
+            .eq('asset_id', asset.asset_id);
+
+          if (aiError) throw aiError;
+
+          for (const ingredient of assetIngredients) {
+            const qty = (ingredient.ai_quantity || 0) * (asset.quantity || 0);
+            if (!ingredientRestocks.has(ingredient.ingred_id)) {
+              ingredientRestocks.set(ingredient.ingred_id, 0);
+            }
+            ingredientRestocks.set(
+              ingredient.ingred_id,
+              ingredientRestocks.get(ingredient.ingred_id) + qty
+            );
+          }
+        }
+
+        // Apply restocks
+        for (const [ingredientId, qty] of ingredientRestocks.entries()) {
+          const { data: inv, error: invErr } = await supabase
+            .from('INVENTORY')
+            .select('stock_quantity')
+            .eq('ingred_id', ingredientId)
+            .single();
+          if (invErr) throw invErr;
+
+          const newQty = (inv?.stock_quantity || 0) + qty;
+          const { error: updErr } = await supabase
+            .from('INVENTORY')
+            .update({ stock_quantity: newQty })
+            .eq('ingred_id', ingredientId);
+          if (updErr) throw updErr;
+        }
+      } else {
+        // Regular cake order: aggregate required ingredient quantities
+        const { data: cakeOrders, error: coError } = await supabase
+          .from('CAKE-ORDERS')
+          .select('cake_id, quantity')
+          .eq('order_id', orderId);
+        if (coError) throw coError;
+
+        const ingredientRestocks = new Map(); // ingred_id -> qty to add back
+
+        for (const co of cakeOrders) {
+          const { data: cakeIngredients, error: ciError } = await supabase
+            .from('CAKE-INGREDIENT')
+            .select('ingred_id, quantity')
+            .eq('cake_id', co.cake_id);
+          if (ciError) throw ciError;
+
+          for (const ingredient of cakeIngredients) {
+            const qty = (ingredient.quantity || 0) * (co.quantity || 0);
+            if (!ingredientRestocks.has(ingredient.ingred_id)) {
+              ingredientRestocks.set(ingredient.ingred_id, 0);
+            }
+            ingredientRestocks.set(
+              ingredient.ingred_id,
+              ingredientRestocks.get(ingredient.ingred_id) + qty
+            );
+          }
+        }
+
+        for (const [ingredientId, qty] of ingredientRestocks.entries()) {
+          const { data: inv, error: invErr } = await supabase
+            .from('INVENTORY')
+            .select('stock_quantity')
+            .eq('ingred_id', ingredientId)
+            .single();
+          if (invErr) throw invErr;
+
+          const newQty = (inv?.stock_quantity || 0) + qty;
+          const { error: updErr } = await supabase
+            .from('INVENTORY')
+            .update({ stock_quantity: newQty })
+            .eq('ingred_id', ingredientId);
+          if (updErr) throw updErr;
+        }
+      }
+    } catch (err) {
+      console.error('Error restocking inventory on approval reversal:', err);
+      throw err;
     }
   };
 
   const updateOrder = async (orderId, order) => {
     try {
+      // If attempting to approve, verify inventory availability first
+      if (order.order_status === 'Approved') {
+        const inventoryCheck = await checkInventoryAvailability(orderId);
+        if (!inventoryCheck.available) {
+          toast.error(`Cannot approve order: ${inventoryCheck.message}`, {
+            duration: 5000,
+            position: 'top-center',
+          });
+          return;
+        }
+        if (inventoryCheck.warnings && inventoryCheck.warnings.length > 0) {
+          const first = inventoryCheck.warnings[0];
+          toast(`Warning: ${first.ingred_name} will be low!`, {
+            icon: '⚠️',
+            duration: 4000
+          });
+        }
+      }
+
+      // If we're transitioning to Approved from a non-Approved state, deduct inventory now
+      if (order.order_status === 'Approved' && orderToEdit?.order_status !== 'Approved') {
+        await deductInventoryForApproval(orderId);
+      }
+      // If we're transitioning from Approved back to Pending, restock inventory now
+      if (order.order_status === 'Pending' && orderToEdit?.order_status === 'Approved') {
+        await restockInventoryForApprovalReversal(orderId);
+      }
+
       // Update ORDER table
+      // Combine date and time into proper datetime
+      let updatedSchedule = order.order_schedule;
+      if (order.order_schedule && order.order_time) {
+        // Both date and time are provided, combine them
+        updatedSchedule = new Date(`${order.order_schedule}T${order.order_time}`).toISOString();
+      } else if (order.order_schedule && !order.order_schedule.includes('T')) {
+        // Only date is provided, preserve existing time or set default
+        const existingSchedule = orderToEdit.order_schedule;
+        if (existingSchedule && existingSchedule.includes('T')) {
+          // Extract time from existing schedule and combine with new date
+          const existingTime = existingSchedule.split('T')[1];
+          updatedSchedule = `${order.order_schedule}T${existingTime}`;
+        } else {
+          // No existing time, set to noon as default
+          updatedSchedule = `${order.order_schedule}T12:00:00.000Z`;
+        }
+      }
+
       const orderUpdateData = {
         delivery_method: order.delivery_method,
-        order_schedule: order.order_schedule,
+        order_schedule: updatedSchedule,
         delivery_address: order.delivery_address,
         order_status: order.order_status
       };
@@ -546,6 +991,50 @@ const CakeOrders = () => {
         const previousPaymentStatus = existingPayment?.payment_status || 'Unpaid';
         const newPaymentStatus = order.payment_status || previousPaymentStatus;
 
+        // Re-enable auto-approval via payment change, but route through approval flow
+        const requiresAutoApproval = (newPaymentStatus === 'Partial Payment' || newPaymentStatus === 'Fully Paid') && newPaymentStatus !== previousPaymentStatus;
+        if (requiresAutoApproval) {
+          console.log('[Payment->AutoApprove] Payment status requires auto-approval. Verifying inventory...');
+          const inventoryCheck = await checkInventoryAvailability(orderId);
+          if (!inventoryCheck.available) {
+            toast.error(`Cannot approve order: ${inventoryCheck.message}`, {
+              duration: 5000,
+              position: 'top-center',
+            });
+            return;
+          }
+          if (inventoryCheck.warnings && inventoryCheck.warnings.length > 0) {
+            const first = inventoryCheck.warnings[0];
+            toast(`Warning: ${first.ingred_name} will be low!`, {
+              icon: '⚠️',
+              duration: 4000
+            });
+          }
+
+          // Deduct inventory using the same approval flow
+          try {
+            await deductInventoryForApproval(orderId);
+          } catch (deductErr) {
+            console.error('[Payment->AutoApprove] Inventory deduction failed:', deductErr);
+            toast.error('Failed to deduct inventory for approval');
+            return;
+          }
+
+          // Update order status to Approved
+          const { error: orderStatusError } = await supabase
+            .from('ORDER')
+            .update({ order_status: 'Approved' })
+            .eq('order_id', orderId);
+
+          if (orderStatusError) {
+            console.error('[Payment->AutoApprove] Error updating order status to Approved:', orderStatusError);
+            toast.error('Failed to update order status');
+            return;
+          } else {
+            console.log(`[Payment->AutoApprove] Order ${orderId} approved due to payment status: ${newPaymentStatus}`);
+          }
+        }
+
         const paymentData = {};
         if (order.payment_method) paymentData.payment_method = order.payment_method;
         if (order.amount_paid) paymentData.amount_paid = order.amount_paid;
@@ -581,40 +1070,10 @@ const CakeOrders = () => {
           }
         }
 
-        // Handle inventory deduction based on payment status change
-        if (order.payment_status && order.payment_status !== previousPaymentStatus) {
-          // Check if this is a custom cake order
-          const { data: customCakeData, error: customCakeError } = await supabase
-            .from('CUSTOM-CAKE')
-            .select('cc_id')
-            .eq('order_id', orderId);
-
-          if (customCakeData && customCakeData.length > 0) {
-            // This is a custom cake order - use custom cake inventory management
-            await inventoryManagement.deductInventoryForCustomCakeOrder(orderId, previousPaymentStatus, newPaymentStatus);
-            await inventoryManagement.restockInventoryForCustomCakeOrder(orderId, previousPaymentStatus, newPaymentStatus);
-          } else {
-            // This is a regular cake order - use regular inventory management
-            await inventoryManagement.deductInventoryForOrder(orderId, previousPaymentStatus, newPaymentStatus);
-          }
-
-          // Auto-approve order if payment status is Partial Payment or Fully Paid
-          if (newPaymentStatus === 'Partial Payment' || newPaymentStatus === 'Fully Paid') {
-            const { error: orderStatusError } = await supabase
-              .from('ORDER')
-              .update({ order_status: 'Approved' })
-              .eq('order_id', orderId);
-
-            if (orderStatusError) {
-              console.error('Error updating order status to Approved:', orderStatusError);
-              toast.error('Failed to update order status');
-            } else {
-              console.log(`Order ${orderId} automatically approved due to payment status: ${newPaymentStatus}`);
-            }
-          }
-        }
+        // Proceed to update/create PAYMENT record normally after any auto-approval handling above
       }
 
+      // Success toast after our validation/deduction completes
       toast.success('Order updated successfully');
       setShowEditModal(false);
       setOrderToEdit(null);
@@ -631,7 +1090,7 @@ const CakeOrders = () => {
     setOrderToEdit(null);
     setEditFormData({
       cake_name: '', theme: '', tier: 1,
-      order_schedule: '', delivery_method: '', delivery_address: '',
+      order_schedule: '', order_time: '', delivery_method: '', delivery_address: '',
       order_status: '', quantity: 1
     });
   };
@@ -653,6 +1112,221 @@ const CakeOrders = () => {
     setShowCakeImageModal(false);
     setSelectedCakeImage(null);
     setSelectedCakeName('');
+  };
+
+  // Function to fetch ingredients for an order
+  const fetchOrderIngredients = async (orderId) => {
+    try {
+      console.log('[FetchIngredients] Starting for order:', orderId);
+
+      // Check if this is a custom cake order
+      const { data: customCakeData, error: customCakeError } = await supabase
+        .from('CUSTOM-CAKE')
+        .select('cc_id')
+        .eq('order_id', orderId);
+
+      if (customCakeError) {
+        console.error('Error checking custom cake data:', customCakeError);
+        throw customCakeError;
+      }
+
+      let ingredients = [];
+
+      if (customCakeData && customCakeData.length > 0) {
+        console.log('[FetchIngredients] Detected custom cake order');
+        // This is a custom cake order - get custom cake ingredients
+        const { data: customCakeAssets, error: assetsError } = await supabase
+          .from('CUSTOM-CAKE-ASSETS')
+          .select('asset_id, quantity')
+          .eq('cc_id', customCakeData[0].cc_id);
+
+        if (assetsError) throw assetsError;
+
+        // Get ingredients for each asset
+        for (const asset of customCakeAssets) {
+          const { data: assetIngredients, error: ingredientsError } = await supabase
+            .from('ASSET-INGREDIENT')
+            .select('ai_quantity, INGREDIENT!inner(ingred_id, ingred_name, unit)')
+            .eq('asset_id', asset.asset_id);
+
+          if (ingredientsError) throw ingredientsError;
+
+          // Add ingredients to the list
+          for (const ingredient of assetIngredients) {
+            const requiredQuantity = ingredient.ai_quantity * asset.quantity;
+            const existingIngredient = ingredients.find(ing => ing.ingred_id === ingredient.INGREDIENT.ingred_id);
+
+            if (existingIngredient) {
+              existingIngredient.quantity += requiredQuantity;
+            } else {
+              ingredients.push({
+                ingred_id: ingredient.INGREDIENT.ingred_id,
+                ingred_name: ingredient.INGREDIENT.ingred_name,
+                unit: ingredient.INGREDIENT.unit || 'pcs',
+                quantity: requiredQuantity
+              });
+            }
+          }
+        }
+      } else {
+        console.log('[FetchIngredients] Detected regular cake order');
+        // This is a regular cake order - get regular cake ingredients
+        const { data: cakeOrders, error: cakeOrdersError } = await supabase
+          .from('CAKE-ORDERS')
+          .select('cake_id, quantity')
+          .eq('order_id', orderId);
+
+        if (cakeOrdersError) throw cakeOrdersError;
+
+        // Get ingredients for each cake
+        for (const cakeOrder of cakeOrders) {
+          const { data: cakeIngredients, error: ingredientsError } = await supabase
+            .from('CAKE-INGREDIENT')
+            .select('quantity, INGREDIENT!inner(ingred_id, ingred_name, unit)')
+            .eq('cake_id', cakeOrder.cake_id);
+
+          if (ingredientsError) throw ingredientsError;
+
+          // Add ingredients to the list
+          for (const ingredient of cakeIngredients) {
+            const requiredQuantity = ingredient.quantity * cakeOrder.quantity;
+            const existingIngredient = ingredients.find(ing => ing.ingred_id === ingredient.INGREDIENT.ingred_id);
+
+            if (existingIngredient) {
+              existingIngredient.quantity += requiredQuantity;
+            } else {
+              ingredients.push({
+                ingred_id: ingredient.INGREDIENT.ingred_id,
+                ingred_name: ingredient.INGREDIENT.ingred_name,
+                unit: ingredient.INGREDIENT.unit || 'pcs',
+                quantity: requiredQuantity
+              });
+            }
+          }
+        }
+      }
+
+      console.log('[FetchIngredients] Final ingredients list:', ingredients);
+      return ingredients;
+    } catch (error) {
+      console.error('Error fetching order ingredients:', error);
+      throw error;
+    }
+  };
+
+  // Function to handle print ingredients button click
+  const handlePrintIngredients = async (order) => {
+    try {
+      setSaving(true);
+
+      const ingredients = await fetchOrderIngredients(order.order_id);
+
+      // Create printable content and print directly
+      const printContent = createPrintContent(order, ingredients);
+      printIngredientsList(printContent);
+
+    } catch (error) {
+      console.error('Error preparing ingredients for print:', error);
+      toast.error('Failed to load ingredients for printing');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Function to create printable content
+  const createPrintContent = (order, ingredients) => {
+    const orderDetails = `
+      <div style="margin-bottom: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 8px;">
+        <h3 style="margin-bottom: 15px; color: #333; font-size: 18px;">Order Details</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+          <div>
+            <p style="margin: 5px 0; font-size: 14px;"><strong>Customer:</strong> ${order.customer}</p>
+            <p style="margin: 5px 0; font-size: 14px;"><strong>Cake:</strong> ${order.cake_name}</p>
+            <p style="margin: 5px 0; font-size: 14px;"><strong>Theme:</strong> ${order.theme}</p>
+          </div>
+          <div>
+            <p style="margin: 5px 0; font-size: 14px;"><strong>Quantity:</strong> ${order.quantity}</p>
+            <p style="margin: 5px 0; font-size: 14px;"><strong>Scheduled:</strong> ${formatDateTime(order.order_schedule)}</p>
+            <p style="margin: 5px 0; font-size: 14px;"><strong>Status:</strong> ${order.order_status}</p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const ingredientsTable = ingredients.length === 0 ?
+      '<p style="text-align: center; color: #666; padding: 40px;">No ingredients found for this order.</p>' :
+      `
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd;">
+          <thead>
+            <tr style="background-color: #AF524D; color: white;">
+              <th style="border: 1px solid #ddd; padding: 12px; text-align: left; font-weight: bold;">#</th>
+              <th style="border: 1px solid #ddd; padding: 12px; text-align: left; font-weight: bold;">Ingredient Name</th>
+              <th style="border: 1px solid #ddd; padding: 12px; text-align: left; font-weight: bold;">Quantity</th>
+              <th style="border: 1px solid #ddd; padding: 12px; text-align: left; font-weight: bold;">Unit</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${ingredients.map((ingredient, index) => `
+              <tr style="background-color: ${index % 2 === 0 ? '#f9f9f9' : 'white'};">
+                <td style="border: 1px solid #ddd; padding: 10px; font-size: 14px;">${index + 1}</td>
+                <td style="border: 1px solid #ddd; padding: 10px; font-size: 14px; font-weight: 500;">${ingredient.ingred_name}</td>
+                <td style="border: 1px solid #ddd; padding: 10px; font-size: 14px;">${ingredient.quantity}</td>
+                <td style="border: 1px solid #ddd; padding: 10px; font-size: 14px;">${ingredient.unit}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: white;">
+        <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #AF524D; padding-bottom: 20px;">
+          <h1 style="color: #381914; font-size: 28px; margin-bottom: 10px; font-weight: bold;">Bakery Bliss</h1>
+          <h2 style="color: #333; font-size: 22px; margin-bottom: 5px;">Ingredients List</h2>
+          <p style="color: #666; font-size: 16px;">Order #${order.order_id}</p>
+        </div>
+        
+        ${orderDetails}
+        
+        <div style="margin-bottom: 30px;">
+          <h3 style="color: #333; font-size: 18px; margin-bottom: 15px;">Required Ingredients</h3>
+          ${ingredientsTable}
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px;">
+          <p>Generated on ${new Date().toLocaleString()}</p>
+          <p>Bakery Bliss - Quality Cakes & Pastries</p>
+        </div>
+      </div>
+    `;
+  };
+
+  // Function to print the ingredients list
+  const printIngredientsList = (content) => {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Ingredients List - Order #${content.match(/Order #(\d+)/)?.[1] || ''}</title>
+          <style>
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none !important; }
+            }
+            body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+            table { page-break-inside: avoid; }
+            tr { page-break-inside: avoid; }
+          </style>
+        </head>
+        <body>
+          ${content}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
   };
 
   const formatPrice = (price) => {
@@ -1022,6 +1696,16 @@ const CakeOrders = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                           </svg>
                         </button>
+                        <button
+                          onClick={() => handlePrintIngredients(order)}
+                          className="p-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+                          disabled={saving}
+                          title="Print ingredients list"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                          </svg>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1106,12 +1790,24 @@ const CakeOrders = () => {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Order Schedule *
+                    Order Date *
                   </label>
                   <input
                     type="date"
                     value={editFormData.order_schedule}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, order_schedule: e.target.value }))}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Order Time
+                  </label>
+                  <input
+                    type="time"
+                    value={editFormData.order_time || ''}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, order_time: e.target.value }))}
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
                   />
                 </div>
@@ -1251,8 +1947,17 @@ const CakeOrders = () => {
 
                             updated.amount_paid = halfAmount.toString();
                             console.log('Updated amount_paid:', updated.amount_paid);
+                          } else if (newPaymentStatus === 'Fully Paid' && updated.total) {
+                            console.log('Setting amount paid to full total...');
+                            const totalAmount = typeof updated.total === 'string'
+                              ? parseFloat(updated.total.replace(/[P₱,]/g, ''))
+                              : parseFloat(updated.total);
+                            console.log('Total amount after parsing:', totalAmount);
+
+                            updated.amount_paid = totalAmount.toString();
+                            console.log('Updated amount_paid to full total:', updated.amount_paid);
                           } else {
-                            console.log('Not setting partial payment - newPaymentStatus:', newPaymentStatus, 'updated.total:', updated.total);
+                            console.log('Not setting payment amount - newPaymentStatus:', newPaymentStatus, 'updated.total:', updated.total);
                           }
 
                           console.log('Final updated form data:', updated);
@@ -1297,7 +2002,7 @@ const CakeOrders = () => {
                 disabled={saving}
                 className={`px-6 py-3 rounded-xl font-medium transition-all duration-200 ${saving
                   ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                  : 'bg-[#AF524D] text-white over:bg-[#8B3A3A] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
                   }`}
               >
                 {saving ? (
@@ -1497,6 +2202,7 @@ const CakeOrders = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };
