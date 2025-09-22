@@ -703,6 +703,31 @@ const Assets = () => {
                     </div>
                   </label>
                 </div>
+
+                {/* Show upload status when file is selected or when saving */}
+                {(showAddModal ? newAsset.file : editFormData.file) && (
+                  <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      {saving ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+                          <p className="text-sm text-green-700 font-medium">
+                            Uploading new image...
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <p className="text-sm text-green-700 font-medium">
+                            New image selected
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
