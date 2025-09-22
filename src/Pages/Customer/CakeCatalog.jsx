@@ -576,7 +576,7 @@ const CakeCatalog = () => {
             payment_method: "Cash", // Default to Cash for now
             amount_paid: 0, // Default to 0.00 for new orders
             total: totalPrice, // Total price the customer needs to pay
-            payment_date: new Date().toISOString().split('T')[0],
+            // payment_date: new Date().toISOString().split('T')[0],
             payment_status: "Unpaid", // Default to Unpaid
             receipt: null, // No receipt uploaded yet
             order_id: orderData.order_id

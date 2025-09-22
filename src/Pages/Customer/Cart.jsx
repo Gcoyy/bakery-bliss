@@ -12,11 +12,11 @@ const Cart = () => {
     const [activeTab, setActiveTab] = useState('toPay'); // 'toPay', 'toReceive', 'completed', or 'cancelled'
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [orderLoading, setOrderLoading] = useState(false);
-    const [showPaymentModal, setShowPaymentModal] = useState(false);
-    const [selectedOrder, setSelectedOrder] = useState(null);
-    const [receiptFile, setReceiptFile] = useState(null);
-    const [uploading, setUploading] = useState(false);
+    // const [orderLoading, setOrderLoading] = useState(false);
+    // const [showPaymentModal, setShowPaymentModal] = useState(false);
+    // const [selectedOrder, setSelectedOrder] = useState(null);
+    // const [receiptFile, setReceiptFile] = useState(null);
+    // const [uploading, setUploading] = useState(false);
     const [cancellingOrder, setCancellingOrder] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [orderToCancel, setOrderToCancel] = useState(null);
@@ -342,29 +342,29 @@ const Cart = () => {
 
 
     // Open payment modal
-    const openPaymentModal = (order) => {
-        setSelectedOrder(order);
-        setShowPaymentModal(true);
-        setReceiptFile(null);
-    };
+    // const openPaymentModal = (order) => {
+    //     setSelectedOrder(order);
+    //     setShowPaymentModal(true);
+    //     setReceiptFile(null);
+    // };
 
     // Handle file selection
-    const handleFileChange = (event) => {
-        const file = event.target.files[0];
-        if (file) {
-            // Check file type
-            if (!file.type.startsWith('image/')) {
-                toast.error('Please select an image file');
-                return;
-            }
-            // Check file size (5MB limit)
-            if (file.size > 5 * 1024 * 1024) {
-                toast.error('File size must be less than 5MB');
-                return;
-            }
-            setReceiptFile(file);
-        }
-    };
+    // const handleFileChange = (event) => {
+    //     const file = event.target.files[0];
+    //     if (file) {
+    //         // Check file type
+    //         if (!file.type.startsWith('image/')) {
+    //             toast.error('Please select an image file');
+    //             return;
+    //         }
+    //         // Check file size (5MB limit)
+    //         if (file.size > 5 * 1024 * 1024) {
+    //             toast.error('File size must be less than 5MB');
+    //             return;
+    //         }
+    //         setReceiptFile(file);
+    //     }
+    // };
 
     // Open cancel confirmation modal
     const openCancelModal = (order) => {
@@ -539,66 +539,66 @@ const Cart = () => {
     };
 
     // Upload receipt and update payment
-    const uploadReceipt = async () => {
-        if (!receiptFile) {
-            toast.error('Please select a receipt image');
-            return;
-        }
+    // const uploadReceipt = async () => {
+    //     if (!receiptFile) {
+    //         toast.error('Please select a receipt image');
+    //         return;
+    //     }
 
-        if (!selectedOrder) {
-            toast.error('No order selected');
-            return;
-        }
+    //     if (!selectedOrder) {
+    //         toast.error('No order selected');
+    //         return;
+    //     }
 
-        setUploading(true);
-        try {
-            // Upload file to Supabase Storage
-            const fileName = `receipts/${selectedOrder.order_id}_${Date.now()}.${receiptFile.name.split('.').pop()}`;
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('receipts')
-                .upload(fileName, receiptFile);
+    //     setUploading(true);
+    //     try {
+    //         // Upload file to Supabase Storage
+    //         const fileName = `receipts/${selectedOrder.order_id}_${Date.now()}.${receiptFile.name.split('.').pop()}`;
+    //         const { data: uploadData, error: uploadError } = await supabase.storage
+    //             .from('receipts')
+    //             .upload(fileName, receiptFile);
 
-            if (uploadError) {
-                console.error('Error uploading file:', uploadError);
-                toast.error('Failed to upload receipt');
-                return;
-            }
+    //         if (uploadError) {
+    //             console.error('Error uploading file:', uploadError);
+    //             toast.error('Failed to upload receipt');
+    //             return;
+    //         }
 
-            // Get the public URL
-            const { data: urlData } = supabase.storage
-                .from('receipts')
-                .getPublicUrl(fileName);
+    //         // Get the public URL
+    //         const { data: urlData } = supabase.storage
+    //             .from('receipts')
+    //             .getPublicUrl(fileName);
 
-            // Update payment record with receipt URL
-            const { error: updateError } = await supabase
-                .from('PAYMENT')
-                .update({
-                    receipt: urlData.publicUrl,
-                    payment_status: 'Paid',
-                    payment_date: new Date().toISOString().split('T')[0]
-                })
-                .eq('order_id', selectedOrder.order_id);
+    //         // Update payment record with receipt URL
+    //         const { error: updateError } = await supabase
+    //             .from('PAYMENT')
+    //             .update({
+    //                 receipt: urlData.publicUrl,
+    //                 payment_status: 'Paid',
+    //                 payment_date: new Date().toISOString().split('T')[0]
+    //             })
+    //             .eq('order_id', selectedOrder.order_id);
 
-            if (updateError) {
-                console.error('Error updating payment:', updateError);
-                toast.error('Failed to update payment status');
-                return;
-            }
+    //         if (updateError) {
+    //             console.error('Error updating payment:', updateError);
+    //             toast.error('Failed to update payment status');
+    //             return;
+    //         }
 
-            toast.success('Receipt uploaded successfully!');
-            setShowPaymentModal(false);
-            setSelectedOrder(null);
-            setReceiptFile(null);
+    //         toast.success('Receipt uploaded successfully!');
+    //         setShowPaymentModal(false);
+    //         setSelectedOrder(null);
+    //         setReceiptFile(null);
 
-            // Refresh orders
-            fetchOrders();
-        } catch (error) {
-            console.error('Error processing payment:', error);
-            toast.error('Failed to process payment');
-        } finally {
-            setUploading(false);
-        }
-    };
+    //         // Refresh orders
+    //         fetchOrders();
+    //     } catch (error) {
+    //         console.error('Error processing payment:', error);
+    //         toast.error('Failed to process payment');
+    //     } finally {
+    //         setUploading(false);
+    //     }
+    // };
 
 
 
@@ -812,7 +812,7 @@ const Cart = () => {
                                                                 {cancellingOrder ? 'Cancelling...' : 'Cancel Order'}
                                                             </button>
                                                         )}
-                                                        <button
+                                                        {/* <button
                                                             onClick={() => openPaymentModal(order)}
                                                             disabled={orderLoading}
                                                             className={`py-3 px-6 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center gap-2 ${orderLoading
@@ -824,7 +824,7 @@ const Cart = () => {
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                                                             </svg>
                                                             Pay Now
-                                                        </button>
+                                                        </button> */}
                                                     </div>
                                                 </div>
                                             </div>
@@ -1133,7 +1133,7 @@ const Cart = () => {
 
 
             {/* Payment Modal */}
-            {
+            {/* {
                 showPaymentModal && selectedOrder && (
                     <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
@@ -1229,7 +1229,7 @@ const Cart = () => {
                                 >
                                     Cancel
                                 </button>
-                                <button
+                                {/* <button
                                     onClick={uploadReceipt}
                                     disabled={!receiptFile || uploading}
                                     className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${!receiptFile || uploading
@@ -1238,12 +1238,12 @@ const Cart = () => {
                                         }`}
                                 >
                                     {uploading ? 'Uploading...' : 'Upload Receipt'}
-                                </button>
-                            </div>
+                                </button> */}
+            {/* </div>
                         </div>
                     </div>
                 )
-            }
+            } */}
 
             {/* Cancel Order Reason Modal */}
             {showReasonModal && orderToCancel && (
