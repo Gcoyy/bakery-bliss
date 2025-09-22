@@ -920,13 +920,18 @@ const RecipeManagement = () => {
                             <div className="flex space-x-3">
                                 <button
                                     onClick={confirmDeleteCakeIngredient}
-                                    className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl"
+                                    disabled={saving}
+                                    className={`flex-1 py-3 rounded-xl font-semibold transition-all duration-200 ${saving
+                                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                        : 'bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl'
+                                        }`}
                                 >
-                                    Remove from Recipe
+                                    {saving ? 'Removing...' : 'Remove from Recipe'}
                                 </button>
                                 <button
                                     onClick={() => setShowDeleteCakeIngredient(false)}
                                     className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-3 rounded-xl font-semibold transition-all duration-200"
+                                    disabled={saving}
                                 >
                                     Cancel
                                 </button>
