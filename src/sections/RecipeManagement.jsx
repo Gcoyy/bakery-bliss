@@ -43,8 +43,7 @@ const RecipeManagement = () => {
     const [cakeIngredientFormData, setCakeIngredientFormData] = useState({
         cake_id: '',
         ingred_id: '',
-        quantity: '',
-        unit: 'pcs'
+        quantity: ''
     });
 
     // Selected items for editing/deleting
@@ -533,7 +532,7 @@ const RecipeManagement = () => {
                                                 <div className="border-t pt-3">
                                                     <h4 className="font-medium text-sm text-gray-900 mb-2">Recipe Ingredients:</h4>
                                                     {getCakeIngredients(cake.cake_id).length > 0 ? (
-                                                        <div className="space-y-1">
+                                                        <div className={`space-y-1 ${getCakeIngredients(cake.cake_id).length > 3 ? 'max-h-24 overflow-y-auto pr-2' : ''}`}>
                                                             {getCakeIngredients(cake.cake_id).map((ci) => (
                                                                 <div key={ci.ci_id} className="flex justify-between items-center text-sm">
                                                                     <span className="text-gray-700">
@@ -962,46 +961,26 @@ const RecipeManagement = () => {
                                         required
                                     >
                                         <option value="">Select ingredient</option>
-                                        {ingredients.map((ingredient) => (
-                                            <option key={ingredient.ingred_id} value={ingredient.ingred_id}>
-                                                {ingredient.ingred_name} ({ingredient.unit})
-                                            </option>
-                                        ))}
+                                        {ingredients
+                                            .sort((a, b) => a.ingred_name.localeCompare(b.ingred_name))
+                                            .map((ingredient) => (
+                                                <option key={ingredient.ingred_id} value={ingredient.ingred_id}>
+                                                    {ingredient.ingred_name} ({ingredient.unit})
+                                                </option>
+                                            ))}
                                     </select>
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity</label>
-                                        <input
-                                            type="number"
-                                            step="0.1"
-                                            placeholder="0.0"
-                                            value={cakeIngredientFormData.quantity}
-                                            onChange={(e) => setCakeIngredientFormData({ ...cakeIngredientFormData, quantity: e.target.value })}
-                                            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Unit</label>
-                                        <select
-                                            value={cakeIngredientFormData.unit}
-                                            onChange={(e) => setCakeIngredientFormData({ ...cakeIngredientFormData, unit: e.target.value })}
-                                            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
-                                            required
-                                        >
-                                            <option value="pcs">Pieces</option>
-                                            <option value="kg">Kilograms</option>
-                                            <option value="g">Grams</option>
-                                            <option value="lbs">Pounds</option>
-                                            <option value="oz">Ounces</option>
-                                            <option value="L">Liters</option>
-                                            <option value="ml">Milliliters</option>
-                                            <option value="cups">Cups</option>
-                                            <option value="tbsp">Tablespoons</option>
-                                            <option value="tsp">Teaspoons</option>
-                                        </select>
-                                    </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity</label>
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        placeholder="0.0"
+                                        value={cakeIngredientFormData.quantity}
+                                        onChange={(e) => setCakeIngredientFormData({ ...cakeIngredientFormData, quantity: e.target.value })}
+                                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#AF524D] focus:border-[#AF524D] transition-all duration-200"
+                                        required
+                                    />
                                 </div>
                                 <div className="flex space-x-3 pt-4">
                                     <button
