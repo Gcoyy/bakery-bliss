@@ -272,8 +272,14 @@ const Assets = () => {
   const handleSaveAsset = async () => {
     const formData = showAddModal ? newAsset : editFormData;
 
-    if (!formData.src || !formData.type) {
-      toast.error('Please fill in all required fields');
+    if (!formData.type) {
+      toast.error('Please select an asset type');
+      return;
+    }
+
+    // For new assets, file is required
+    if (showAddModal && !formData.file) {
+      toast.error('Please select an image file');
       return;
     }
 
@@ -283,36 +289,96 @@ const Assets = () => {
       // Get the file from the state
       const file = formData.file;
 
-      if (!file) {
-        toast.error('Please select an image file');
-        return;
-      }
-
-      // Generate unique filename and path
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const folderName = getFolderName(formData.type);
-      const filePath = folderName !== 'misc' ? `${folderName}/${fileName}` : fileName;
-
-      // Upload file to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('asset')
-        .upload(filePath, file);
-
-      if (uploadError) {
-        console.error('Storage upload error:', uploadError);
-        toast.error('Failed to upload image to storage');
-        return;
-      }
-
       if (assetToEdit) {
         // Update existing asset
+        let updateData = {
+          type: formData.type
+        };
+
+        // Check if type changed and no new file was uploaded
+        const typeChanged = assetToEdit.type !== formData.type;
+        const hasNewFile = !!file;
+
+        if (typeChanged && !hasNewFile) {
+          // Move existing file to new folder
+          const oldFolderName = getFolderName(assetToEdit.type);
+          const newFolderName = getFolderName(formData.type);
+
+          // Extract filename from current src
+          let currentFileName = assetToEdit.src;
+          if (currentFileName.includes('/')) {
+            currentFileName = currentFileName.split('/').pop();
+          }
+
+          const oldPath = oldFolderName !== 'misc' ? `${oldFolderName}/${currentFileName}` : currentFileName;
+          const newPath = newFolderName !== 'misc' ? `${newFolderName}/${currentFileName}` : currentFileName;
+
+          // Copy file to new location
+          const { data: copyData, error: copyError } = await supabase.storage
+            .from('asset')
+            .copy(oldPath, newPath);
+
+          if (copyError) {
+            console.error('Storage copy error:', copyError);
+            toast.error('Failed to move asset to new folder');
+            return;
+          }
+
+          // Delete old file
+          const { error: deleteError } = await supabase.storage
+            .from('asset')
+            .remove([oldPath]);
+
+          if (deleteError) {
+            console.error('Storage delete error:', deleteError);
+            // Don't fail the operation, just log the error
+            console.warn('Failed to delete old file, but copy was successful');
+          }
+
+          updateData.src = newPath;
+        } else if (hasNewFile) {
+          // Upload new file
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+          const folderName = getFolderName(formData.type);
+          const filePath = folderName !== 'misc' ? `${folderName}/${fileName}` : fileName;
+
+          // Upload file to Supabase Storage
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('asset')
+            .upload(filePath, file);
+
+          if (uploadError) {
+            console.error('Storage upload error:', uploadError);
+            toast.error('Failed to upload image to storage');
+            return;
+          }
+
+          // Delete old file if it exists and is different from new file
+          if (assetToEdit.src && assetToEdit.src !== filePath) {
+            const oldFolderName = getFolderName(assetToEdit.type);
+            let oldFileName = assetToEdit.src;
+            if (oldFileName.includes('/')) {
+              oldFileName = oldFileName.split('/').pop();
+            }
+            const oldPath = oldFolderName !== 'misc' ? `${oldFolderName}/${oldFileName}` : oldFileName;
+
+            const { error: deleteError } = await supabase.storage
+              .from('asset')
+              .remove([oldPath]);
+
+            if (deleteError) {
+              console.error('Storage delete error:', deleteError);
+              // Don't fail the operation, just log the error
+            }
+          }
+
+          updateData.src = filePath;
+        }
+
         const { error } = await supabase
           .from('ASSET')
-          .update({
-            src: filePath,
-            type: formData.type
-          })
+          .update(updateData)
           .eq('asset_id', assetToEdit.asset_id);
 
         if (error) {
@@ -324,7 +390,25 @@ const Assets = () => {
         toast.success('Asset updated successfully');
         setShowEditModal(false);
       } else {
-        // Create new asset
+        // Create new asset - file is required for new assets
+
+        // Generate unique filename and path
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const folderName = getFolderName(formData.type);
+        const filePath = folderName !== 'misc' ? `${folderName}/${fileName}` : fileName;
+
+        // Upload file to Supabase Storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('asset')
+          .upload(filePath, file);
+
+        if (uploadError) {
+          console.error('Storage upload error:', uploadError);
+          toast.error('Failed to upload image to storage');
+          return;
+        }
+
         const { error } = await supabase
           .from('ASSET')
           .insert({
@@ -555,8 +639,37 @@ const Assets = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Upload Image *
+                  {showEditModal ? 'Current Image' : 'Upload Image'} {showEditModal ? '(Optional)' : '*'}
                 </label>
+
+                {/* Show current image in edit mode */}
+                {showEditModal && assetToEdit?.src_url && (
+                  <div className="mb-4">
+                    <div className="w-full h-48 rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-50 flex items-center justify-center">
+                      <img
+                        src={assetToEdit.src_url}
+                        alt="Current asset"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                      <div className="w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
+                        <div className="text-center">
+                          <svg className="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <p className="text-sm text-gray-500">Failed to load image</p>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      Current image - upload a new file below to replace it
+                    </p>
+                  </div>
+                )}
+
                 <div className="relative">
                   <input
                     type="file"
@@ -583,21 +696,13 @@ const Assets = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
                       <p className="mb-2 text-sm text-gray-500 group-hover:text-[#AF524D] transition-colors">
-                        <span className="font-semibold">Click to upload</span>
+                        <span className="font-semibold">
+                          {showEditModal ? 'Click to upload new image' : 'Click to upload'}
+                        </span>
                       </p>
                     </div>
                   </label>
                 </div>
-                {(showAddModal ? newAsset.src : editFormData.src) && (
-                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-sm text-green-700">
-                      <span className="font-medium">Selected file:</span>
-                      <span className="ml-1 truncate block max-w-full">
-                        {showAddModal ? newAsset.src : editFormData.src}
-                      </span>
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
 

@@ -665,7 +665,8 @@ const CakeCustomization = () => {
                 // Fetch assets from ASSET table
                 const { data: assetData, error: assetError } = await supabase
                     .from("ASSET")
-                    .select("*");
+                    .select("*")
+                    .order('asset_id');
 
                 if (assetError) {
                     toast.error("Failed to load assets");
