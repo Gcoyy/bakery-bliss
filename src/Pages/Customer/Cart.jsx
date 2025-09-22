@@ -190,6 +190,8 @@ const Cart = () => {
 
                 // Refresh orders after auto-cancellation
                 fetchOrders();
+                // Notify other components (e.g., Header) to refresh counts
+                try { window.dispatchEvent(new Event('orderUpdated')); } catch (e) { }
             }
         } catch (error) {
             console.error('Error in auto-cancel function:', error);
@@ -417,42 +419,31 @@ const Cart = () => {
     // Send cancellation email to admin using EmailJS
     const sendCancellationEmail = async (order, reason) => {
         try {
-            // Get admin email from ADMIN table
-            const { data: adminData, error: adminError } = await supabase
-                .from('ADMIN')
-                .select('email')
-                .limit(1)
-                .single();
+            const adminEmail = 'dejesus.connie@gmail.com';
 
-            if (adminError || !adminData) {
-                console.error('Error fetching admin email:', adminError);
-                return;
-            }
+            // // Create cancellation record in database for admin to see
+            // const { error: cancellationError } = await supabase
+            //     .from('ORDER_CANCELLATIONS')
+            //     .insert({
+            //         order_id: order.order_id,
+            //         customer_email: session.user.email,
+            //         cake_name: order.CAKE ? order.CAKE.name : 'Custom Cake Design',
+            //         total_price: order.total_price,
+            //         order_date: order.order_date,
+            //         delivery_date: order.order_schedule,
+            //         delivery_method: order.delivery_method,
+            //         cancellation_reason: reason,
+            //         created_at: new Date().toISOString()
+            //     });
 
-            // Create cancellation record in database for admin to see
-            const { error: cancellationError } = await supabase
-                .from('ORDER_CANCELLATIONS')
-                .insert({
-                    order_id: order.order_id,
-                    customer_email: session.user.email,
-                    cake_name: order.CAKE ? order.CAKE.name : 'Custom Cake Design',
-                    total_price: order.total_price,
-                    order_date: order.order_date,
-                    delivery_date: order.order_schedule,
-                    delivery_method: order.delivery_method,
-                    cancellation_reason: reason,
-                    admin_email: adminData.email,
-                    created_at: new Date().toISOString()
-                });
-
-            if (cancellationError) {
-                console.error('Error creating cancellation record:', cancellationError);
-                // Don't fail the cancellation if record creation fails
-            }
+            // if (cancellationError) {
+            //     console.error('Error creating cancellation record:', cancellationError);
+            //     // Don't fail the cancellation if record creation fails
+            // }
 
             // Send email using EmailJS (same as Contact Us)
             const emailParams = {
-                to_email: adminData.email,
+                to_email: adminEmail,
                 from_name: 'Bakery Bliss Customer',
                 from_email: session.user.email,
                 subject: `Order Cancellation - #${order.order_id} - ${order.CAKE ? order.CAKE.name : 'Custom Cake Design'}`,
@@ -467,17 +458,20 @@ const Cart = () => {
                 message: `Order #${order.order_id} has been cancelled by the customer.\n\nOrder Details:\n- Cake: ${order.CAKE ? order.CAKE.name : 'Custom Cake Design'}\n- Total Price: ₱${order.total_price.toLocaleString()}\n- Order Date: ${new Date(order.order_schedule).toLocaleDateString()}\n- Delivery Date: ${new Date(order.order_schedule).toLocaleDateString()}\n- Delivery Method: ${order.delivery_method}\n\nCancellation Reason:\n"${reason}"\n\nCustomer Email: ${session.user.email}`
             };
 
-            const result = await emailjs.send(
-                'service_qjrk6rs', // EmailJS service ID
-                'template_1b8rn3c', // EmailJS template ID for order cancellations
-                emailParams,
-                'bkqhQ7VXGwKuEjz_G' // EmailJS public key
-            );
-
-            if (result.status === 200) {
-                console.log('Cancellation email sent successfully');
-            } else {
-                console.error('Failed to send cancellation email');
+            try {
+                const result = await emailjs.send(
+                    'service_qjrk6rs',
+                    'template_1b8rn3c',
+                    emailParams,
+                    'bkqhQ7VXGwKuEjz_G'
+                );
+                if (result?.status === 200) {
+                    console.log('Cancellation email sent successfully');
+                } else {
+                    console.error('Failed to send cancellation email', result);
+                }
+            } catch (emailError) {
+                console.error('EmailJS send error:', emailError);
             }
         } catch (error) {
             console.error('Error in sendCancellationEmail:', error);
@@ -530,6 +524,8 @@ const Cart = () => {
 
             // Refresh orders
             fetchOrders();
+            // Notify other components (e.g., Header) to refresh counts
+            try { window.dispatchEvent(new Event('orderUpdated')); } catch (e) { }
         } catch (error) {
             console.error('Error cancelling order:', error);
             toast.error('Failed to cancel order. Please try again.');

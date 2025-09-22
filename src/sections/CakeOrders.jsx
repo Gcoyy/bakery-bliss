@@ -402,7 +402,7 @@ const CakeOrders = () => {
       total: payment?.total ?? (isCustomCake ? 1500 : (cake?.price ?? 0)),
       payment_method: payment?.payment_method || 'Cash',
       payment_status: payment?.payment_status || 'Unpaid',
-      payment_date: payment?.payment_date || order.order_date || '',
+      payment_date: payment?.payment_date || '',
       // Receipt information
       receipt: payment?.receipt || null,
       receipt_url: payment?.receipt || null,
@@ -1375,7 +1375,10 @@ const CakeOrders = () => {
         // Update existing payment record
         const { error: updateError } = await supabase
           .from('PAYMENT')
-          .update({ receipt: fileName })
+          .update({
+            receipt: fileName,
+            payment_date: (() => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().split('T')[0]; })()
+          })
           .eq('payment_id', existingPayment.payment_id);
 
         if (updateError) {
@@ -1390,7 +1393,7 @@ const CakeOrders = () => {
           .insert({
             payment_method: 'Cash',
             amount_paid: 'P0', // Will be updated when payment details are known
-            payment_date: new Date().toISOString().split('T')[0],
+            payment_date: (() => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().split('T')[0]; })(),
             payment_status: 'Pending',
             receipt: fileName,
             order_id: orderId

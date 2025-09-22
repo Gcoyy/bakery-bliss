@@ -604,6 +604,9 @@ const CakeCatalog = () => {
         },
       });
 
+      // Notify other components (e.g., Header) to refresh counts
+      try { window.dispatchEvent(new Event('orderUpdated')); } catch (e) { }
+
       // Advance to success step (step 3)
       setCurrentStep(3);
 
@@ -1705,7 +1708,8 @@ const CakeCatalog = () => {
                     </div>
                     <h4 className="font-bold text-green-800 text-2xl mb-3">Thank you for your order!</h4>
                     <p className="text-green-700 text-lg mb-6">
-                      Your order has been successfully placed and will be processed shortly.
+                      Your order has been successfully placed and will be processed shortly. <br /><br />
+                      <b>Please contact Connie de Café to finalize your order.</b>
                     </p>
 
                     {/* Order Details */}

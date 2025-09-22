@@ -1813,7 +1813,7 @@ const CakeCustomization = () => {
                 payment_method: "Cash",
                 amount_paid: 0, // Default to 0.00 for new orders
                 total: totalPrice, // Total price the customer needs to pay
-                payment_date: new Date().toISOString().split('T')[0],
+                // payment_date: new Date().toISOString().split('T')[0],
                 payment_status: "Unpaid",
                 receipt: null,
                 order_id: orderData.order_id
@@ -2053,7 +2053,7 @@ const CakeCustomization = () => {
 
                     {/* Text Controls */}
                     {selectedTool === 'text' && (
-                        <div className="p-6 border-b border-[#AF524D]/20 relative z-10">
+                        <div className="p-6 border-b border-[#AF524D]/20 relative z-10 max-h-[60vh] overflow-y-auto custom-scrollbar">
                             <div className="bg-gradient-to-r from-[#AF524D] to-[#8B3A3A] rounded-2xl p-4 text-center relative overflow-hidden mb-6">
                                 <div className="absolute inset-0 bg-black/10"></div>
                                 <div className="relative z-10">
@@ -3211,7 +3211,8 @@ const CakeCustomization = () => {
                                         </div>
                                         <h4 className="font-bold text-green-800 text-2xl mb-3">Thank you for your order!</h4>
                                         <p className="text-green-700 text-lg mb-6">
-                                            Your order has been successfully placed and will be processed shortly.
+                                            Your order has been successfully placed and will be processed shortly. <br /><br />
+                                            <b>Please contact Connie de Café to finalize your order.</b>
                                         </p>
 
                                         {/* Order Details */}
@@ -3222,7 +3223,7 @@ const CakeCustomization = () => {
                                                     <span className="text-green-800 font-semibold">1 cake</span>
                                                 </div>
                                                 <div className="flex justify-between items-center">
-                                                    <span className="text-green-800 font-medium">Total Base Amount:</span>
+                                                    <span className="text-green-800 font-medium">Total Estimated Amount:</span>
                                                     <span className="text-green-800 font-semibold text-lg">₱1,500</span>
                                                 </div>
                                             </div>
