@@ -2470,7 +2470,7 @@ const CakeCustomization = () => {
                                 <label className="block text-sm font-semibold text-[#492220] mb-3">Size</label>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-[#492220]/70">Width (inches ×2)</label>
+                                        <label className="block text-xs font-medium text-[#492220]/70">Width (inches)</label>
                                         <input
                                             type="number"
                                             step="0.1"
@@ -2488,7 +2488,7 @@ const CakeCustomization = () => {
                                         />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-[#492220]/70">Height (inches ×2)</label>
+                                        <label className="block text-xs font-medium text-[#492220]/70">Height (inches)</label>
                                         <input
                                             type="number"
                                             step="0.1"
