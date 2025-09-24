@@ -74,7 +74,7 @@ const getOrdersCountForDate = async (date) => {
     const { data: orders, error } = await supabase
       .from('ORDER')
       .select('order_id')
-      .like('order_schedule', `${date}%`);
+      .eq('order_schedule', date);
 
     if (error) {
       return 0;

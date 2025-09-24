@@ -359,14 +359,14 @@ const CakeOrders = () => {
     const isCustomCake = customCake && !cakeOrder;
 
     // Debug logging for custom cakes
-    if (isCustomCake) {
-      console.log('Custom cake order detected:', {
-        order_id: order.order_id,
-        payment_total: payment?.total,
-        isCustomCake: isCustomCake,
-        calculated_total: payment?.total ?? 1500
-      });
-    }
+    // if (isCustomCake) {
+    //   console.log('Custom cake order detected:', {
+    //     order_id: order.order_id,
+    //     payment_total: payment?.total,
+    //     isCustomCake: isCustomCake,
+    //     calculated_total: payment?.total ?? 1500
+    //   });
+    // }
 
     return {
       order_id: order.order_id,

@@ -48,8 +48,8 @@ const AdminSidebar = () => {
         return;
       }
 
-      console.log('Low inventory data:', lowInventoryData);
-      console.log('Low inventory count:', lowInventoryData?.length || 0);
+      // console.log('Low inventory data:', lowInventoryData);
+      // console.log('Low inventory count:', lowInventoryData?.length || 0);
 
       setLowInventoryCount(lowInventoryData?.length || 0);
     } catch (error) {

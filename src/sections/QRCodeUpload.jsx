@@ -127,8 +127,8 @@ const QRCodeUpload = () => {
                 toast.error('No QR code found in image');
             }
         } catch (error) {
-            console.error('Error scanning QR code:', error);
-            toast.error('Failed to scan QR code');
+            // console.error('Error scanning QR code:', error);
+            toast.error('Please provide a valid QR code');
         } finally {
             setScanning(false);
         }

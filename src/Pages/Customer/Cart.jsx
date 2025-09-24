@@ -281,11 +281,11 @@ const Cart = () => {
                                 publicUrl: (() => {
                                     const imagePath = cakeOrder.CAKE.cake_img;
                                     const publicUrl = getPublicImageUrl(imagePath);
-                                    console.log('Regular cake image processing:', {
-                                        cakeName: cakeOrder.CAKE.name,
-                                        originalPath: imagePath,
-                                        publicUrl: publicUrl
-                                    });
+                                    // console.log('Regular cake image processing:', {
+                                    //     cakeName: cakeOrder.CAKE.name,
+                                    //     originalPath: imagePath,
+                                    //     publicUrl: publicUrl
+                                    // });
                                     return publicUrl;
                                 })()
                             } : null,
@@ -300,11 +300,11 @@ const Cart = () => {
                     order['CUSTOM-CAKE'].forEach(customCake => {
                         // Get public URL for custom cake image
                         const customCakeUrl = supabase.storage.from('cust.cakes').getPublicUrl(customCake.cc_img).data.publicUrl;
-                        console.log('Custom cake image processing:', {
-                            ccId: customCake.cc_id,
-                            originalPath: customCake.cc_img,
-                            publicUrl: customCakeUrl
-                        });
+                        // console.log('Custom cake image processing:', {
+                        //     ccId: customCake.cc_id,
+                        //     originalPath: customCake.cc_img,
+                        //     publicUrl: customCakeUrl
+                        // });
 
                         // Get payment details from database
                         const payment = order.PAYMENT?.[0] || null;

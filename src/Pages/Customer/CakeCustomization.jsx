@@ -19,7 +19,7 @@ const loadFont = (fontFamily) => {
             Promise.all(loadPromises).then(() => {
                 // Verify the font is actually loaded
                 const isLoaded = document.fonts.check(`16px "${fontFamily}"`);
-                console.log(`Font ${fontFamily} loaded successfully:`, isLoaded);
+                // console.log(`Font ${fontFamily} loaded successfully:`, isLoaded);
                 if (!isLoaded) {
                     console.warn(`Font ${fontFamily} verification failed, but continuing...`);
                 }
@@ -32,7 +32,7 @@ const loadFont = (fontFamily) => {
             // Fallback: wait a bit for fonts to load from CSS
             setTimeout(() => {
                 const isLoaded = document.fonts.check(`16px "${fontFamily}"`);
-                console.log(`Font ${fontFamily} loaded via fallback:`, isLoaded);
+                // console.log(`Font ${fontFamily} loaded via fallback:`, isLoaded);
                 resolve();
             }, 1000);
         }
@@ -41,7 +41,7 @@ const loadFont = (fontFamily) => {
 
 const loadGoogleFonts = async () => {
     const fonts = ['Poppins', 'Abhaya Libre'];
-    console.log('Loading Google Fonts:', fonts);
+    // console.log('Loading Google Fonts:', fonts);
 
     // Load fonts with a delay between each to ensure proper loading
     for (const font of fonts) {
@@ -50,12 +50,12 @@ const loadGoogleFonts = async () => {
         await new Promise(resolve => setTimeout(resolve, 200));
     }
 
-    console.log('All Google Fonts loaded');
+    // console.log('All Google Fonts loaded');
 
     // Final verification
     fonts.forEach(font => {
         const isLoaded = document.fonts.check(`16px "${font}"`);
-        console.log(`Final verification - ${font}:`, isLoaded);
+        // console.log(`Final verification - ${font}:`, isLoaded);
     });
 };
 
@@ -2484,7 +2484,7 @@ const CakeCustomization = () => {
                                                 setObjectUpdateTrigger(prev => prev + 1);
                                             }}
                                             className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
-                                            placeholder="Width (in) ×2"
+                                            placeholder="Width (in)"
                                         />
                                     </div>
                                     <div className="space-y-1">
@@ -2502,7 +2502,7 @@ const CakeCustomization = () => {
                                                 setObjectUpdateTrigger(prev => prev + 1);
                                             }}
                                             className="w-full px-3 py-2 text-sm bg-white/70 border border-[#AF524D]/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AF524D]/30 focus:border-[#AF524D] transition-all duration-200 text-[#492220] placeholder-[#492220]/50"
-                                            placeholder="Height (in) ×2"
+                                            placeholder="Height (in)"
                                         />
                                     </div>
                                 </div>
