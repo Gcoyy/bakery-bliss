@@ -196,7 +196,7 @@ const Inventory = () => {
             ingred_name
           )
         `)
-        .lt('stock_quantity', 10);
+        .lt('stock_quantity', 500);
 
       if (lowStockError) {
         console.error('Error checking low stock:', lowStockError);
@@ -645,15 +645,15 @@ const Inventory = () => {
                 </tr>
               ) : (
                 filteredRows.map((item) => (
-                  <tr key={item.inven_id} className={`hover:bg-gray-100 transition-colors duration-200 ${item.quantity < 10 ? 'bg-red-50 border-l-4 border-red-400' : ''}`}>
+                  <tr key={item.inven_id} className={`hover:bg-gray-100 transition-colors duration-200 ${item.quantity < 500 ? 'bg-red-50 border-l-4 border-red-400' : ''}`}>
                     {/* Item Name Column */}
                     <td className="py-6 px-6 align-top">
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                          <h4 className={`font-semibold text-base ${item.quantity < 10 ? 'text-red-600' : 'text-gray-900'}`}>
+                          <h4 className={`font-semibold text-base ${item.quantity < 500 ? 'text-red-600' : 'text-gray-900'}`}>
                             {item.name}
                           </h4>
-                          {item.quantity < 10 && (
+                          {item.quantity < 500 && (
                             <div className="flex items-center gap-1">
                               <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -668,10 +668,10 @@ const Inventory = () => {
                     <td className="py-6 px-6 align-top">
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                          <span className={`text-lg font-semibold ${item.quantity < 10 ? 'text-red-600' : 'text-gray-900'}`}>
+                          <span className={`text-lg font-semibold ${item.quantity <500 ? 'text-red-600' : 'text-gray-900'}`}>
                             {item.quantity}
                           </span>
-                          {item.quantity < 10 && (
+                          {item.quantity < 500 && (
                             <div className="flex items-center gap-1">
                               <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z" />
