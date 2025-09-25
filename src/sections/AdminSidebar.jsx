@@ -40,7 +40,7 @@ const AdminSidebar = () => {
       const { data: lowInventoryData, error: dataError } = await supabase
         .from('INVENTORY')
         .select('inven_id, stock_quantity, ingred_id, INGREDIENT(ingred_name)')
-        .lt('stock_quantity', 10);
+        .lt('stock_quantity', 500);
 
       if (dataError) {
         console.error('Error fetching low inventory data:', dataError);
