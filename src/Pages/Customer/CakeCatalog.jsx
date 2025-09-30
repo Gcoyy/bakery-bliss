@@ -950,7 +950,7 @@ const CakeCatalog = () => {
                   >
                     <div className="relative mb-4 overflow-hidden rounded-xl">
                       <img
-                        src={cake.publicUrl || "/saved-cake.png"}
+                        src={cake.publicUrl}
                         alt={cake.name}
                         className="w-full h-48 object-contain group-hover:scale-110 transition-transform duration-300"
                         onError={(e) => {

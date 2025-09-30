@@ -21,6 +21,7 @@ const Cart = () => {
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [orderToCancel, setOrderToCancel] = useState(null);
     const [cancelReason, setCancelReason] = useState('');
+    const [cancelChoices, setCancelChoices] = useState('');
     const [showReasonModal, setShowReasonModal] = useState(false);
     const [showQRModal, setShowQRModal] = useState(false);
     const [selectedOrderForQR, setSelectedOrderForQR] = useState(null);
@@ -531,6 +532,17 @@ const Cart = () => {
             toast.error('Failed to cancel order. Please try again.');
         } finally {
             setCancellingOrder(false);
+        }
+    };
+
+    const handleReasonChange = (e) => {
+        const value = e.target.value;
+        setCancelChoices(value);
+
+        if (value === "Others") {
+            setCancelReason("");
+        } else {
+            setCancelReason(value);
         }
     };
 
@@ -1271,17 +1283,32 @@ const Cart = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
                                     Please provide a reason for cancellation *
                                 </label>
-                                <textarea
-                                    value={cancelReason}
-                                    onChange={(e) => setCancelReason(e.target.value)}
-                                    placeholder="Please explain why you need to cancel this order..."
-                                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
-                                    rows={4}
-                                    maxLength={500}
-                                />
-                                <p className="text-xs text-gray-500 mt-1 text-right">
-                                    {cancelReason.length}/500 characters
-                                </p>
+                                <select
+                                        value={cancelChoices}
+                                        onChange={handleReasonChange}
+                                        className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 mb-4"
+                                    >
+                                        <option value="">Select a reason</option>
+                                        <option value="Found a better price elsewhere">Found a better price elsewhere</option>
+                                        <option value="Order placed by mistake">Order placed by mistake</option>
+                                        <option value="Others">Others</option>
+                                    </select>
+
+                                {cancelChoices === "Others" && (
+                                    <>
+                                        <textarea
+                                            value={cancelReason}
+                                            onChange={(e) => setCancelReason(e.target.value)}
+                                            placeholder="Please explain why you need to cancel this order..."
+                                            className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                                            rows={4}
+                                            maxLength={500}
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1 text-right">
+                                            {cancelReason.length}/500 characters
+                                        </p>
+                                    </>
+                                )}
                             </div>
 
                             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
