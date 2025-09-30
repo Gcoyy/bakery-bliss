@@ -1256,7 +1256,7 @@ const Cart = () => {
             {/* Cancel Order Reason Modal */}
             {showReasonModal && orderToCancel && (
                 <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
                         <div className="text-center">
                             <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
                                 <svg className="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
