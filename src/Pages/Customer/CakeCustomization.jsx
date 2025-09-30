@@ -398,6 +398,8 @@ const CakeCustomization = () => {
 
         const dateString = formatDateForCalendar(date);
         setOrderDate(dateString);
+        // After selecting a date, check blocked dates and compute available time slots
+        checkBlockedDates(dateString);
         setShowCustomCalendar(false);
     };
 
@@ -410,19 +412,155 @@ const CakeCustomization = () => {
     };
 
     // Fetch blocked dates
-    const fetchBlockedDates = async () => {
+    // const fetchBlockedDates = async () => {
+    //     try {
+    //         const { data, error } = await supabase
+    //             .from('BLOCKED-TIMES')
+    //             .select('*')
+    //             .eq('whole_day', true);
+
+    //         if (error) {
+    //             return;
+    //         }
+
+    //         setBlockedDates(data || []);
+    //     } catch (error) {
+    //     }
+    // };
+
+    const checkBlockedDates = async (date, time = null) => {
+        if (!date) return;
+
+        setIsCheckingBlockedDates(true);
         try {
-            const { data, error } = await supabase
+            const { isBlocked, reason } = await isDateTimeBlocked(date, time);
+            setIsDateBlocked(isBlocked);
+            setBlockedReason(reason || '');
+
+            if (!isBlocked) {
+                // Get available time slots for the selected date
+                const timeSlots = await getAvailableTimeSlots(date);
+                setAvailableTimeSlots(timeSlots);
+            } else {
+                setAvailableTimeSlots([]);
+            }
+        } catch (error) {
+            setIsDateBlocked(false);
+            setBlockedReason('');
+            setAvailableTimeSlots([]);
+        } finally {
+            setIsCheckingBlockedDates(false);
+        }
+    };
+
+    // Blocked dates utility functions
+    const isDateTimeBlocked = async (date, time = null) => {
+        try {
+            const { data: blockedDates, error } = await supabase
                 .from('BLOCKED-TIMES')
                 .select('*')
-                .eq('whole_day', true);
+                .eq('start_date', date);
 
             if (error) {
-                return;
+                return { isBlocked: false, reason: null };
             }
 
-            setBlockedDates(data || []);
+            if (!blockedDates || blockedDates.length === 0) {
+                return { isBlocked: false, reason: null };
+            }
+
+            // If no time specified, check if any full day blocks exist
+            if (!time) {
+                const fullDayBlock = blockedDates.find(blocked => blocked.whole_day);
+                if (fullDayBlock) {
+                    return { isBlocked: true, reason: fullDayBlock.reason };
+                }
+                return { isBlocked: false, reason: null };
+            }
+
+            // Check time-specific blocks
+            const timeStr = time.includes(':') ? time : `${time}:00`;
+
+            for (const blocked of blockedDates) {
+                // Skip full day blocks for time checks
+                if (blocked.whole_day) {
+                    continue;
+                }
+
+                // Check if the time falls within the blocked time range
+                if (blocked.start_time && blocked.end_time) {
+                    const blockedStart = blocked.start_time;
+                    const blockedEnd = blocked.end_time;
+
+                    // Handle time comparison
+                    if (timeStr >= blockedStart && timeStr <= blockedEnd) {
+                        return { isBlocked: true, reason: blocked.reason };
+                    }
+                }
+            }
+
+            return { isBlocked: false, reason: null };
         } catch (error) {
+            return { isBlocked: false, reason: null };
+        }
+    };
+
+    // Generate available time slots for a given date, excluding blocked ranges and enforcing capacity
+    const getAvailableTimeSlots = async (date) => {
+        try {
+            // If date has reached maximum orders (4 per day), no time slots
+            const ordersCount = await getOrdersCountForDate(date);
+            if (ordersCount >= 4) {
+                return [];
+            }
+
+            const { data: blockedDatesForDay, error } = await supabase
+                .from('BLOCKED-TIMES')
+                .select('*')
+                .eq('start_date', date);
+
+            if (error) {
+                return [];
+            }
+
+            const blockedForDate = blockedDatesForDay || [];
+
+            // If full day blocked, return empty
+            const fullDayBlock = blockedForDate.find(b => b.whole_day);
+            if (fullDayBlock) {
+                return [];
+            }
+
+            // Normalize times to HH:mm
+            const normalizeTime = (t) => {
+                if (!t) return null;
+                const [h, m] = t.split(':');
+                return `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
+            };
+
+            const blockedRanges = blockedForDate
+                .filter(b => b.start_time && b.end_time)
+                .map(b => ({ start: normalizeTime(b.start_time), end: normalizeTime(b.end_time) }));
+
+            const timeSlots = [];
+            for (let hour = 8; hour <= 20; hour++) {
+                for (let minute = 0; minute < 60; minute += 30) {
+                    // Skip 20:30; only allow up to 20:00
+                    if (hour === 20 && minute === 30) {
+                        break;
+                    }
+
+                    const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                    const isBlocked = blockedRanges.some(r => timeStr >= r.start && timeStr <= r.end);
+                    if (!isBlocked) {
+                        timeSlots.push(timeStr);
+                    }
+                }
+            }
+
+            return timeSlots;
+        } catch (e) {
+            return [];
         }
     };
 
@@ -913,11 +1051,11 @@ const CakeCustomization = () => {
     }, []);
 
     // Fetch blocked dates on component mount
-    useEffect(() => {
-        fetchBlockedDates();
-        // Generate available time slots
-        setAvailableTimeSlots(generateTimeSlots());
-    }, []);
+    // useEffect(() => {
+    //     fetchBlockedDates();
+    //     // Generate available time slots
+    //     setAvailableTimeSlots(generateTimeSlots());
+    // }, []);
 
     // Check capacity when month changes
     useEffect(() => {
@@ -1651,6 +1789,10 @@ const CakeCustomization = () => {
                 toast.error('Please enter a delivery address');
                 return;
             }
+            if (isDateBlocked || isDateBlockedForCalendar(orderDate)) {
+                toast.error('The selected date is not available for orders');
+                return;
+            }
         }
 
         if (currentStep < 3) {
@@ -1684,6 +1826,12 @@ const CakeCustomization = () => {
                 setIsPlacingOrder(false);
                 return;
             }
+        }
+
+        // Check if the selected date is blocked
+        if (isDateBlockedForCalendar(orderDate)) {
+            toast.error('The selected date is not available for orders');
+            return;
         }
 
         setIsPlacingOrder(true);

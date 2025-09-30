@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import { UserAuth } from '../../context/AuthContext';
+import { time } from 'framer-motion';
 
 const getPublicImageUrl = (path) => {
   if (!path) return null;
@@ -114,26 +115,39 @@ const getAvailableTimeSlots = async (date) => {
 
     // Generate time slots (every 30 minutes from 8 AM to 8 PM)
     const timeSlots = [];
-    for (let hour = 8; hour <= 20; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        // Skip 8:30 PM - only allow up to 8:00 PM
-        if (hour === 20 && minute === 30) {
-          break;
-        }
+    // Helper to normalize all times into HH:mm format
+  function normalizeTime(time) {
+    const [h, m] = time.split(':');
+    return `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
+  }
 
-        const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+  // Normalize all blocked times once
+  const blockedRanges = blockedForDate.map(b => ({
+    start: normalizeTime(b.start_time),
+    end: normalizeTime(b.end_time),
+  }));
 
-        // Check if this time slot is blocked
-        const isBlocked = blockedForDate.some(blocked => {
-          if (!blocked.start_time || !blocked.end_time) return false;
-          return timeStr >= blocked.start_time && timeStr <= blocked.end_time;
-        });
+  for (let hour = 8; hour <= 20; hour++) {
+    for (let minute = 0; minute < 60; minute += 30) {
+      // Skip 8:30 PM - only allow up to 8:00 PM
+      if (hour === 20 && minute === 30) {
+        break;
+      }
 
-        if (!isBlocked) {
-          timeSlots.push(timeStr);
-        }
+      const timeStr = `${hour.toString().padStart(2, '0')}:${minute
+        .toString()
+        .padStart(2, '0')}`;
+
+      // Check if this time falls inside ANY blocked range
+      const isBlocked = blockedRanges.some(r => {
+        return timeStr >= r.start && timeStr <= r.end;
+      });
+
+      if (!isBlocked) {
+        timeSlots.push(timeStr);
       }
     }
+  }
 
     return timeSlots;
   } catch (error) {
