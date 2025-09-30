@@ -13,7 +13,7 @@ const Footer = () => {
 
       <div className="relative z-10">
         {/* Main footer content */}
-        <div className="max-w-7xl mx-auto px-8 py-12">
+        <div className="max-w-7xl mx-auto pt-8 pb-3 py-12">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {/* 1. Logo Section */}
             <div className="lg:col-span-1">
@@ -151,12 +151,12 @@ const Footer = () => {
           </div>
 
           {/* Bottom border */}
-          <div className="border-t border-[#AF524D]/20 mt-8 pt-6">
+          <div className="border-t border-[#AF524D]/20 mt-8 pt-3">
             <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-              <p className="text-[#E2D2A2] text-sm">
+              <p className="text-[#E2D2A2]/50 text-sm">
                 © 2025 Connie de Café. All rights reserved.
               </p>
-              <p className="text-[#E2D2A2] text-sm">
+              <p className="text-[#E2D2A2]/50 text-sm">
                 Made by <span className="text-[#AF524D] font-semibold">CCS students</span> in Silliman University
               </p>
             </div>
