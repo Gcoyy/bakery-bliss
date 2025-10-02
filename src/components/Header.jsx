@@ -114,7 +114,7 @@ const Header = () => {
                 { to: "/adminpage", label: "Dashboard" },
                 { to: "/qrcodeupload", label: "QR Code Upload" },
               ] : [
-                { to: "/", label: "Home" },
+                { to: "/home", label: "Home" },
                 { to: "/cakecustomization", label: "Cake Customization" },
                 { to: "/cakecatalog", label: "Cake Catalog" },
                 { to: "/aboutus", label: "About Us" },
