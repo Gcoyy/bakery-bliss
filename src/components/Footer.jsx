@@ -138,11 +138,11 @@ const Footer = () => {
               <div className="space-y-2">
                 <h4 className="text-[#F8E6B4] font-medium text-sm mb-2">Legal</h4>
                 <div className="space-y-1">
-                  <Link to="/terms" className="text-[#E2D2A2] hover:text-[#AF524D] transition-colors duration-200 text-sm">
+                  <Link to="/terms&conditions" className="text-[#E2D2A2] hover:text-[#AF524D] transition-colors duration-200 text-sm">
                     Terms & Conditions
                   </Link>
                   <br />
-                  <Link to="/privacy" className="text-[#E2D2A2] hover:text-[#AF524D] transition-colors duration-200 text-sm">
+                  <Link to="/privacypolicy" className="text-[#E2D2A2] hover:text-[#AF524D] transition-colors duration-200 text-sm">
                     Privacy Policy
                   </Link>
                 </div>

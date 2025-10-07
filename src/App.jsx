@@ -5,6 +5,8 @@ import { AnimatePresence } from "framer-motion";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import PageTransition from "./components/PageTransition";
+
+/* Customer Routes */
 import SignUp from "./Pages/Customer/SignUp";
 import Home from "./Pages/Customer/Home";
 import Login from "./Pages/Login";
@@ -17,7 +19,10 @@ import CakeCatalog from "./Pages/Customer/CakeCatalog";
 import RoleBasedRedirect from "./context/RoleBasedRedirect";
 import Cart from "./Pages/Customer/Cart";
 import CakeCustomization from "./Pages/Customer/CakeCustomization";
+import TermsConditions from "./Pages/Terms&Conditions";
+import PrivacyPolicy from "./Pages/PrivacyPolicy";
 
+/* Admin Routes */
 import Inventory from "./sections/Inventory";
 import Cakes from "./sections/Cakes";
 import CakeOrders from "./sections/CakeOrders";
@@ -54,6 +59,8 @@ function AppRoutes() {
         <Route path="/cakecatalog" element={<PageTransition><CakeCatalog /></PageTransition>} />
         <Route path="/cart" element={<PageTransition><Cart /></PageTransition>} />
         <Route path="/cakecustomization" element={<PageTransition><CakeCustomization /></PageTransition>} />
+        <Route path="/terms&conditions" element={<PageTransition><TermsConditions /></PageTransition>} />
+        <Route path="/privacypolicy" element={<PageTransition><PrivacyPolicy /></PageTransition>} />
 
         {/* Customer-only route */}
         <Route
