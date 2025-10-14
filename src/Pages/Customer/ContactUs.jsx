@@ -93,7 +93,7 @@ const ContactUs = () => {
   };
 
   return (
-    <section className="bg-[url('/AboutUs.png')] bg-cover bg-center w-full min-h-screen px-8 py-12 flex flex-col items-end justify-center space-y-6">
+    <section className="bg-[url('/ContactUs.png')] bg-cover bg-center w-full min-h-screen px-8 py-12 flex flex-col items-end justify-center space-y-6">
       <form onSubmit={handleSubmit} className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden w-full max-w-lg">
         {/* Header with gradient */}
         <div className="bg-gradient-to-r from-[#AF524D] to-[#DFAD56] px-8 py-6 text-center">
