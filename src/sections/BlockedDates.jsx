@@ -81,35 +81,63 @@ const BlockedDates = () => {
 
 
     const filterBlockedDates = () => {
-        if (!searchTerm.trim()) {
-            setFilteredDates(blockedDates);
+        const term = searchTerm.trim().toLowerCase();
+        if (!term) {
+            setFilteredDates(blockedDates.slice());
             return;
         }
 
         const filtered = blockedDates.filter(date => {
-            const searchLower = searchTerm.toLowerCase();
-
-            // Search in all fields including natural language date search
             const dateObj = new Date(date.start_date);
-            const dateStr = dateObj.toLocaleDateString('en-US');
-            const dateStrAlt = date.start_date;
-            const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-            const monthName = dateObj.toLocaleDateString('en-US', { month: 'long' });
-            const dayNumber = dateObj.getDate().toString();
-            const monthNumber = (dateObj.getMonth() + 1).toString();
-            const year = dateObj.getFullYear().toString();
-            const reason = date.reason.toLowerCase();
-            const timeRange = date.whole_day ? 'full day' : `${date.start_time}-${date.end_time}`;
+            const dateStr = dateObj.toLocaleDateString('en-US').toLowerCase();
+            const dateStrAlt = (date.start_date || '').toString().toLowerCase();
+            const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+            const monthName = dateObj.toLocaleDateString('en-US', { month: 'long' }).toLowerCase();
+            const dayNumber = (dateObj.getDate() || '').toString().toLowerCase();
+            const monthNumber = ((dateObj.getMonth() + 1) || '').toString().toLowerCase();
+            const year = (dateObj.getFullYear() || '').toString().toLowerCase();
+            const reason = (date.reason || '').toString().toLowerCase();
 
-            return dateStr.includes(searchLower) ||
-                dateStrAlt.includes(searchLower) ||
-                dayName.toLowerCase().includes(searchLower) ||
-                monthName.toLowerCase().includes(searchLower) ||
-                dayNumber.includes(searchLower) ||
-                monthNumber.includes(searchLower) ||
-                year.includes(searchLower) ||
-                reason.includes(searchLower) ||
-                timeRange.includes(searchLower);
+            // Time matching with token boundaries to avoid matching 1:00 in 11:00
+            let timeMatches = false;
+            if (date.whole_day) {
+                timeMatches = 'full day'.includes(term);
+            } else {
+                const st24 = (date.start_time || '').toString().toLowerCase();
+                const et24 = (date.end_time || '').toString().toLowerCase();
+                const st12 = (formatTime(date.start_time) || '').toString().toLowerCase();
+                const et12 = (formatTime(date.end_time) || '').toString().toLowerCase();
+
+                if (term.includes(':')) {
+                    const esc = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const re = new RegExp(`(^|\\D)${esc}(\\D|$)`);
+                    timeMatches = (
+                        re.test(st24) ||
+                        re.test(et24) ||
+                        re.test(st12) ||
+                        re.test(et12)
+                    );
+                } else {
+                    timeMatches = (
+                        st24.includes(term) ||
+                        et24.includes(term) ||
+                        st12.includes(term) ||
+                        et12.includes(term)
+                    );
+                }
+            }
+
+            return (
+                dateStr.includes(term) ||
+                dateStrAlt.includes(term) ||
+                dayName.includes(term) ||
+                monthName.includes(term) ||
+                dayNumber.includes(term) ||
+                monthNumber.includes(term) ||
+                year.includes(term) ||
+                reason.includes(term) ||
+                timeMatches
+            );
         });
 
         setFilteredDates(filtered);

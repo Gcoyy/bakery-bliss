@@ -117,19 +117,16 @@ const RecipeManagement = () => {
     };
 
     const filterCakes = () => {
-        if (!searchTerm.trim()) {
-            setFilteredCakes(cakes);
+        const term = searchTerm.trim().toLowerCase();
+        if (!term) {
+            setFilteredCakes(cakes.slice());
             return;
         }
 
         const filtered = cakes.filter(cake => {
-            const searchLower = searchTerm.toLowerCase();
-            return (
-                cake.name?.toLowerCase().includes(searchLower) ||
-                cake.theme?.toLowerCase().includes(searchLower) ||
-                cake.tier?.toString().toLowerCase().includes(searchLower) ||
-                cake.description?.toLowerCase().includes(searchLower)
-            );
+            const name = (cake.name || '').toString().toLowerCase();
+            const theme = (cake.theme || '').toString().toLowerCase();
+            return name.includes(term) || theme.includes(term);
         });
 
         setFilteredCakes(filtered);

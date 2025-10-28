@@ -77,15 +77,15 @@ const Cakes = () => {
   };
 
   const filterCakes = () => {
-    let filtered = rows;
+    let filtered = rows.slice();
 
     // Apply search filter
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase();
+    const term = searchTerm.trim().toLowerCase();
+    if (term) {
       filtered = filtered.filter(cake => {
-        return cake.name?.toLowerCase().includes(searchLower) ||
-          cake.theme?.toLowerCase().includes(searchLower) ||
-          cake.description?.toLowerCase().includes(searchLower);
+        const name = (cake.name || '').toString().toLowerCase();
+        const theme = (cake.theme || '').toString().toLowerCase();
+        return name.includes(term) || theme.includes(term);
       });
     }
 
@@ -272,6 +272,23 @@ const Cakes = () => {
 
     try {
       setSaving(true);
+
+      // Check if the cake is used in any existing orders
+      const { data: existingOrders, error: checkError } = await supabase
+      .from('ORDER_ITEMS')
+      .select('order_id')
+      .eq('cake_id', cakeToDelete.cake_id);
+
+      if (checkError) {
+      toast.error('There is an Order placed on this Cake.');
+      return;
+      }
+
+      // If there are any orders with this cake, prevent deletion
+      if (existingOrders.length > 0) {
+      toast.error('Cannot delete cake: it has existing orders');
+      return;
+      }
 
       // Delete from database first
       const { error: dbError } = await supabase
